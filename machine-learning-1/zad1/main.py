@@ -1,5 +1,6 @@
 # poczytać o reprezentacji macierzy rzadkich w komputerach - nie ma jednego sposobu prezentacji
 # policzyć częstość atrybutu, tabelka z funkcjami które policzą rozkłady brzegowe. czyli prawdopodobieńtwo łączne
+import math
 
 import pandas as pd
 import numpy as np
@@ -24,38 +25,65 @@ def freq(x, prob: bool = True) -> list:
 
 
 def freq2(x, y, prob: bool = True) -> list:
-    counts = {'x': {}, 'y': {}}
+    counts = {}
     uniques = {'x': [], 'y': []}
 
-    for index, val_x in enumerate(x):
-        val_y = y[index]
+    for x_val in x:
+        if x_val not in uniques['x']:
+            uniques['x'].append(x_val)
 
-        if val_x not in uniques['x']:
-            uniques['x'].append(val_x)
-        if val_y not in uniques['y']:
-            uniques['y'].append(val_y)
+        for y_val in y:
+            key = (x_val, y_val)
 
-        if val_x in counts['x'].keys():
-            counts['x'][val_x] += 1
-        else:
-            counts['x'][val_x] = 1
+            if key not in counts.keys():
+                counts[key] = 1
 
-        if val_y in counts['y'].keys():
-            counts['y'][val_y] += 1
-        else:
-            counts['y'][val_y] = 1
+                if y_val not in uniques['y']:
+                    uniques['y'].append(y_val)
+            else:
+                counts[key] += 1
 
-    second_returns = counts.copy()
-    if prob is True:
-        pass
-
-    return [x.unique(), y.unique(), ]
+    total = sum(counts.values())
+    return [uniques['x'], uniques['y'], counts if prob is False else {key: val / total for key, val in counts.items()}]
 
 
-def entropy(p):
-    pass
+def entropy(x, y=None):
+    if y is None:
+        uniques, probs = freq(x)
+    else:
+        uniques_x, uniques_y, probs = freq2(x, y)
+    return -sum(prob * math.log2(prob) for prob in probs.values())
+
+
+def infogain(x, y):
+    uniques_x, uniques_y, probs = freq2(x, y)
+    return entropy(x) + entropy(y) - entropy(x * y)
+
+
+def kappa(x, y):
+    return infogain(x, y) / entropy(y)
+
+
+def gini(x, y=None, condition: bool = False):
+    if y is None:
+        uniques, probs = freq(x)
+    else:
+        uniques_x, uniques_y, probs = freq2(x, y)
+
+    if condition is True and y is not None:
+        uniques, probs = freq(x)
+        gini_y = gini(y)
+        return sum(prob * gini_y for prob in probs.values())
+
+    return 1 - sum(prob ** 2 for prob in probs.values())
+
+
+def ginigain(x, y):
+    return gini(y) - gini(x, y, True)
 
 
 if __name__ == '__main__':
-    autos = pd.read_csv('autos.csv')
-    print(freq(autos['horsepower']))
+    autos = pd.read_csv('zoo.csv')
+    info_gains = {key: entropy(autos[key]) for key in autos.columns}
+    print(sorted(info_gains.items(), key=lambda x: x[1], reverse=True))
+
