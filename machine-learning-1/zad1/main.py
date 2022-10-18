@@ -4,9 +4,15 @@ import math
 
 import pandas as pd
 import numpy as np
+from sklearn.datasets import fetch_rcv1
+import time
+from scipy import sparse
 
 
 def freq(x, prob: bool = True) -> list:
+    if type(x) == sparse.csr.csr_matrix:
+        x = x.data
+
     counts = {}
     uniques = []
 
@@ -25,6 +31,11 @@ def freq(x, prob: bool = True) -> list:
 
 
 def freq2(x, y, prob: bool = True) -> list:
+    if type(x) == sparse.csr.csr_matrix:
+        x = x.data
+    if type(y) == sparse.csr.csr_matrix:
+        y = y.data
+
     counts = {}
     uniques = {'x': [], 'y': []}
 
@@ -47,30 +58,38 @@ def freq2(x, y, prob: bool = True) -> list:
     return [uniques['x'], uniques['y'], counts if prob is False else {key: val / total for key, val in counts.items()}]
 
 
-def entropy(x, y=None):
+def entropy(x, y=None, conditional_reverse: bool = False):
     if y is None:
         uniques, probs = freq(x)
     else:
         uniques_x, uniques_y, probs = freq2(x, y)
+
+        if conditional_reverse is True and y is not None:
+            uniques_x, probs_x = freq(x)
+            entropy_y = entropy(y)
+
+            return sum(prob * entropy_y for prob in probs_x.values())
+
     return -sum(prob * math.log2(prob) for prob in probs.values())
 
 
-def infogain(x, y):
-    uniques_x, uniques_y, probs = freq2(x, y)
-    return entropy(x) + entropy(y) - entropy(x * y)
+def infogain(x, y, reverse: bool = False):
+    if reverse is False:
+        return entropy(x) + entropy(y) - entropy(x * y)
+    return entropy(y) - entropy(x, y, conditional_reverse=True)
 
 
 def kappa(x, y):
     return infogain(x, y) / entropy(y)
 
 
-def gini(x, y=None, condition: bool = False):
+def gini(x, y=None, conditional_reverse: bool = False):
     if y is None:
         uniques, probs = freq(x)
     else:
         uniques_x, uniques_y, probs = freq2(x, y)
 
-    if condition is True and y is not None:
+    if conditional_reverse is True and y is not None:
         uniques, probs = freq(x)
         gini_y = gini(y)
         return sum(prob * gini_y for prob in probs.values())
@@ -86,4 +105,11 @@ if __name__ == '__main__':
     autos = pd.read_csv('zoo.csv')
     info_gains = {key: entropy(autos[key]) for key in autos.columns}
     print(sorted(info_gains.items(), key=lambda x: x[1], reverse=True))
+
+    rcv1 = fetch_rcv1()
+    X = rcv1['data']
+    Y = rcv1['target'][:, 87]
+
+    print(type(Y), Y.data)
+    print(type(Y[260, 0]), Y[260, 0])
 
