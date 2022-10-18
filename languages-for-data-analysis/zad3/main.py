@@ -70,16 +70,26 @@ def zad4():
     stop = 1
     x = np.linspace(-2, 2, 1000)
 
-    plt.figure()
-    plt.plot(x, f(x))
-    plt.plot(x, g(x))
-    plt.plot(x, h(x))
-    plt.show()
-
     xc = integrate.quad(f, start, stop)
     gc = integrate.quad(g, start, stop)
     hc = integrate.quad(h, start, stop)
     print(xc, gc, hc)
+
+    point1 = [-0.6, -0.6]
+    point2 = [0.5, 0.5]
+    point3 = [1, 0]
+    node = np.array([0, 0])
+
+    nodes = np.asarray([point1, point2, point3])
+    dist2 = np.sum((nodes - node) ** 2, axis=1)
+    print(f'x środka układu: {np.min(dist2)}')
+
+    plt.figure()
+    plt.grid()
+    plt.plot(x, f(x))
+    plt.plot(x, g(x))
+    plt.plot(x, h(x))
+    plt.show()
 
 
 def zad5():
