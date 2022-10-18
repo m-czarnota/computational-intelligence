@@ -1,33 +1,23 @@
-import math
 import numpy as np
 from scipy import integrate
 from scipy import optimize
-import numpy as np
 from scipy import cluster
 import matplotlib.pyplot as plt
 
 
 def zad1():
-    def func(t, y):
+    def func(p):
+        x, y, z, t = p
         return [
-            10 - y[0] * y[1],
-            20 - y[1] * y[2],
-            30 - y[2] * y[3],
-            20 - y[0] - y[1] - y[2] - y[3],
+            10 - x * y,
+            20 - y * z,
+            30 - z * t,
+            20 - x - y - z - t,
         ]
 
-    y0 = [1, -5]
-    result = integrate.solve_ivp(func, [0, 5], y0)
-
-    plt.figure()
-    plt.subplot(2, 2, 1)
-    plt.plot(result.t, result.y[0])
-
-    plt.subplot(2, 2, 2)
-    plt.plot(result.t, result.y[1])
-
-    plt.show()
-
+    solve = optimize.root(func, [1, 1, 1, 1])
+    x, y, z, t = solve.x
+    print(f'x={x}, y={y}, z={z}, t={t}')
 
 def zad2():
     def func(x, reverse: bool = False):
@@ -44,17 +34,18 @@ def zad2():
 
 def zad3():
     def func(x, reverse: bool = False):
-        result = -math.sqrt(4 - x[0] ** 2 - x[1] ** 2)
+        expression = 4 - x[0] ** 2 - x[1] ** 2
+        result = -np.sqrt(expression) if expression > 0 else 0
         return result if reverse is False else -result
 
     cons = (
         {'type': 'ineq', 'fun': lambda x: 4 - x[0] ** 2 - x[1] ** 2}
     )
 
-    solution = optimize.minimize(func, np.array([1, 1]), constraints=cons)
+    solution = optimize.minimize(func, np.array([0.5, 0.5]), constraints=cons)
     print('minimum', solution.x)
 
-    solution = optimize.minimize(func, np.array([0, 0]), args=[True], constraints=cons)
+    solution = optimize.minimize(func, np.array([0.5, 0.5]), args=[True], constraints=cons)
     print('maximum', solution.x)
 
 
@@ -66,7 +57,29 @@ def zad4():
 
     wyznaczyć pkt przecięcia - brzeg dolny i górny
     """
-    pass
+    def f(x):
+        return -x + 1
+
+    def g(x):
+        return x ** 2 - 1
+
+    def h(x):
+        return np.sin(x)
+
+    start = 0
+    stop = 1
+    x = np.linspace(-2, 2, 1000)
+
+    plt.figure()
+    plt.plot(x, f(x))
+    plt.plot(x, g(x))
+    plt.plot(x, h(x))
+    plt.show()
+
+    xc = integrate.quad(f, start, stop)
+    gc = integrate.quad(g, start, stop)
+    hc = integrate.quad(h, start, stop)
+    print(xc, gc, hc)
 
 
 def zad5():
@@ -96,4 +109,4 @@ def zad5():
 
 
 if __name__ == '__main__':
-    zad1()
+    zad4()
