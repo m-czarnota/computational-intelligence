@@ -24,7 +24,16 @@ IMAGES_FILEPATH = './images/'
 
 
 def generate_dim(n: int, gauss: bool = False):
-    second_dim = math.sqrt(n)
+    x_val = 0.5
+    coefficients = [np.random.rand() for i in range(n - 1)]
+    a0 = x_val - np.sum([coefficient * x_val for coefficient in coefficients])
+
+    x = np.random.rand(SAMPLE_COUNT, n)
+    y = np.array([coefficient * x[:, 0] + a0 for coefficient in coefficients][0])
+    y[y > x[:, 1]] = 1
+    y[y <= x[:, 1]] = 0
+
+    return x, y
 
 
 def get_truncated_normal(mean=0, sd=1, low=0, upp=10):
@@ -190,10 +199,11 @@ if __name__ == '__main__':
     dice_dims = (2, 3, 6, 10)
     chessboard_dims = (4, 9, 16, 25)
 
-    [X, Y] = generate_chessboard(25)
+    # [X, Y] = generate_chessboard(25)
+    [X, Y] = generate_dim(2)
 
     # plt.scatter(X[:, 0], X[:, 1], c=Y)
     # plt.show()
 
-    zad2(X, Y)
+    # zad2(X, Y)
 
