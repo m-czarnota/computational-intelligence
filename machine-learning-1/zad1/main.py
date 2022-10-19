@@ -27,6 +27,9 @@ def freq(x, prob: bool = True) -> list:
         counts[val] = 1
 
     total = sum(counts.values())
+    if type(x) == sparse.csr.csr_matrix:
+        total += x.shape[0] - len(x.data)
+
     return [uniques, counts if prob is False else {key: val / total for key, val in counts.items()}]
 
 
@@ -55,6 +58,9 @@ def freq2(x, y, prob: bool = True) -> list:
                 counts[key] += 1
 
     total = sum(counts.values())
+    if type(x) == sparse.csr.csr_matrix and type(y) == sparse.csr.csr_matrix:
+        total += (x.shape[0] - len(x.data)) + (y.shape[0] - len(y.data))
+
     return [uniques['x'], uniques['y'], counts if prob is False else {key: val / total for key, val in counts.items()}]
 
 
@@ -75,7 +81,9 @@ def entropy(x, y=None, conditional_reverse: bool = False):
 
 def infogain(x, y, reverse: bool = False):
     if reverse is False:
-        return entropy(x) + entropy(y) - entropy(x * y)
+        uniques_x, uniques_y, probs = freq2(x, y)
+        return entropy(x) + entropy(y) - entropy(probs)
+
     return entropy(y) - entropy(x, y, conditional_reverse=True)
 
 
@@ -110,6 +118,6 @@ if __name__ == '__main__':
     X = rcv1['data']
     Y = rcv1['target'][:, 87]
 
-    print(type(Y), Y.data)
+    print(type(Y), len(Y.data), len(Y.indices), Y.shape)
     print(type(Y[260, 0]), Y[260, 0])
 

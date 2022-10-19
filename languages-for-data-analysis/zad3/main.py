@@ -60,6 +60,9 @@ def zad4():
     def f(x):
         return -x + 1
 
+    def f2(x):
+        return f(x) * x
+
     def g(x):
         return x ** 2 - 1
 
@@ -75,14 +78,7 @@ def zad4():
     hc = integrate.quad(h, start, stop)
     print(xc, gc, hc)
 
-    point1 = [-0.6, -0.6]
-    point2 = [0.5, 0.5]
-    point3 = [1, 0]
-    node = np.array([0, 0])
-
-    nodes = np.asarray([point1, point2, point3])
-    dist2 = np.sum((nodes - node) ** 2, axis=1)
-    print(f'x środka układu: {np.min(dist2)}')
+    print('x środka układu:', integrate.quad(f2, start, stop)[0])
 
     plt.figure()
     plt.grid()
