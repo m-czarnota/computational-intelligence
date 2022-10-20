@@ -60,6 +60,9 @@ def zad4():
     def f(x):
         return -x + 1
 
+    def f2(x):
+        return f(x) * x
+
     def g(x):
         return x ** 2 - 1
 
@@ -70,16 +73,19 @@ def zad4():
     stop = 1
     x = np.linspace(-2, 2, 1000)
 
-    plt.figure()
-    plt.plot(x, f(x))
-    plt.plot(x, g(x))
-    plt.plot(x, h(x))
-    plt.show()
-
     xc = integrate.quad(f, start, stop)
     gc = integrate.quad(g, start, stop)
     hc = integrate.quad(h, start, stop)
     print(xc, gc, hc)
+
+    print('x środka układu:', integrate.quad(f2, start, stop)[0])
+
+    plt.figure()
+    plt.grid()
+    plt.plot(x, f(x))
+    plt.plot(x, g(x))
+    plt.plot(x, h(x))
+    plt.show()
 
 
 def zad5():
