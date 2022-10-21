@@ -1,7 +1,8 @@
 import cv2
 import numpy as np
 import time
-from numba import jit, uint8, int32
+from numba import jit, uint8, int32, int16
+import pickle
 
 DATA_FOLDER = './data/'
 CLFS_FOLDER = './clasifiers/'
@@ -57,7 +58,8 @@ def haar_coordinates(s: int, p: int, h_indexes: np.array):
         pos_j = 0.5 + p_j * shift_h - 0.5 * f_h
         pos_k = 0.5 + p_k * shift_w - 0.5 * f_w
 
-        single_hcoords = [np.array([pos_j, pos_k, f_h, f_w])]  # background of whole feature (useful later for feature computation)
+        single_hcoords = [
+            np.array([pos_j, pos_k, f_h, f_w])]  # background of whole feature (useful later for feature computation)
         for white in HAAR_TEMPLATED[t]:
             single_hcoords.append(white * np.array([f_h, f_w, f_h, f_w]) + np.array([pos_j, pos_k, 0.0, 0.0]))
         h_coords.append(np.array(single_hcoords))
@@ -100,7 +102,7 @@ def integral_image_cumsum(image_gray: np.array):
 
 
 @jit(int32[:, :](uint8[:, :]), nopython=True, cache=True)
-def integral_image_numba(image_gray: np.array):
+def integral_image(image_gray: np.array):
     h, w = image_gray.shape
     ii = np.zeros(image_gray.shape, dtype='int32')
     ii_row = np.zeros(w, dtype='int32')
@@ -133,11 +135,280 @@ def integral_image_delta(integral_image: np.array, j1: int, k1: int, j2: int, k2
     return delta
 
 
+@jit(int16(int32[:, :], int32, int32, int32[:, :]), nopython=True, cache=True)
+def haar_feature(integral_image: np.array, j0: int, k0: int, haar_coords_window):
+    """
+    (j0, k0) - window top left corner
+    haar_coords_window - coordinated of single feature (in pixels) / współrzędne cechy haara w pikselach
+
+    można by trzymać wartość cechy haara w double, ale to będzie rozrzutność pamięciowa, bo double ma 8 bitów
+    double będzie miał nikły wpłw na wartość klasyfikatora
+    """
+    j, k, h, w = haar_coords_window[0]  # whole feature background - feature tutaj to cecha, cecha haara
+    total_area = h * w
+    j1 = j0 + j
+    k1 = k0 + k
+
+    total_intensity = integral_image_delta(integral_image, j1, k1, j1 + h - 1,
+                                           k1 + w - 1)  # suma jasności pikseli pod całym ty prostokątem, który pokrywa cecha
+    white_area = 0  # pole białych jest 0
+    white_intensity = 0  # intensywność białych jest 0
+
+    for white in haar_coords_window[1:]:
+        j, k, h, w = white
+        white_area += h * w  # szerokość * wysokość
+
+        j1 = j0 + j
+        k1 = k0 + k
+        white_intensity += integral_image_delta(integral_image, j1, k1, j1 + h - 1, k1 + w - 1)
+
+    black_area = total_area - white_area  # powierzchnia pod czarnymi
+    black_intensity = total_intensity - white_intensity
+
+    return np.int16(white_intensity / white_area - black_intensity / black_area)
+
+
+def haar_features(integral_image: np.array, j0: int, k0: int, haar_coords_window_subset, n, feature_indexes=None):
+    """
+    haar_coords_window_subset - przy generowaniu wielu ten subset nie będzie podzbiorem
+    jak będziemy generowali zbiór uczący to feature_indexes będzie None
+    """
+    features = np.zeros(n, dtype='int16')
+    if feature_indexes is None:
+        feature_indexes = np.arange(n)
+
+    for i, feature_index in enumerate(feature_indexes):
+        features[feature_index] = haar_feature(integral_image, j0, k0, haar_coords_window_subset[i])
+
+    return features
+
+
+def iou(coords_1, coords_2):
+    j11, k11, j12, k12 = coords_1
+    j21, k21, j22, k22 = coords_2
+    dj = np.min([j12, j22]) - np.max([j21, j11]) + 1
+    if dj <= 0:
+        return 0.0
+    dk = np.min([k12, k22]) - np.max([k21, k11]) + 1
+    if dk <= 0:
+        return 0.0
+    i = dj * dk
+    u = (j12 - j11 + 1) * (k12 - k11 + 1) + (j22 - j21 + 1) * (k22 - k21 + 1) - i
+    return i / u
+
+
+def fddb_read_single_fold(path_root, path_fold_relative, n_negs_per_img, hfs_coords: np.array, n: int, verbose: bool = False, fold_title: str = ""):
+    np.random.seed(1)
+
+    # settings for sampling negatives
+    w_relative_min = 0.1
+    w_relative_max = 0.35
+    w_relative_spread = w_relative_max - w_relative_min
+    neg_max_iou = 0.5
+
+    X_list = []
+    y_list = []
+
+    f = open(path_root + path_fold_relative, "r")
+    line = f.readline().strip()
+    n_img = 0
+    n_faces = 0
+    counter = 0
+
+    while line != "":
+        file_name = path_root + line + ".jpg"
+        log_line = str(counter) + ": [" + file_name + "]"
+        if fold_title != "":
+            log_line += " [" + fold_title + "]"
+        print(log_line)
+        counter += 1
+
+        i0 = cv2.imread(file_name)
+        i = cv2.cvtColor(i0, cv2.COLOR_BGR2GRAY)
+        ii = integral_image(i)
+        n_img += 1
+        n_img_faces = int(f.readline())
+        img_faces_coords = []
+
+        for z in range(n_img_faces):
+            r_major, r_minor, angle, center_x, center_y, dummy_one = list(map(float, f.readline().strip().split()))
+            w = int(1.5 * r_major)
+            j0 = int(center_y - w / 2)
+            k0 = int(center_x - w / 2)
+            img_face_coords = np.array([j0, k0, j0 + w - 1, k0 + w - 1])
+
+            if j0 < 0 or k0 < 0 or j0 + w - 1 >= i.shape[0] or k0 + w - 1 >= i.shape[1]:
+                if verbose:
+                    print("WINDOW " + str(img_face_coords) + " OUT OF BOUNDS. [IGNORED]")
+                continue
+
+            if w / ii.shape[0] < 0.075:  # min relative size of positive window (smaller may lead to division by zero when white regions in haar features have no area)
+                if verbose:
+                    print("WINDOW " + str(img_face_coords) + " TOO SMALL. [IGNORED]")
+                continue
+
+            n_faces += 1
+            img_faces_coords.append(img_face_coords)
+
+            if verbose:
+                p1 = (k0, j0)
+                p2 = (k0 + w - 1, j0 + w - 1)
+                cv2.rectangle(i0, p1, p2, (0, 0, 255), 1)
+                cv2.imshow("FDDB", i0)
+
+            hfs_coords_window = w * hfs_coords
+            hfs_coords_window = np.array(list(map(lambda npa: npa.astype("int32"), hfs_coords_window)), dtype='object')
+            feats = haar_features(ii, j0, k0, hfs_coords_window, n)
+
+            if verbose:
+                print("POSITIVE WINDOW " + str(img_face_coords) + " ACCEPTED. FEATURES: " + str(feats) + ".")
+                cv2.waitKey(0)
+
+            X_list.append(feats)
+            y_list.append(1)
+
+        for z in range(n_negs_per_img):
+            while True:
+                w = int((np.random.random() * w_relative_spread + w_relative_min) * i.shape[0])
+                j0 = int(np.random.random() * (i.shape[0] - w + 1))
+                k0 = int(np.random.random() * (i.shape[1] - w + 1))
+
+                patch = np.array([j0, k0, j0 + w - 1, k0 + w - 1])
+                ious = list(map(lambda ifc: iou(patch, ifc), img_faces_coords))
+                max_iou = max(ious) if len(ious) > 0 else 0.0
+
+                if max_iou < neg_max_iou:
+                    hfs_coords_window = w * hfs_coords
+                    hfs_coords_window = np.array(list(map(lambda npa: npa.astype("int32"), hfs_coords_window)), dtype='object')
+                    feats = haar_features(ii, j0, k0, hfs_coords_window, n)
+
+                    X_list.append(feats)
+                    y_list.append(-1)
+
+                    if verbose:
+                        print("NEGATIVE WINDOW " + str(patch) + " ACCEPTED. FEATURES: " + str(feats) + ".")
+                        p1 = (k0, j0)
+                        p2 = (k0 + w - 1, j0 + w - 1)
+                        cv2.rectangle(i0, p1, p2, (0, 255, 0), 1)
+
+                    break
+                else:
+                    if verbose:
+                        print("NEGATIVE WINDOW " + str(patch) + " IGNORED. [MAX IOU: " + str(max_iou) + "]")
+                        p1 = (k0, j0)
+                        p2 = (k0 + w - 1, j0 + w - 1)
+                        cv2.rectangle(i0, p1, p2, (255, 255, 0), 1)
+
+        if verbose:
+            cv2.imshow("FDDB", i0)
+            cv2.waitKey(0)
+
+        line = f.readline().strip()
+
+    print("IMAGES IN THIS FOLD: " + str(n_img) + ".")
+    print("ACCEPTED FACES IN THIS FOLD: " + str(n_faces) + ".")
+
+    f.close()
+    X = np.stack(X_list)
+    y = np.stack(y_list)
+
+    return X, y
+
+
+def fddb_data(path_fddb_root, hfs_coords, n_negs_per_img, n):
+    n_negs_per_img = n_negs_per_img
+
+    fold_paths_train = [
+        "FDDB-folds/FDDB-fold-01-ellipseList.txt",
+        "FDDB-folds/FDDB-fold-02-ellipseList.txt",
+        "FDDB-folds/FDDB-fold-03-ellipseList.txt",
+        "FDDB-folds/FDDB-fold-04-ellipseList.txt",
+        "FDDB-folds/FDDB-fold-05-ellipseList.txt",
+        "FDDB-folds/FDDB-fold-06-ellipseList.txt",
+        "FDDB-folds/FDDB-fold-07-ellipseList.txt",
+        "FDDB-folds/FDDB-fold-08-ellipseList.txt",
+        "FDDB-folds/FDDB-fold-09-ellipseList.txt"
+    ]
+    X_train = None
+    y_train = None
+    
+    for index, fold_path in enumerate(fold_paths_train):
+        print("PROCESSING TRAIN FOLD " + str(index + 1) + "/" + str(len(fold_paths_train)) + "...")
+        t1 = time.time()
+        X, y = fddb_read_single_fold(path_fddb_root, fold_path, n_negs_per_img, hfs_coords, n, verbose=False,
+                                     fold_title=fold_path)
+        t2 = time.time()
+        print("PROCESSING TRAIN FOLD " + str(index + 1) + "/" + str(len(fold_paths_train)) + " DONE IN " + str(
+            t2 - t1) + " s.")
+        print("---")
+        
+        if X_train is None:
+            X_train = X
+            y_train = y
+        else:
+            X_train = np.r_[X_train, X]
+            y_train = np.r_[y_train, y]
+            
+    fold_paths_test = [
+        "FDDB-folds/FDDB-fold-10-ellipseList.txt",
+    ]
+    X_test = None
+    y_test = None
+    
+    for index, fold_path in enumerate(fold_paths_test):
+        print("PROCESSING TEST FOLD " + str(index + 1) + "/" + str(len(fold_paths_test)) + "...")
+        t1 = time.time()
+        X, y = fddb_read_single_fold(path_fddb_root, fold_path, n_negs_per_img, hfs_coords, n, fold_title=fold_path)
+        t2 = time.time()
+        print("PROCESSING TEST FOLD " + str(index + 1) + "/" + str(len(fold_paths_test)) + " DONE IN " + str(
+            t2 - t1) + " s.")
+        print("---")
+        
+        if X_test is None:
+            X_test = X
+            y_test = y
+        else:
+            X_test = np.r_[X_test, X]
+            y_test = np.r_[y_test, y]
+            
+    print("TRAIN DATA SHAPE: " + str(X_train.shape))
+    print("TEST DATA SHAPE: " + str(X_test.shape))
+    
+    return X_train, y_train, X_test, y_test
+
+
+def pickle_all(fname, some_list):
+    print("PICKLE...")
+    t1 = time.time()
+    f = open(fname, "wb+")
+    pickle.dump(some_list, f, protocol=pickle.HIGHEST_PROTOCOL)
+    f.close()
+    t2 = time.time()
+    print("PICKLE DONE. [TIME: " + str(t2 - t1) + " s.]")
+
+
+def unpickle_all(fname):
+    print("UNPICKLE...")
+    t1 = time.time()
+    f = open(fname, "rb")
+    some_list = pickle.load(f)
+    f.close()
+    t2 = time.time()
+    print("UNPICKLE DONE. [TIME: " + str(t2 - t1) + " s.]")
+    
+    return some_list
+
+
 if __name__ == '__main__':
-    s = 2
-    p = 2
+    s = 3
+    p = 4
+    n = len(HAAR_TEMPLATED) * s ** 2 * (2 * p - 1) ** 2
+    DATA_NAME = f'face_n_{n}_s_{s}_p_{p}.bin'
+    print(f's: {s}, p: {p}, n: {n}')
+
     h_indexes = haar_indexes(s, p)
-    print(len(h_indexes))
+    haar_coords = haar_coordinates(s, p, h_indexes)
+    print(len(h_indexes), haar_coords.shape[0])
 
     i = cv2.imread(DATA_FOLDER + "000000.jpg")
 
@@ -146,34 +417,38 @@ if __name__ == '__main__':
 
     j0, k0 = 160, 280
     h = w = 128
-    ii = integral_image_numba(i_gray)
+    ii = integral_image(i_gray)
     repetitions = 10000
 
     # measure of calculate time
-    t1 = time.time()
-    for repetition in range(repetitions):
-        sum1 = integral_image_delta(ii, j0, k0, j0 + h - 1, k0 + w - 1)
-    t2 = time.time()
-    print(f'INTEGRAL_IMAGE_DELTA: {(t2 - t1) / repetitions} s')
-
-    t1 = time.time()
-    for repetition in range(repetitions):
-        sum2 = np.sum(i_gray[j0: j0 + h, k0: k0 + w])
-    t2 = time.time()
-    print(f'STANDART NP>NUM TIME: {(t2 - t1) / repetitions} s')
-    print(f'{sum1} vs {sum2}')
+    # t1 = time.time()
+    # for repetition in range(repetitions):
+    #     sum1 = integral_image_delta(ii, j0, k0, j0 + h - 1, k0 + w - 1)
+    # t2 = time.time()
+    # print(f'INTEGRAL_IMAGE_DELTA: {(t2 - t1) / repetitions} s')
+    #
+    # t1 = time.time()
+    # for repetition in range(repetitions):
+    #     sum2 = np.sum(i_gray[j0: j0 + h, k0: k0 + w])
+    # t2 = time.time()
+    # print(f'STANDARD NP>NUM TIME: {(t2 - t1) / repetitions} s')
+    # print(f'{sum1} vs {sum2}')
 
     # my own rectangle on image
-    # j0, k0 = 160, 280
-    # h = w = 64
-    # cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (0, 0, 255), 1)
-    # cv2.imshow("TEST IMAGE", i_resized)
-    # cv2.waitKey()
-    #
-    # h_coords = haar_coordinates(s, p, h_indexes)
+    j0, k0 = 160, 280
+    h = w = 64
+    cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (0, 0, 255), 1)
+    cv2.imshow("TEST IMAGE", i_resized)
+    cv2.waitKey()
+
+    h_coords = haar_coordinates(s, p, h_indexes)
     # for i, c in zip(h_indexes, h_coords):
     #     # print(f'{i} -> {c}')
-    #     h_coords_window = (c * h).astype('int32')  # np.array([np.array(c[q] * h).astype('int32') for q in range(c.shape[0])])
+    #     """
+    #     h_coords_window to jedno pojedyczne okienko z h_coords
+    #     """
+    #     h_coords_window = (c * h).astype(
+    #         'int32')  # np.array([np.array(c[q] * h).astype('int32') for q in range(c.shape[0])])
     #     image_with_feature = draw_feature(i_resized, j0, k0, h_coords_window)
     #     image_temp = cv2.addWeighted(i_resized, 0.5, image_with_feature, 0.5, 0.0)
     #
@@ -183,4 +458,26 @@ if __name__ == '__main__':
     #     print(f'INDEX: {i}')
     #     print(f'HCOORDS:\n {c}')
     #     print(f'HCOORDS_WINDOW:\n {h_coords_window}')
+    #     print(f'HAAR FEATURE:\n {haar_feature(ii, j0, k0, h_coords_window)}')
     #     print('--\n')
+
+    # h_coords_window_subset = (h_coords * h).astype('int32')  # error
+    # h_coords_window_subset = np.array([np.array(h_coords[q] * h).astype('int32') for q in range(h_coords.shape[0])], dtype='object')
+    # t1 = time.time()
+    # features = haar_features(ii, j0, k0, h_coords_window_subset, n)
+    # t2 = time.time()
+    # print(features, f'time: {t2 - t1}')
+
+    t1 = time.time()
+    # X_train, y_train, X_test, y_test = fddb_data(DATA_FOLDER, h_coords, 10, n)
+    # pickle_all(DATA_FOLDER + DATA_NAME, [X_train, y_train, X_test, y_test])
+    X_train, y_train, X_test, y_test = unpickle_all(DATA_FOLDER + DATA_NAME)
+    t2 = time.time()
+    print(f'time: {t2 - t1}')
+
+    """
+    zad domowe:
+    odkomentować resztę plików w fddb_data, zwiększyć rozmiar okienka s=3 i p=4, gdzie będzie n=2225, i s=5 oraz p=5
+    zrzucić wyniki do plików
+    zwiększyć n z 3 na 10 przy fddb_data
+    """
