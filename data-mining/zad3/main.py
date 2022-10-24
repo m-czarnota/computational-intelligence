@@ -20,6 +20,7 @@ def find_perm(Y_real, Y_pred):
         idx = Y_pred == i
         new_label = stats.mode(Y_real[idx])[0][0]
         perm.append(new_label)
+    print('perm', perm)
     return [perm[label] for label in Y_pred]
 
 
@@ -27,16 +28,14 @@ if __name__ == '__main__':
     iris = datasets.load_iris()
     X = iris.data
     Y = iris.target
-    X_train, X_test, y_train, y_test = train_test_split(X, Y)
 
     k_means = KMeans()
-    k_means.fit(X_train, y_train)
+    k_means.fit(X)
     print(Y)
-    print(y_train)
     print(k_means.labels_)
 
     array = np.array([0, 0, 0, 2, 2, 2, 3, 5, 7, 2, 2, 0, 0, 1, 1, 1])
     print(array[array == 2])
 
-    perms = find_perm(y_train, k_means.labels_)
+    perms = find_perm(Y, k_means.labels_)
     # print(perms)
