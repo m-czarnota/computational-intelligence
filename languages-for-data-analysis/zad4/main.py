@@ -40,26 +40,28 @@ def zad3(k, x, y):
 
     szukać minimum
     """
-    point = (0.5, 0.5)
     k_errors = []
 
     for k_val in k:
         errors = []
 
         for x_index, x_val in enumerate(x):
-            points = np.vstack((x[0:x_index], x[x_index:]))
-            # print(points)
-            classification = classify_knn(point, points, y, k_val)
-            # print(classification, len(k))
+            point = x[x_index]
+            other_points = np.vstack((x[0:x_index], x[x_index + 1:]))
 
-            errors.append(classification)
+            label = classify_knn(point, other_points, y, k_val)
+            if label != y[x_index]:
+                errors.append(x_val)
 
-        k_errors.append(np.min(errors) / len(k))
+        k_errors.append(len(errors) / len(x))
 
+    k_min_index = np.argmin(k_errors)
     k_min = np.min(k_errors)
 
     plt.figure()
-    plt.plot(k, k_errors)
+    plt.plot(k, k_errors, label='k_errors')
+    plt.scatter(k_min_index + 2, k_min, c='r', label='k min')
+    plt.legend()
     plt.show()
 
 
