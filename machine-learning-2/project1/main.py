@@ -400,8 +400,8 @@ def unpickle_all(fname):
 
 
 if __name__ == '__main__':
-    s = 3
-    p = 4
+    s = 5
+    p = 5
     n = len(HAAR_TEMPLATED) * s ** 2 * (2 * p - 1) ** 2
     DATA_NAME = f'face_n_{n}_s_{s}_p_{p}.bin'
     print(f's: {s}, p: {p}, n: {n}')
@@ -469,9 +469,9 @@ if __name__ == '__main__':
     # print(features, f'time: {t2 - t1}')
 
     t1 = time.time()
-    # X_train, y_train, X_test, y_test = fddb_data(DATA_FOLDER, h_coords, 10, n)
-    # pickle_all(DATA_FOLDER + DATA_NAME, [X_train, y_train, X_test, y_test])
-    X_train, y_train, X_test, y_test = unpickle_all(DATA_FOLDER + DATA_NAME)
+    X_train, y_train, X_test, y_test = fddb_data(DATA_FOLDER, h_coords, 10, n)
+    pickle_all(DATA_FOLDER + DATA_NAME, [X_train, y_train, X_test, y_test])
+    # X_train, y_train, X_test, y_test = unpickle_all(DATA_FOLDER + DATA_NAME)
     t2 = time.time()
     print(f'time: {t2 - t1}')
 
