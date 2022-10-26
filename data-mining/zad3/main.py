@@ -131,4 +131,19 @@ if __name__ == '__main__':
     * metoda srednich polaczen: srednia odleglosc kazdej obserwacji dwoch zbiorow
     * metoda najdalszych polaczen: maksymalne odleglosci miedzy wszystkimi obserwacjami dwoch zbiorow
     * metoda warda: minimalizuje wariacnje laczenia klastrow
+    
+    Output:
+    iris jaccard score KMeans(): [1.  0.90196078  0.90740741]
+    iris jaccard score GaussianMixture(): [0.33333333  0.  0.]
+    iris jaccard score AgglomerativeClustering(): [1.  0.5  0.]
+    iris jaccard score AgglomerativeClustering(linkage='complete'): [0.64102564  0.  0.67123288]
+    iris jaccard score AgglomerativeClustering(linkage='average'): [1.  0.5  0.]
+    iris jaccard score AgglomerativeClustering(linkage='single'): [1.  0.5  0.]
+    
+    zoo jaccard score KMeans(): [0.57142857  1.  0.76470588  1.  0.75  0.92682927  0.]
+    zoo jaccard score GaussianMixture(): [0.  0.  0.  0.  0.  0.40594059  0.]
+    zoo jaccard score AgglomerativeClustering(): [0.  0.46511628  0.  0.  0.  0.62295082  0.]
+    zoo jaccard score AgglomerativeClustering(linkage='complete'): [0.  0.  0.  0.57142857  0.  0.47126437  0.]
+    zoo jaccard score AgglomerativeClustering(linkage='average'): [0.  0.  0.56521739  0.  0.  0.4691358  0.]
+    zoo jaccard score AgglomerativeClustering(linkage='single'): [0.  0.  0.  0.  0.1  0.41  0.]
     """
