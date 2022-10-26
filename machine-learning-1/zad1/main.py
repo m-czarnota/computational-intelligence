@@ -132,7 +132,7 @@ def experiment_best_50_words(x, y):
     print('experiment start')
 
     time_info_gain1 = time.time()
-    for i, word in enumerate(word_list['A'][1000:1500]):
+    for i, word in enumerate(word_list['A']):
         gain = infogain(x[:, i], y)
         info_gain_words.append({'infogain': gain, 'word': word, 'id': i})
     time_info_gain2 = time.time()
