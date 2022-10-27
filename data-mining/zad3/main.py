@@ -1,8 +1,11 @@
 import numpy as np
+import pandas as pd
 from sklearn import datasets
-from sklearn.metrics import accuracy_score, confusion_matrix, jaccard_score
-from sklearn.cluster import KMeans
+from sklearn.metrics import confusion_matrix, jaccard_score
+from sklearn.cluster import KMeans, AgglomerativeClustering
 from sklearn.decomposition import PCA
+from sklearn.mixture import GaussianMixture
+from scipy.cluster import hierarchy
 import matplotlib.pyplot as plt
 
 IMAGES_DIR = './images'
@@ -31,6 +34,7 @@ def visualize2d(x_reduced, classes_set: list, plot_title: str):
 
     plt.savefig(f'{IMAGES_DIR}/{plot_title}_2D.png')
     # plt.show()
+    plt.close(fig)
 
 
 def visualize3d(x_reduced, classes_set: list, plot_title: str):
@@ -50,34 +54,96 @@ def visualize3d(x_reduced, classes_set: list, plot_title: str):
 
     plt.savefig(f'{IMAGES_DIR}/{plot_title}_3D.png')
     # plt.show()
+    plt.close(fig)
 
 
-def iris_experiment():
-    iris = datasets.load_iris()
-    x = iris.data
-    y = iris.target
+def visualise_dendrogram(y, y_predict, method_name: str):
+    joined_y = np.c_[(y, y_predict)]
+    z = hierarchy.linkage(joined_y, method='average')
 
-    k_means = KMeans()
-    predict = k_means.fit_predict(x)
+    fig = plt.figure(figsize=(20, 10))
 
+    hierarchy.dendrogram(z)
+    plt.title(f'dendrogram_{method_name}')
+
+    plt.savefig(f'{IMAGES_DIR}/dendrogram_{method_name}.png')
+    # plt.show()
+    plt.close(fig)
+
+
+def clusterize(x, y, method, plot_dendrogram: bool = False, dataset_name: str = 'iris'):
+    method_name = method.__str__()
+
+    predict = method.fit_predict(x)
     perms = find_perm(y, predict)
     # print(perms)
 
     jac_score = jaccard_score(y, perms, average=None)
-    print('iris jaccard score:', jac_score)
+    print(f'{dataset_name} jaccard score {method_name}:', jac_score)
 
-    for i, method in zip(range(2, 4), [visualize2d, visualize3d]):
+    for i, visualization in zip(range(2, 4), [visualize2d, visualize3d]):
         pca = PCA(n_components=i)
         x_reduced = pca.fit_transform(x)
 
-        method(x_reduced, [y, perms], 'iris_pca')
+        visualization(x_reduced, [y, perms], f'{dataset_name}_{method_name}')
+
+    if plot_dendrogram is True:
+        visualise_dendrogram(y, predict, f'{dataset_name}_{method_name}')
+
+
+def experiment(x, y, dataset_name: str = 'iris'):
+    k_means = KMeans()
+    clusterize(x, y, k_means, dataset_name=dataset_name)
+
+    gmm = GaussianMixture()
+    clusterize(x, y, gmm, dataset_name=dataset_name)
+
+    linkages = ['ward', 'complete', 'average', 'single']
+    for linkage in linkages:
+        ag = AgglomerativeClustering(linkage=linkage)
+        clusterize(x, y, ag, True, dataset_name=dataset_name)
 
 
 if __name__ == '__main__':
-    iris_experiment()
+    iris = datasets.load_iris()
+    X = iris.data
+    Y = iris.target
+    experiment(X, Y)
+
+    zoo = pd.read_csv('zoo.csv')
+
+    Y = zoo['type'].values
+    Y_uniques = np.unique(Y)
+    Y_mapped = [np.where(Y_uniques == animal_type)[0][0] for animal_type in Y]
+
+    X = zoo.drop(['animal', 'type'], axis=1)
+
+    experiment(X, Y_mapped, 'zoo')
 
     """
+    Co to jest indeks Jaccarda i jaka jest jego interpretacja?
     Jaccarda mierzy podobienstwo mirdzy dwoma zbiorami i jest zdefiniowany jako iloraz mocy czesci wspolnej zbiorow i mocy sumy tych zbiorow.
     Wartosci przyjmowane przez wspolczynnik Jaccarda zawieraja sie w podzbiorze zbioru liczb rzeczywistych <0,1>. 
     Jeśli wspolczynnik Jaccarda przyjmuje wartosci bliskie zeru, zbiory są od siebie róozne, natomiast gdy jest bliski 1, zbiory są do siebie podobne.
+    
+    W jaki sposób działają metody aglomeracyjne?
+    * metoda najblizszego sasiedztwa: minimalne odleglosci miedzy wszystkimi obserwacjami dwoch zbiorow
+    * metoda srednich polaczen: srednia odleglosc kazdej obserwacji dwoch zbiorow
+    * metoda najdalszych polaczen: maksymalne odleglosci miedzy wszystkimi obserwacjami dwoch zbiorow
+    * metoda warda: minimalizuje wariacnje laczenia klastrow
+    
+    Output:
+    iris jaccard score KMeans(): [1.  0.90196078  0.90740741]
+    iris jaccard score GaussianMixture(): [0.33333333  0.  0.]
+    iris jaccard score AgglomerativeClustering(): [1.  0.5  0.]
+    iris jaccard score AgglomerativeClustering(linkage='complete'): [0.64102564  0.  0.67123288]
+    iris jaccard score AgglomerativeClustering(linkage='average'): [1.  0.5  0.]
+    iris jaccard score AgglomerativeClustering(linkage='single'): [1.  0.5  0.]
+    
+    zoo jaccard score KMeans(): [0.57142857  1.  0.76470588  1.  0.75  0.92682927  0.]
+    zoo jaccard score GaussianMixture(): [0.  0.  0.  0.  0.  0.40594059  0.]
+    zoo jaccard score AgglomerativeClustering(): [0.  0.46511628  0.  0.  0.  0.62295082  0.]
+    zoo jaccard score AgglomerativeClustering(linkage='complete'): [0.  0.  0.  0.57142857  0.  0.47126437  0.]
+    zoo jaccard score AgglomerativeClustering(linkage='average'): [0.  0.  0.56521739  0.  0.  0.4691358  0.]
+    zoo jaccard score AgglomerativeClustering(linkage='single'): [0.  0.  0.  0.  0.1  0.41  0.]
     """
