@@ -57,6 +57,9 @@ class DecisionTree:
     #             right = Node()
     #             right.parent = node
     #
+    #             node.left = left
+    #             node.right = right
+    #
     #             rpart(xl, yl, left)
     #             rpart(xr, yr, right)
     #     else:
