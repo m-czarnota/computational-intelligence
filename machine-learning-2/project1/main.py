@@ -3,6 +3,8 @@ import numpy as np
 import time
 from numba import jit, uint8, int32, int16
 import pickle
+from sklearn.ensemble import AdaBoostClassifier
+import matplotlib.pyplot as plt
 
 DATA_FOLDER = './data/'
 CLFS_FOLDER = './clasifiers/'
@@ -19,6 +21,13 @@ HAAR_TEMPLATED = [
 HEIGHT = 480
 FEATURE_MIN = 0.25
 FEATURE_MAX = 0.5
+
+DETECT_SCALES = 4
+DETECT_WINDOW_HEIGHT_MIN = 64
+DETECT_WINDOW_WIDTH_MIN = 64
+DETECT_WINDOW_GROWTH = 1.25  # increase window about 25%
+DETECT_WINDOW_JUMP = 0.1
+DETECT_THRESHOLD = 0.0
 
 
 def img_resize(i):
@@ -331,7 +340,7 @@ def fddb_data(path_fddb_root, hfs_coords, n_negs_per_img, n):
     ]
     X_train = None
     y_train = None
-    
+
     for index, fold_path in enumerate(fold_paths_train):
         print("PROCESSING TRAIN FOLD " + str(index + 1) + "/" + str(len(fold_paths_train)) + "...")
         t1 = time.time()
@@ -341,20 +350,20 @@ def fddb_data(path_fddb_root, hfs_coords, n_negs_per_img, n):
         print("PROCESSING TRAIN FOLD " + str(index + 1) + "/" + str(len(fold_paths_train)) + " DONE IN " + str(
             t2 - t1) + " s.")
         print("---")
-        
+
         if X_train is None:
             X_train = X
             y_train = y
         else:
             X_train = np.r_[X_train, X]
             y_train = np.r_[y_train, y]
-            
+
     fold_paths_test = [
         "FDDB-folds/FDDB-fold-10-ellipseList.txt",
     ]
     X_test = None
     y_test = None
-    
+
     for index, fold_path in enumerate(fold_paths_test):
         print("PROCESSING TEST FOLD " + str(index + 1) + "/" + str(len(fold_paths_test)) + "...")
         t1 = time.time()
@@ -363,17 +372,17 @@ def fddb_data(path_fddb_root, hfs_coords, n_negs_per_img, n):
         print("PROCESSING TEST FOLD " + str(index + 1) + "/" + str(len(fold_paths_test)) + " DONE IN " + str(
             t2 - t1) + " s.")
         print("---")
-        
+
         if X_test is None:
             X_test = X
             y_test = y
         else:
             X_test = np.r_[X_test, X]
             y_test = np.r_[y_test, y]
-            
+
     print("TRAIN DATA SHAPE: " + str(X_train.shape))
     print("TEST DATA SHAPE: " + str(X_test.shape))
-    
+
     return X_train, y_train, X_test, y_test
 
 
@@ -395,15 +404,126 @@ def unpickle_all(fname):
     f.close()
     t2 = time.time()
     print("UNPICKLE DONE. [TIME: " + str(t2 - t1) + " s.]")
-    
+
     return some_list
 
 
+def time_of_comparisons_delta():
+    repetitions = 10000
+
+    # measure of calculate time
+    t1 = time.time()
+    for repetition in range(repetitions):
+        sum1 = integral_image_delta(ii, j0, k0, j0 + h - 1, k0 + w - 1)
+    t2 = time.time()
+    print(f'INTEGRAL_IMAGE_DELTA: {(t2 - t1) / repetitions} s')
+
+    t1 = time.time()
+    for repetition in range(repetitions):
+        sum2 = np.sum(i_gray[j0: j0 + h, k0: k0 + w])
+    t2 = time.time()
+    print(f'STANDARD NP>NUM TIME: {(t2 - t1) / repetitions} s')
+    print(f'{sum1} vs {sum2}')
+
+
+def demo_of_features():
+    # my own rectangle on image
+    j0, k0 = 160, 280
+    h = w = 64
+    cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (0, 0, 255), 1)
+    cv2.imshow("TEST IMAGE", i_resized)
+    cv2.waitKey()
+
+    h_coords = haar_coordinates(s, p, h_indexes)
+    for index, (i, c) in enumerate(zip(h_indexes[selected_feature_indexes], h_coords[selected_feature_indexes])):
+        # print(f'{i} -> {c}')
+        """
+        h_coords_window to jedno pojedyczne okienko z h_coords
+        """
+        h_coords_window = (c * h).astype(
+            'int32')  # np.array([np.array(c[q] * h).astype('int32') for q in range(c.shape[0])])
+        image_with_feature = draw_feature(i_resized, j0, k0, h_coords_window)
+        image_temp = cv2.addWeighted(i_resized, 0.5, image_with_feature, 0.5, 0.0)
+
+        print(f'INDEX: {i}')
+        print(f'FEATURE_INDEX: {selected_feature_indexes[index]}')
+        print(f'HCOORDS:\n {c}')
+        print(f'HCOORDS_WINDOW:\n {h_coords_window}')
+        print(f'HAAR FEATURE:\n {haar_feature(ii, j0, k0, h_coords_window)}')
+        print('--\n')
+
+        cv2.imshow('TEST IMAGE', image_temp)
+        plt.hist(X_train[indexed_positive, selected_feature_indexes[index]], color='r', density=True, alpha=0.5,
+                 bins=20, label='positives')
+        plt.hist(X_train[indexed_negative, selected_feature_indexes[index]], color='b', density=True, alpha=0.5,
+                 bins=20, label='negatives')
+        plt.legend()
+        plt.show()
+        cv2.waitKey()
+
+
+def haar_features_demo():
+    h_coords = haar_coordinates(s, p, h_indexes)
+    # h_coords_window_subset = (h_coords * h).astype('int32')  # error
+    h_coords_window_subset = np.array([np.array(h_coords[q] * h).astype('int32') for q in range(h_coords.shape[0])], dtype='object')
+    t1 = time.time()
+    features = haar_features(ii, j0, k0, h_coords_window_subset, n)
+    t2 = time.time()
+    print(features, f'time: {t2 - t1}')
+
+
+def detect(classifier: AdaBoostClassifier, integral_image: np.array, h_coords, n, feature_indexes=None, verbose=False):
+    t1 = time.time()
+
+    H, W = integral_image.shape
+    detections = []
+    windows_count = 0
+
+    for scale in range(DETECT_SCALES):
+        h = np.int32(np.round(DETECT_WINDOW_HEIGHT_MIN * DETECT_WINDOW_GROWTH ** scale))
+        w = np.int32(np.round(DETECT_WINDOW_WIDTH_MIN * DETECT_WINDOW_GROWTH ** scale))
+
+        # jumps
+        dj = np.int32(np.round(h * DETECT_WINDOW_JUMP))
+        dk = np.int32(np.round(w * DETECT_WINDOW_JUMP))
+
+        if verbose is True:
+            print('--------------------------------------------------------')
+            print(f'SCALE {scale} -> h: {h}, w: {w}, dj: {dj}, dk: {dk}')
+
+        h_reminder_half = ((H - h) % dj) // 2
+        w_reminder_half = ((W - w) % dk) // 2
+
+        h_coords_window_subset = np.array([np.array(h_coords[q] * h).astype('int32') for q in range(h_coords[feature_indexes].shape[0])], dtype='object')
+
+        for j in np.arange(h_reminder_half, H, dj):
+            if verbose is True:
+                print(f'j: {j}, windows so far: {windows_count}')
+
+            for k in np.arange(w_reminder_half, W, dk):
+                features = haar_features(integral_image, j, k, h_coords_window_subset, n, feature_indexes=feature_indexes)
+                response = classifier.decision_function(features)
+
+                if response > DETECT_THRESHOLD:
+                    detections.append(np.array([j, k, h, w]))
+
+                windows_count += 1
+
+    t2 = time.time()
+    print(f'DETECT DONE. [TIME: {t2 - t1}s, WINDOWS CHECKED: {windows_count}]')
+
+    return detections
+
+
 if __name__ == '__main__':
-    s = 5
-    p = 5
+    s = 3
+    p = 4
     n = len(HAAR_TEMPLATED) * s ** 2 * (2 * p - 1) ** 2
+    T = 8  # number of boosting rounds
+    random_seed = 1
+
     DATA_NAME = f'face_n_{n}_s_{s}_p_{p}.bin'
+    CLFS_NAME = f'face_n_{n}_s_{s}_p_{p}_T_{T}_ada.bin'
     print(f's: {s}, p: {p}, n: {n}')
 
     h_indexes = haar_indexes(s, p)
@@ -418,62 +538,29 @@ if __name__ == '__main__':
     j0, k0 = 160, 280
     h = w = 128
     ii = integral_image(i_gray)
-    repetitions = 10000
-
-    # measure of calculate time
-    # t1 = time.time()
-    # for repetition in range(repetitions):
-    #     sum1 = integral_image_delta(ii, j0, k0, j0 + h - 1, k0 + w - 1)
-    # t2 = time.time()
-    # print(f'INTEGRAL_IMAGE_DELTA: {(t2 - t1) / repetitions} s')
-    #
-    # t1 = time.time()
-    # for repetition in range(repetitions):
-    #     sum2 = np.sum(i_gray[j0: j0 + h, k0: k0 + w])
-    # t2 = time.time()
-    # print(f'STANDARD NP>NUM TIME: {(t2 - t1) / repetitions} s')
-    # print(f'{sum1} vs {sum2}')
-
-    # my own rectangle on image
-    j0, k0 = 160, 280
-    h = w = 64
-    cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (0, 0, 255), 1)
-    cv2.imshow("TEST IMAGE", i_resized)
-    cv2.waitKey()
-
     h_coords = haar_coordinates(s, p, h_indexes)
-    # for i, c in zip(h_indexes, h_coords):
-    #     # print(f'{i} -> {c}')
-    #     """
-    #     h_coords_window to jedno pojedyczne okienko z h_coords
-    #     """
-    #     h_coords_window = (c * h).astype(
-    #         'int32')  # np.array([np.array(c[q] * h).astype('int32') for q in range(c.shape[0])])
-    #     image_with_feature = draw_feature(i_resized, j0, k0, h_coords_window)
-    #     image_temp = cv2.addWeighted(i_resized, 0.5, image_with_feature, 0.5, 0.0)
-    #
-    #     cv2.imshow('TEST IMAGE', image_temp)
-    #     cv2.waitKey()
-    #
-    #     print(f'INDEX: {i}')
-    #     print(f'HCOORDS:\n {c}')
-    #     print(f'HCOORDS_WINDOW:\n {h_coords_window}')
-    #     print(f'HAAR FEATURE:\n {haar_feature(ii, j0, k0, h_coords_window)}')
-    #     print('--\n')
 
-    # h_coords_window_subset = (h_coords * h).astype('int32')  # error
-    # h_coords_window_subset = np.array([np.array(h_coords[q] * h).astype('int32') for q in range(h_coords.shape[0])], dtype='object')
-    # t1 = time.time()
-    # features = haar_features(ii, j0, k0, h_coords_window_subset, n)
-    # t2 = time.time()
-    # print(features, f'time: {t2 - t1}')
+    # time_of_comparisons_delta()
+    # demo_of_features()
 
     t1 = time.time()
-    X_train, y_train, X_test, y_test = fddb_data(DATA_FOLDER, h_coords, 10, n)
-    pickle_all(DATA_FOLDER + DATA_NAME, [X_train, y_train, X_test, y_test])
-    # X_train, y_train, X_test, y_test = unpickle_all(DATA_FOLDER + DATA_NAME)
+    # X_train, y_train, X_test, y_test = fddb_data(DATA_FOLDER, h_coords, 10, n)
+    # pickle_all(DATA_FOLDER + DATA_NAME, [X_train, y_train, X_test, y_test])
+    X_train, y_train, X_test, y_test = unpickle_all(DATA_FOLDER + DATA_NAME)
     t2 = time.time()
-    print(f'time: {t2 - t1}')
+    indexed_positive = y_train == 1
+    indexed_negative = y_train == -1
+
+    # t1 = time.time()
+    # classifier = AdaBoostClassifier(n_estimators=T, algorithm='SAMME', random_state=random_seed)
+    # classifier.fit(X_train, y_train)
+    # t2 = time.time()
+    # print(f'fit time: {t2 - t1}s')
+    # pickle_all(CLFS_FOLDER + CLFS_NAME, [classifier])
+    [classifier] = unpickle_all(CLFS_FOLDER + CLFS_NAME)
+    selected_feature_indexes = np.where(classifier.feature_importances_ > 0)[0]
+
+    detect(classifier, ii, h_coords, n, selected_feature_indexes, True)
 
     """
     zad domowe:
