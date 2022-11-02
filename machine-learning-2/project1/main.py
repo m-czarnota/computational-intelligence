@@ -27,7 +27,7 @@ DETECT_WINDOW_HEIGHT_MIN = 64
 DETECT_WINDOW_WIDTH_MIN = 64
 DETECT_WINDOW_GROWTH = 1.25  # increase window about 25%
 DETECT_WINDOW_JUMP = 0.1
-DETECT_THRESHOLD = 0.0
+DETECT_THRESHOLD = 0.15
 
 
 def img_resize(i):
@@ -453,9 +453,9 @@ def demo_of_features():
         print('--\n')
 
         cv2.imshow('TEST IMAGE', image_temp)
-        plt.hist(X_train[indexed_positive, selected_feature_indexes[index]], color='r', density=True, alpha=0.5,
+        plt.hist(X_train[indexed_positive_train, selected_feature_indexes[index]], color='r', density=True, alpha=0.5,
                  bins=20, label='positives')
-        plt.hist(X_train[indexed_negative, selected_feature_indexes[index]], color='b', density=True, alpha=0.5,
+        plt.hist(X_train[indexed_negative_train, selected_feature_indexes[index]], color='b', density=True, alpha=0.5,
                  bins=20, label='negatives')
         plt.legend()
         plt.show()
@@ -472,13 +472,35 @@ def haar_features_demo():
     print(features, f'time: {t2 - t1}')
 
 
-def detect(classifier: AdaBoostClassifier, integral_image: np.array, h_coords, n, feature_indexes=None, verbose=False):
+def detect(classifier: AdaBoostClassifier, image: np.array, h_coords, n, feature_indexes=None, preprocess: bool = True, verbose: bool = False):
     t1 = time.time()
 
-    H, W = integral_image.shape
-    detections = []
+    print(f'[IMAGE SHAPE: {image.shape}]')
+    if preprocess:
+        t1_preprocess = time.time()
+
+        i_resized = img_resize(i)
+        i_gray = cv2.cvtColor(i_resized, cv2.COLOR_BGR2GRAY)
+
+        t2_preprocess = time.time()
+        print(f'PREPROCESS DONE. [TIME: {t2_preprocess - t1_preprocess}s]')
+    else:
+        i_gray = image
+
+    t1_ii = time.time()
+    ii = integral_image(i_gray)
+    t2_ii = time.time()
+    print(f'INTEGRAL IMAGE DONE. [TIME: {t2_ii - t1_ii}s]')
+
+    H, W = i_gray.shape
+    print(f'IMAGE SHAPE: {i_gray.shape}')
+
+    windows = []
+    h_coords_window_subsets = []
+    h_coords_subset = h_coords[feature_indexes] if feature_indexes is not None else h_coords
     windows_count = 0
 
+    t1_raw_loops = time.time()
     for scale in range(DETECT_SCALES):
         h = np.int32(np.round(DETECT_WINDOW_HEIGHT_MIN * DETECT_WINDOW_GROWTH ** scale))
         w = np.int32(np.round(DETECT_WINDOW_WIDTH_MIN * DETECT_WINDOW_GROWTH ** scale))
@@ -487,27 +509,65 @@ def detect(classifier: AdaBoostClassifier, integral_image: np.array, h_coords, n
         dj = np.int32(np.round(h * DETECT_WINDOW_JUMP))
         dk = np.int32(np.round(w * DETECT_WINDOW_JUMP))
 
-        if verbose is True:
-            print('--------------------------------------------------------')
-            print(f'SCALE {scale} -> h: {h}, w: {w}, dj: {dj}, dk: {dk}')
-
         h_reminder_half = ((H - h) % dj) // 2
         w_reminder_half = ((W - w) % dk) // 2
 
-        h_coords_window_subset = np.array([np.array(h_coords[q] * h).astype('int32') for q in range(h_coords[feature_indexes].shape[0])], dtype='object')
+        h_coords_window_subsets.append(np.array([np.array(h_coords[q] * h).astype("int32") for q in range(h_coords_subset.shape[0])]))
 
-        for j in np.arange(h_reminder_half, H, dj):
-            if verbose is True:
-                print(f'j: {j}, windows so far: {windows_count}')
-
-            for k in np.arange(w_reminder_half, W, dk):
-                features = haar_features(integral_image, j, k, h_coords_window_subset, n, feature_indexes=feature_indexes)
-                response = classifier.decision_function(features)
-
-                if response > DETECT_THRESHOLD:
-                    detections.append(np.array([j, k, h, w]))
-
+        for j in np.arange(h_reminder_half, H - h + 1, dj):
+            for k in np.arange(w_reminder_half, W - w + 1, dk):
                 windows_count += 1
+                windows.append([scale, j, k, h, w])
+
+    t2_raw_loops = time.time()
+    print(f'RAW LOOPS DONE> [TIME: {t2_raw_loops - t1_raw_loops}s, WINDOWS TO CHECK: {windows_count}]')
+
+    t1_main_loop = time.time()
+    detections = []
+    progress_check = int(np.round(0.1 * windows_count))
+
+    for window_index, (scale, j, k, h, w) in enumerate(windows):
+        if window_index % progress_check == 0:
+            print(f'PROGRESS: {window_index / windows_count:.2}')
+
+        features = haar_features(ii, j, k, h_coords_window_subsets[scale], n, feature_indexes=feature_indexes)
+        response = classifier.decision_function(np.array([features]))
+
+        if response > DETECT_THRESHOLD:
+            detections.append(np.array([j, k, h, w]))
+
+    t2_main_loop = time.time()
+    print(f'MAIN LOOP DONE. [TIME: {t2_main_loop - t1_main_loop}s]')
+
+    # for scale in range(DETECT_SCALES):
+    #     h = np.int32(np.round(DETECT_WINDOW_HEIGHT_MIN * DETECT_WINDOW_GROWTH ** scale))
+    #     w = np.int32(np.round(DETECT_WINDOW_WIDTH_MIN * DETECT_WINDOW_GROWTH ** scale))
+    #
+    #     # jumps
+    #     dj = np.int32(np.round(h * DETECT_WINDOW_JUMP))
+    #     dk = np.int32(np.round(w * DETECT_WINDOW_JUMP))
+    #
+    #     if verbose is True:
+    #         print('--------------------------------------------------------')
+    #         print(f'SCALE {scale} -> h: {h}, w: {w}, dj: {dj}, dk: {dk}')
+    #
+    #     h_reminder_half = ((H - h) % dj) // 2
+    #     w_reminder_half = ((W - w) % dk) // 2
+    #
+    #     h_coords_window_subset = np.array([np.array(h_coords_subset[q] * h).astype('int32') for q in range(h_coords_subset.shape[0])], dtype='object')
+    #
+    #     for j in np.arange(h_reminder_half, H - h + 1, dj):
+    #         if verbose is True:
+    #             print(f'j: {j}, windows so far: {windows_count}')
+    #
+    #         for k in np.arange(w_reminder_half, W - w + 1, dk):
+    #             features = haar_features(ii, j, k, h_coords_window_subset, n, feature_indexes=feature_indexes)
+    #             response = classifier.decision_function(np.array([features]))
+    #
+    #             if response > DETECT_THRESHOLD:
+    #                 detections.append(np.array([j, k, h, w]))
+    #
+    #             windows_count += 1
 
     t2 = time.time()
     print(f'DETECT DONE. [TIME: {t2 - t1}s, WINDOWS CHECKED: {windows_count}]')
@@ -519,7 +579,7 @@ if __name__ == '__main__':
     s = 3
     p = 4
     n = len(HAAR_TEMPLATED) * s ** 2 * (2 * p - 1) ** 2
-    T = 8  # number of boosting rounds
+    T = 32  # number of boosting rounds
     random_seed = 1
 
     DATA_NAME = f'face_n_{n}_s_{s}_p_{p}.bin'
@@ -548,8 +608,10 @@ if __name__ == '__main__':
     # pickle_all(DATA_FOLDER + DATA_NAME, [X_train, y_train, X_test, y_test])
     X_train, y_train, X_test, y_test = unpickle_all(DATA_FOLDER + DATA_NAME)
     t2 = time.time()
-    indexed_positive = y_train == 1
-    indexed_negative = y_train == -1
+    indexed_positive_train = y_train == 1
+    indexed_negative_train = y_train == -1
+    indexed_positive_test = y_test == 1
+    indexed_negative_test = y_test == -1
 
     # t1 = time.time()
     # classifier = AdaBoostClassifier(n_estimators=T, algorithm='SAMME', random_state=random_seed)
@@ -560,7 +622,23 @@ if __name__ == '__main__':
     [classifier] = unpickle_all(CLFS_FOLDER + CLFS_NAME)
     selected_feature_indexes = np.where(classifier.feature_importances_ > 0)[0]
 
-    detect(classifier, ii, h_coords, n, selected_feature_indexes, True)
+    # acc_train = np.mean(classifier.predict(X_train) == y_train)
+    acc_train = classifier.score(X_train, y_train)
+    sensitivity_train = classifier.score(X_train[indexed_positive_train], y_train[indexed_positive_train])
+    false_alarm_rate_train = 1.0 - classifier.score(X_train[indexed_negative_train], y_train[indexed_negative_train])
+    print(f'ACC TRAIN: {acc_train}, SENS TRAIN: {sensitivity_train}, FAR TRAIN: {false_alarm_rate_train}')
+
+    acc_test = classifier.score(X_test, y_test)
+    sensitivity_test = classifier.score(X_test[indexed_positive_test], y_test[indexed_positive_test])
+    false_alarm_rate_test = 1.0 - classifier.score(X_test[indexed_negative_test], y_test[indexed_negative_test])
+    print(f'ACC TEST: {acc_test}, SENS TEST: {sensitivity_test}, FAR TEST: {false_alarm_rate_test}')
+
+    detections = detect(classifier, i, h_coords, n, selected_feature_indexes, preprocess=True, verbose=True)
+
+    for j0, k0, h, w in detections:
+        cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (0, 0, 255))
+    cv2.imshow("TEST IMAGE", i_resized)
+    cv2.waitKey()
 
     """
     zad domowe:
