@@ -4,6 +4,8 @@ class Node:
         self.left = None
         self.right = None
         self.parent = None
+        self.impurity_value = None
+        self.column = None
 
     def depth(self):
         depth = 0
