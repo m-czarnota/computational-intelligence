@@ -5,6 +5,7 @@ from numba import jit, uint8, int32, int16
 import pickle
 from sklearn.ensemble import AdaBoostClassifier
 import matplotlib.pyplot as plt
+from src.RealBoostBins import RealBoostBins
 
 DATA_FOLDER = './data/'
 CLFS_FOLDER = './clasifiers/'
@@ -575,11 +576,21 @@ def detect(classifier: AdaBoostClassifier, image: np.array, h_coords, n, feature
     return detections
 
 
+def get_metrics(classifier, x, y):
+    # acc_train = np.mean(classifier.predict(X_train) == y_train)
+    acc_train = classifier.score(x, y)
+    sensitivity_train = classifier.score(x[indexed_positive_train], y[indexed_positive_train])
+    false_alarm_rate_train = 1.0 - classifier.score(x[indexed_negative_train], y[indexed_negative_train])
+
+    return acc_train, sensitivity_train, false_alarm_rate_train
+
+
 if __name__ == '__main__':
     s = 3
     p = 4
     n = len(HAAR_TEMPLATED) * s ** 2 * (2 * p - 1) ** 2
-    T = 32  # number of boosting rounds
+    T = 8  # number of boosting rounds
+    B = 8  # number fo bins (buckets)
     random_seed = 1
 
     DATA_NAME = f'face_n_{n}_s_{s}_p_{p}.bin'
@@ -613,32 +624,36 @@ if __name__ == '__main__':
     indexed_positive_test = y_test == 1
     indexed_negative_test = y_test == -1
 
+    # --- ADA BOOST ---
     # t1 = time.time()
     # classifier = AdaBoostClassifier(n_estimators=T, algorithm='SAMME', random_state=random_seed)
     # classifier.fit(X_train, y_train)
     # t2 = time.time()
     # print(f'fit time: {t2 - t1}s')
     # pickle_all(CLFS_FOLDER + CLFS_NAME, [classifier])
-    [classifier] = unpickle_all(CLFS_FOLDER + CLFS_NAME)
-    selected_feature_indexes = np.where(classifier.feature_importances_ > 0)[0]
+    # [classifier] = unpickle_all(CLFS_FOLDER + CLFS_NAME)
+    # selected_feature_indexes = np.where(classifier.feature_importances_ > 0)[0]
 
-    # acc_train = np.mean(classifier.predict(X_train) == y_train)
-    acc_train = classifier.score(X_train, y_train)
-    sensitivity_train = classifier.score(X_train[indexed_positive_train], y_train[indexed_positive_train])
-    false_alarm_rate_train = 1.0 - classifier.score(X_train[indexed_negative_train], y_train[indexed_negative_train])
-    print(f'ACC TRAIN: {acc_train}, SENS TRAIN: {sensitivity_train}, FAR TRAIN: {false_alarm_rate_train}')
+    # acc_train, sensitivity_train, false_alarm_rate_train = get_metrics(classifier, X_train, y_train)
+    # print(f'ACC TRAIN: {acc_train}, SENS TRAIN: {sensitivity_train}, FAR TRAIN: {false_alarm_rate_train}')
 
-    acc_test = classifier.score(X_test, y_test)
-    sensitivity_test = classifier.score(X_test[indexed_positive_test], y_test[indexed_positive_test])
-    false_alarm_rate_test = 1.0 - classifier.score(X_test[indexed_negative_test], y_test[indexed_negative_test])
-    print(f'ACC TEST: {acc_test}, SENS TEST: {sensitivity_test}, FAR TEST: {false_alarm_rate_test}')
+    # --- REAL BOOST ---
+    clf = RealBoostBins(t=T, b=B)
+    clf.fit(X_train, y_train)
+    print(clf.logits_)
 
-    detections = detect(classifier, i, h_coords, n, selected_feature_indexes, preprocess=True, verbose=True)
+    # --- ACCURACY MEASURES ---
+    # acc_test = classifier.score(X_test, y_test)
+    # sensitivity_test = classifier.score(X_test[indexed_positive_test], y_test[indexed_positive_test])
+    # false_alarm_rate_test = 1.0 - classifier.score(X_test[indexed_negative_test], y_test[indexed_negative_test])
+    # print(f'ACC TEST: {acc_test}, SENS TEST: {sensitivity_test}, FAR TEST: {false_alarm_rate_test}')
 
-    for j0, k0, h, w in detections:
-        cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (0, 0, 255))
-    cv2.imshow("TEST IMAGE", i_resized)
-    cv2.waitKey()
+    # detections = detect(classifier, i, h_coords, n, selected_feature_indexes, preprocess=True, verbose=True)
+    #
+    # for j0, k0, h, w in detections:
+    #     cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (0, 0, 255))
+    # cv2.imshow("TEST IMAGE", i_resized)
+    # cv2.waitKey()
 
     """
     zad domowe:
