@@ -2,5 +2,5 @@ from enum import Enum
 
 
 class DirtMetricEnum(Enum):
-    CONDITION_ENTROPY = 'condition_entropy'
-    GINI_INDEX = 'gini_index'
+    INFO_GAIN = 'info_gain'
+    GINI_GAIN = 'gini_gain'
