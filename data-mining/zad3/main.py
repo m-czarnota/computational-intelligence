@@ -57,13 +57,29 @@ def visualize3d(x_reduced, classes_set: list, plot_title: str):
     plt.close(fig)
 
 
-def visualise_dendrogram(y, y_predict, method_name: str):
-    joined_y = np.c_[(y, y_predict)]
-    z = hierarchy.linkage(joined_y, method='average')
-
+def visualise_dendrogram(method, dataset_name: str, **kwargs):
+    method_name = f'{dataset_name}_{method.__str__()}'
     fig = plt.figure(figsize=(20, 10))
 
-    hierarchy.dendrogram(z)
+    # create the counts of samples under each node
+    counts = np.zeros(method.children_.shape[0])
+    n_samples = len(method.labels_)
+
+    for i, merge in enumerate(method.children_):
+        current_count = 0
+
+        for child_idx in merge:
+            if child_idx < n_samples:
+                current_count += 1  # leaf node
+            else:
+                current_count += counts[child_idx - n_samples]
+
+        counts[i] = current_count
+
+    linkage_matrix = np.column_stack([method.children_, method.distances_, counts]).astype(float)
+
+    # Plot the corresponding dendrogram
+    hierarchy.dendrogram(linkage_matrix, **kwargs)
     plt.title(f'dendrogram_{method_name}')
 
     plt.savefig(f'{IMAGES_DIR}/dendrogram_{method_name}.png')
@@ -88,7 +104,7 @@ def clusterize(x, y, method, plot_dendrogram: bool = False, dataset_name: str = 
         visualization(x_reduced, [y, perms], f'{dataset_name}_{method_name}')
 
     if plot_dendrogram is True:
-        visualise_dendrogram(y, predict, f'{dataset_name}_{method_name}')
+        visualise_dendrogram(method, dataset_name)
 
 
 def experiment(x, y, dataset_name: str = 'iris'):
@@ -100,7 +116,7 @@ def experiment(x, y, dataset_name: str = 'iris'):
 
     linkages = ['ward', 'complete', 'average', 'single']
     for linkage in linkages:
-        ag = AgglomerativeClustering(linkage=linkage)
+        ag = AgglomerativeClustering(linkage=linkage, compute_distances=True)
         clusterize(x, y, ag, True, dataset_name=dataset_name)
 
 
@@ -127,23 +143,23 @@ if __name__ == '__main__':
     Jeśli wspolczynnik Jaccarda przyjmuje wartosci bliskie zeru, zbiory są od siebie róozne, natomiast gdy jest bliski 1, zbiory są do siebie podobne.
     
     W jaki sposób działają metody aglomeracyjne?
-    * metoda najblizszego sasiedztwa: minimalne odleglosci miedzy wszystkimi obserwacjami dwoch zbiorow
-    * metoda srednich polaczen: srednia odleglosc kazdej obserwacji dwoch zbiorow
-    * metoda najdalszych polaczen: maksymalne odleglosci miedzy wszystkimi obserwacjami dwoch zbiorow
-    * metoda warda: minimalizuje wariacnje laczenia klastrow
+    * metoda najbliższego sąsiedztwa: minimalne odległości między wszystkimi obserwacjami dwóch zbiorów
+    * metoda średnich połączen: średnia odległość każdej obserwacji dwóch zbiorów
+    * metoda najdalszych połączen: maksymalne odleglosci miedzy wszystkimi obserwacjami dwóch zbiorów
+    * metoda warda: minimalizuje wariacnje łaczenia klastrów
     
     Output:
     iris jaccard score KMeans(): [1.  0.90196078  0.90740741]
     iris jaccard score GaussianMixture(): [0.33333333  0.  0.]
-    iris jaccard score AgglomerativeClustering(): [1.  0.5  0.]
-    iris jaccard score AgglomerativeClustering(linkage='complete'): [0.64102564  0.  0.67123288]
-    iris jaccard score AgglomerativeClustering(linkage='average'): [1.  0.5  0.]
-    iris jaccard score AgglomerativeClustering(linkage='single'): [1.  0.5  0.]
+    iris jaccard score AgglomerativeClustering(compute_distances=True): [1.  0.5  0.]
+    iris jaccard score AgglomerativeClustering(compute_distances=True, linkage='complete'): [0.64102564  0.  0.67123288]
+    iris jaccard score AgglomerativeClustering(compute_distances=True, linkage='average'): [1.  0.5  0.]
+    iris jaccard score AgglomerativeClustering(compute_distances=True, linkage='single'): [1.  0.5  0.]
     
     zoo jaccard score KMeans(): [0.57142857  1.  0.76470588  1.  0.75  0.92682927  0.]
     zoo jaccard score GaussianMixture(): [0.  0.  0.  0.  0.  0.40594059  0.]
-    zoo jaccard score AgglomerativeClustering(): [0.  0.46511628  0.  0.  0.  0.62295082  0.]
-    zoo jaccard score AgglomerativeClustering(linkage='complete'): [0.  0.  0.  0.57142857  0.  0.47126437  0.]
-    zoo jaccard score AgglomerativeClustering(linkage='average'): [0.  0.  0.56521739  0.  0.  0.4691358  0.]
-    zoo jaccard score AgglomerativeClustering(linkage='single'): [0.  0.  0.  0.  0.1  0.41  0.]
+    zoo jaccard score AgglomerativeClustering(compute_distances=True): [0.  0.46511628  0.  0.  0.  0.62295082  0.]
+    zoo jaccard score AgglomerativeClustering(compute_distances=True, linkage='complete'): [0.  0.  0.  0.57142857  0.  0.47126437  0.]
+    zoo jaccard score AgglomerativeClustering(compute_distances=True, linkage='average'): [0.  0.  0.56521739  0.  0.  0.4691358  0.]
+    zoo jaccard score AgglomerativeClustering(compute_distances=True, linkage='single'): [0.  0.  0.  0.  0.1  0.41  0.]
     """
