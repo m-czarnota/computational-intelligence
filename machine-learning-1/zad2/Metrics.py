@@ -1,5 +1,6 @@
 from scipy import sparse
 import math
+import numpy as np
 
 
 def freq(x, prob: bool = True) -> list:
@@ -92,6 +93,8 @@ def entropy(x, y=None, conditional_reverse: bool = False):
 
             return sum(prob * entropy_y for prob in probs_x.values())
 
+    # probs = np.array(list(probs.values()))
+    # return -1 * np.sum(np.log2(probs) * probs)
     return -sum(prob * math.log2(prob) if prob != 0 else 0 for prob in probs.values())
 
 

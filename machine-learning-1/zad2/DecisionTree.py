@@ -36,18 +36,11 @@ class DecisionTree:
     def build_tree(self, x, y, node: Node):
         impurity_method = infogain if self.params['dirt_metric'] == DirtMetricEnum.INFO_GAIN else ginigain
         is_sparse = self.is_sparse(x) and self.is_sparse(y)
-        print(type(x), type(y))
+        # print(type(x), type(y))
 
         impurity_values = [impurity_method(x[:, column] if is_sparse else x[column], y)
                            for column in (range(x.shape[1]) if is_sparse else x.columns)]
-        # if is_sparse:
-        #     impurity_values = []
-        #     for column in range(x.shape[1]):
-        #         # print(x[:, column])
-        #         impurity_values.append(impurity_method(x[:, column], y))
-        # else:
-        #     impurity_values = [impurity_method(x[column], y) for column in x.columns]
-        print(impurity_values)
+        # print(impurity_values)
 
         max_index = np.argmax(impurity_values)
         max_value = impurity_values[max_index]
@@ -78,15 +71,22 @@ class DecisionTree:
     @staticmethod
     def split(x, y, index):
         is_sparse = DecisionTree.is_sparse(x) and DecisionTree.is_sparse(y)
-        column = x[:, index] if is_sparse else x[x.columns[index]]
 
-        x_sparse_type = DecisionTree.get_sparse_type(x)
-        x_negatives = x_sparse_type(x[column < 1]) if is_sparse else x[column < 1]
-        x_positives = x_sparse_type(x[column > 0]) if is_sparse else x[column > 0]
+        if is_sparse:
+            set1 = set(np.arange(x.shape[1]))
+            set2 = set(x[:, index])
+            intersect = list(set1.intersection(set2))
+            print(intersect)
 
-        y_sparse_type = DecisionTree.get_sparse_type(y)
-        y_negatives = y_sparse_type(y[column < 1]) if is_sparse else y[column < 1]
-        y_positives = y_sparse_type(y[column > 0]) if is_sparse else y[column > 0]
+            return intersect
+
+        column = x[x.columns[index]]
+
+        x_negatives = x[column < 1]
+        x_positives = x[column > 0]
+
+        y_negatives = y[column < 1]
+        y_positives = y[column > 0]
 
         return x_negatives, x_positives, y_negatives, y_positives
 
@@ -94,12 +94,30 @@ class DecisionTree:
     def is_sparse(column):
         return type(column) == sparse.csr_matrix or type(column) == sparse.csc_matrix
 
-    @staticmethod
-    def get_sparse_type(column):
-        if DecisionTree.is_sparse(column) is False:
-            raise 'The passed column is not sparse!'
+    @property
+    def tree_(self):
+        if self.root is None:
+            return None
 
-        return sparse.csr_matrix if type(column) == sparse.csr_matrix else sparse.csc_matrix
+        dot = 'graph G {'
+        successors = [self.root]
+
+        while len(successors) > 0:
+            node = successors.pop(0)
+            dot += f'{node.id} [label="{node.id}, {node.impurity_value}"]'
+
+            if node.left is not None:
+                dot += f'{node.id}--{node.left.id} [label="False"]'
+                successors.append(node.left)
+
+            if node.right is not None:
+                dot += f'{node.id}--{node.right.id} [label="True"]'
+                successors.append(node.right)
+
+        print(dot)
+        print(self.root.id)
+
+        return dot + '}'
 
     # def rpart(self, x, y, node):
     #     xi, pi = freq(y)
