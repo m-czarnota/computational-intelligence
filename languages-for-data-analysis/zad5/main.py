@@ -32,14 +32,63 @@ def zad2():
         a3, 1, 7, c1
     dla dwóch robimy ich wszystkie permutacje
     """
+    def zad2_d1():
+        return df.replace('?', np.nan).dropna()
+
+    def zad2_d2():
+        df_d2 = df.copy()
+
+        for column in df_d2.columns:
+            if type(df_d2[column][0]) == str:
+                uniques, counts = np.unique(df_d2[column], return_counts=True)
+                value = counts[0] if counts[0] != '?' else counts[1]
+                df_d2[column][df_d2[column] == '?'] = value
+            else:
+                value = np.mean(df_d2[column])
+                df_d2[column][df_d2[column].isnull()] = value
+
+        return df_d2
+
+    def zad2_d3():
+        df_d3 = df.copy()
+
+        for row_i in range(df_d3.shape[0]):
+            row = df_d3.iloc[row_i]
+            counts = {}
+
+            for row_value in row:
+                if row_value not in counts.keys():
+                    counts[row_value] = 0
+                    continue
+
+                counts[row_value] += 1
+
+            counts = list(counts.keys())
+            value_numeric = np.mean(row[row.apply(lambda x: type(x) != str)])
+            value_nominal = counts[0] if counts[0] != '?' else counts[1]
+
+            for value_i, value in enumerate(row):
+                if value == '?':
+                    df_d3.at[row_i, df_d3.columns[value_i]] = value_nominal
+                if type(value) != str and np.isnan(value):
+                    df_d3.at[row_i, df_d3.columns[value_i]] = value_numeric
+
+        return df_d3
+
     data, meta = arff.loadarff(f'{DATA_FOLDER}/labor.arff')
     df = pd.DataFrame(data)
     df = df.applymap(lambda x: str(x, encoding='utf-8') if type(x) == bytes else x)
+    meta = pd.DataFrame(meta)
 
     count_data = data.shape[0]
     count_of_empty = df.apply(lambda x: x == '?').any(1).sum()
+    print('count_data:', count_data, '| count_of_empty:', count_of_empty)
 
-    print({column: df[column == df[column].apply(lambda x: x == '?')].any(1).sum() for column in df.columns})
+    count_of_missed_values_by_column = pd.Series({column: df[column].apply(lambda x: x == '?').where(lambda x: x > 0).count() for column in df.columns})
+    print('missed values by column:', count_of_missed_values_by_column[count_of_missed_values_by_column > 0])
+
+    print(zad2_d2())
+
 
 if __name__ == '__main__':
     zad2()

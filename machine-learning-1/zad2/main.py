@@ -1,11 +1,11 @@
 import pandas as pd
 import numpy as np
 from sklearn.datasets import fetch_rcv1
+from sklearn.model_selection import train_test_split
 import time
 import graphviz
 from sklearn import tree
 from DecisionTree import DecisionTree
-from Metrics import infogain
 
 from Node import Node
 
@@ -16,10 +16,11 @@ if __name__ == '__main__':
     X['legs'] = X['legs'] > np.mean(X['legs'])
     Y = zoo['type']
 
+    X_train, X_test, y_train, y_test = train_test_split(X, Y, train_size=.2, test_size=.8)
     decision_tree = DecisionTree()
 
     t1 = time.time()
-    decision_tree.fit(X, Y)
+    decision_tree.fit(X_train, y_train)
     t2 = time.time()
     print(f'Time of fitting for zoo: {t2 - t1}s')
 

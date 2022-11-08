@@ -99,7 +99,7 @@ class DecisionTree:
         if self.root is None:
             return None
 
-        dot = 'graph G {'
+        dot = 'digraph G {'
         successors = [self.root]
 
         while len(successors) > 0:
@@ -107,11 +107,11 @@ class DecisionTree:
             dot += f'{node.id} [label="{node.id}, {node.impurity_value}"]'
 
             if node.left is not None:
-                dot += f'{node.id}--{node.left.id} [label="False"]'
+                dot += f'{node.id}->{node.left.id} [label="False"]'
                 successors.append(node.left)
 
             if node.right is not None:
-                dot += f'{node.id}--{node.right.id} [label="True"]'
+                dot += f'{node.id}->{node.right.id} [label="True"]'
                 successors.append(node.right)
 
         print(dot)
