@@ -1,5 +1,4 @@
 from scipy import sparse
-import math
 import numpy as np
 
 
@@ -18,20 +17,18 @@ def freq(x, prob: bool = True) -> list:
         return [uniques, counts if prob is False else {key: val / total for key, val in counts.items()}]
 
     counts = {}
-    uniques = []
 
     for val in x:
-        if val not in uniques:
-            uniques.append(val)
-
         if val in counts.keys():
             counts[val] += 1
             continue
 
         counts[val] = 1
 
-    total = sum(counts.values())
-    return [uniques, counts if prob is False else {key: val / total for key, val in counts.items()}]
+    xi = np.array(list(counts.keys()))
+    ni = np.array(list(counts.values()))
+
+    return [xi, ni if prob is False else ni / np.sum(ni)]
 
 
 def freq2(x, y, prob: bool = True) -> list:
@@ -60,25 +57,17 @@ def freq2(x, y, prob: bool = True) -> list:
         return [uniques_x, uniques_y, counts if prob is False else {key: val / total for key, val in counts.items()}]
 
     counts = {}
-    uniques = {'x': [], 'y': []}
 
-    for x_val in x:
-        if x_val not in uniques['x']:
-            uniques['x'].append(x_val)
+    for x_val, y_val in zip(x, y):
+        key = (x_val, y_val)
 
-        for y_val in y:
-            key = (x_val, y_val)
+        if key in counts.keys():
+            counts[key] += 1
+        else:
+            counts[key] = 1
 
-            if key not in counts.keys():
-                counts[key] = 1
-
-                if y_val not in uniques['y']:
-                    uniques['y'].append(y_val)
-            else:
-                counts[key] += 1
-
-    total = sum(counts.values())
-    return [uniques['x'], uniques['y'], counts if prob is False else {key: val / total for key, val in counts.items()}]
+    counts = np.array(list(counts.values()))
+    return [freq(x)[0], freq(y)[0], counts / np.sum(counts) if prob is True else counts]
 
 
 def entropy(x, y=None, conditional_reverse: bool = False):
@@ -91,17 +80,15 @@ def entropy(x, y=None, conditional_reverse: bool = False):
             uniques_x, probs_x = freq(x)
             entropy_y = entropy(y)
 
-            return sum(prob * entropy_y for prob in probs_x.values())
+            return sum(prob * entropy_y for prob in probs_x)
 
-    # probs = np.array(list(probs.values()))
-    # return -1 * np.sum(np.log2(probs) * probs)
-    return -sum(prob * math.log2(prob) if prob != 0 else 0 for prob in probs.values())
+    return -np.sum(probs * np.log2(probs))
 
 
 def infogain(x, y, reverse: bool = False):
-    if reverse is False:
-        return entropy(x) + entropy(y) - entropy(x, y)
-    return entropy(y) - entropy(x, y, conditional_reverse=True)
+    uniques_x, uniques_y, probs = freq2(x, y)
+    # return entropy(x) - entropy(x, y, conditional_reverse=True)
+    return entropy(x) + entropy(y) - entropy(x, y)
 
 
 def kappa(x, y):

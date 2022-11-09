@@ -7,16 +7,20 @@ def nmf(x, y):
     unique_classes = np.unique(y)
     unique_classes_count = len(unique_classes)
 
-    w = np.ones((n, unique_classes_count))
     h = np.ones((unique_classes_count, m))
+    w = np.ones((n, unique_classes_count))
 
     print(w.shape, h.shape)
 
     n = 0
     for i in range(h.shape[0]):
         for j in range(h.shape[1]):
-            h[i, j] = h[i, j] * ((np.transpose(w ** n) * x)[i, j] / (np.transpose(w ** n) * (w ** n) * (h ** n))[i, j])
-            w[i, j] = w[i, j] * ((x * np.transpose(h))[i, j] / (w * h * np.transpose(h))[i, j])
+            h[i, j] = h[i, j] * ((np.transpose(w[i, j] ** n) * x[i, j]) / (np.transpose(w[i, j] ** n) * (w[i, j] ** n) * (h[i, j] ** n)))
+
+
+    for i in range(w.shape[0]):
+        for j in range(w.shape[1]):
+            w[i, j] = w[i, j] * ((x[i, j] * np.transpose(h)[i, j]) / (w[i, j] * h[i, j] * np.transpose(h)[i, j]))
 
     n += 1
 

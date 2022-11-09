@@ -8,6 +8,7 @@ from sklearn import tree
 from DecisionTree import DecisionTree
 
 from Node import Node
+from Metrics import freq, freq2
 
 if __name__ == '__main__':
     zoo = pd.read_csv('zoo.csv')
@@ -20,9 +21,11 @@ if __name__ == '__main__':
     decision_tree = DecisionTree()
 
     t1 = time.time()
-    decision_tree.fit(X_train, y_train)
+    decision_tree.fit(X, Y)
     t2 = time.time()
     print(f'Time of fitting for zoo: {t2 - t1}s')
+
+    print(freq2(X[X.columns[0]], Y, False))
 
     # rcv1 = fetch_rcv1()
     # X = rcv1['data'] > 0
@@ -58,5 +61,8 @@ if __name__ == '__main__':
         3 [label="3, dec=0"]
         1--3 [label="=False"]
         }'''
-    s = graphviz.Source(decision_tree.tree_, format='png')
+    s = graphviz.Source(decision_tree.tree_str, format='png')
     s.view()
+
+    # u = decision_tree.tree_var
+    # u.view()

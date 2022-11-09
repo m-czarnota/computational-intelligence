@@ -1,3 +1,4 @@
+import graphviz
 import numpy as np
 from scipy import sparse
 
@@ -46,7 +47,7 @@ class DecisionTree:
         max_value = impurity_values[max_index]
 
         node.impurity_value = max_value
-        node.id = max_index if is_sparse else x.columns[max_index]
+        node.id = max_index if is_sparse else f'{x.columns[max_index]}'
 
         if max_value == 0 or len(impurity_values) == 1:
             return
@@ -95,7 +96,7 @@ class DecisionTree:
         return type(column) == sparse.csr_matrix or type(column) == sparse.csc_matrix
 
     @property
-    def tree_(self):
+    def tree_str(self):
         if self.root is None:
             return None
 
@@ -118,6 +119,27 @@ class DecisionTree:
         print(self.root.id)
 
         return dot + '}'
+
+    @property
+    def tree_var(self):
+        if self.root is None:
+            return None
+
+        u = graphviz.Digraph('tree', filename='tree.png')
+        successors = [self.root]
+
+        while len(successors) > 0:
+            node = successors.pop(0)
+
+            if node.left is not None:
+                u.edge(node.id, node.left.id)
+                successors.append(node.left)
+
+            if node.right is not None:
+                u.edge(node.id, node.right.id)
+                successors.append(node.right)
+
+        return u
 
     # def rpart(self, x, y, node):
     #     xi, pi = freq(y)
