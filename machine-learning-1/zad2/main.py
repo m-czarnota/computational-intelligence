@@ -17,7 +17,7 @@ if __name__ == '__main__':
     X['legs'] = X['legs'] > np.mean(X['legs'])
     Y = zoo['type']
 
-    X_train, X_test, y_train, y_test = train_test_split(X, Y, train_size=.2, test_size=.8)
+    X_train, X_test, y_train, y_test = train_test_split(X, Y, train_size=0.5, test_size=0.5, random_state=0)
     decision_tree = DecisionTree()
 
     t1 = time.time()
@@ -26,6 +26,7 @@ if __name__ == '__main__':
     print(f'Time of fitting for zoo: {t2 - t1}s')
 
     print(freq2(X[X.columns[0]], Y, False))
+    decision_tree.root
 
     # rcv1 = fetch_rcv1()
     # X = rcv1['data'] > 0
@@ -63,6 +64,8 @@ if __name__ == '__main__':
         }'''
     s = graphviz.Source(decision_tree.tree_str, format='png')
     s.view()
+    print(decision_tree.tree_str)
 
+    print(decision_tree.root.depth())
     # u = decision_tree.tree_var
     # u.view()
