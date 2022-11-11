@@ -87,7 +87,6 @@ def entropy(x, y=None, conditional_reverse: bool = False):
 
 def infogain(x, y, reverse: bool = False):
     uniques_x, uniques_y, probs = freq2(x, y)
-    # return entropy(x) - entropy(x, y, conditional_reverse=True)
     return entropy(x) + entropy(y) - entropy(x, y)
 
 

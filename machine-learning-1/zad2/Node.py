@@ -1,13 +1,19 @@
 class Node:
     def __init__(self):
         self.id = None
+
         self.left = None
         self.right = None
         self.parent = None
+
         self.impurity_value = None
-        self.column = None
-        self.class_counts = None
-        self.class_probs = None
+
+        self.best_attribute = None
+        self.best_attribute_index = None
+
+        self.classes = None
+        self.classes_count = None
+        self.classes_probs = None
         self.class_best = None
 
     def depth(self):
@@ -16,13 +22,6 @@ class Node:
             depth += self.parent.depth()
 
         return depth
-        # node = self
-        #
-        # while node.parent is not None:
-        #     node = node.parent
-        #     depth += 1
-        #
-        # return depth
 
     def is_leaf(self):
         return self.left is None and self.right is None

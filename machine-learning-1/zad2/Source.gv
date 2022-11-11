@@ -1,153 +1,78 @@
-digraph G {0 [label="milk
- info gain: 0.9743197211096901
- counts: [41 13 20 10  8  4  5]
- probs: [0.40594059 0.12871287 0.1980198  0.0990099  0.07920792 0.03960396
- 0.04950495]
- class: mammal"]
-
-
-0->1 [label="False"]
-0->18 [label="True"]
-1 [label="feathers
- info gain: 0.9182958340544896
- counts: [13 20 10  8  4  5]
- probs: [0.21666667 0.33333333 0.16666667 0.13333333 0.06666667 0.08333333]
- class: bird"]
-
-
-1->2 [label="False"]
-1->17 [label="True"]
-18 [shape="box", label="Terminal
- info gain: 0.0
- counts: [41]
- probs: [1.]
- class: mammal"]
-
-
-2 [label="backbone
- info gain: 0.9927744539878081
- counts: [13 10  8  4  5]
- probs: [0.325 0.25  0.2   0.1   0.125]
- class: fish"]
-
-
-2->3 [label="False"]
-2->10 [label="True"]
-17 [shape="box", label="Terminal
- info gain: 0.0
- counts: [20]
- probs: [1.]
- class: bird"]
-
-
-3 [label="airborne
- info gain: 0.5577277787393193
- counts: [10  8]
- probs: [0.55555556 0.44444444]
- class: invertebrate"]
-
-
-3->4 [label="False"]
-3->9 [label="True"]
-10 [label="fins
- info gain: 0.9760206482366152
- counts: [13  4  5]
- probs: [0.59090909 0.18181818 0.22727273]
- class: fish"]
-
-
-10->11 [label="False"]
-10->16 [label="True"]
-4 [label="predator
- info gain: 0.31668908831502085
- counts: [10  2]
- probs: [0.83333333 0.16666667]
- class: invertebrate"]
-
-
-4->5 [label="False"]
-4->8 [label="True"]
-9 [shape="box", label="Terminal
- info gain: 0.0
- counts: [6]
- probs: [1.]
- class: insect"]
-
-
-11 [label="aquatic
- info gain: 0.59000489601191
- counts: [4 5]
- probs: [0.44444444 0.55555556]
- class: reptile"]
-
-
-11->12 [label="False"]
-11->13 [label="True"]
-16 [shape="box", label="Terminal
- info gain: 0.0
- counts: [13]
- probs: [1.]
- class: fish"]
-
-
-5 [label="legs
+digraph G {0 [shape="ellipse", label="milk
  info gain: 1.0
- counts: [2 2]
- probs: [0.5 0.5]
- class: insect"]
-
-
-5->6 [label="False"]
-5->7 [label="True"]
-8 [shape="box", label="Terminal
- info gain: 0.0
- counts: [8]
- probs: [1.]
- class: invertebrate"]
-
-
+ classes: ['mammal' 'reptile' 'bird' 'amphibian' 'invertebrate' 'fish' 'insect']
+ counts: [25  2  9  3  4  4  3]
+ probs: [0.5  0.04 0.18 0.06 0.08 0.08 0.06]
+ best class: mammal"]0->1 [label="False"]
+0->12 [label="True"]
+1 [shape="ellipse", label="feathers
+ info gain: 0.9426831892554923
+ classes: ['reptile' 'bird' 'amphibian' 'invertebrate' 'fish' 'insect']
+ counts: [2 9 3 4 4 3]
+ probs: [0.08 0.36 0.12 0.16 0.16 0.12]
+ best class: bird"]1->2 [label="False"]
+1->11 [label="True"]
 12 [shape="box", label="Terminal
  info gain: 0.0
+ classes: ['mammal']
+ counts: [25]
+ probs: [1.]
+ best class: mammal"]2 [shape="ellipse", label="toothed
+ info gain: 0.9886994082884977
+ classes: ['reptile' 'amphibian' 'invertebrate' 'fish' 'insect']
+ counts: [2 3 4 4 3]
+ probs: [0.125  0.1875 0.25   0.25   0.1875]
+ best class: invertebrate"]2->3 [label="False"]
+2->6 [label="True"]
+11 [shape="box", label="Terminal
+ info gain: 0.0
+ classes: ['bird']
+ counts: [9]
+ probs: [1.]
+ best class: bird"]3 [shape="ellipse", label="airborne
+ info gain: 0.9852281360342515
+ classes: ['invertebrate' 'insect']
+ counts: [4 3]
+ probs: [0.57142857 0.42857143]
+ best class: invertebrate"]3->4 [label="False"]
+3->5 [label="True"]
+6 [shape="ellipse", label="fins
+ info gain: 0.9910760598382224
+ classes: ['reptile' 'amphibian' 'fish']
+ counts: [2 3 4]
+ probs: [0.22222222 0.33333333 0.44444444]
+ best class: fish"]6->7 [label="False"]
+6->10 [label="True"]
+4 [shape="box", label="Terminal
+ info gain: 0.0
+ classes: ['invertebrate']
  counts: [4]
  probs: [1.]
- class: reptile"]
-
-
-13 [label="eggs
- info gain: 0.7219280948873623
- counts: [4 1]
- probs: [0.8 0.2]
- class: amphibian"]
-
-
-13->14 [label="False"]
-13->15 [label="True"]
-6 [shape="box", label="Terminal
+ best class: invertebrate"]5 [shape="box", label="Terminal
  info gain: 0.0
- counts: [2]
+ classes: ['insect']
+ counts: [3]
  probs: [1.]
- class: invertebrate"]
-
-
-7 [shape="box", label="Terminal
+ best class: insect"]7 [shape="ellipse", label="legs
+ info gain: 0.9709505944546686
+ classes: ['reptile' 'amphibian']
+ counts: [2 3]
+ probs: [0.4 0.6]
+ best class: amphibian"]7->8 [label="False"]
+7->9 [label="True"]
+10 [shape="box", label="Terminal
  info gain: 0.0
- counts: [2]
- probs: [1.]
- class: insect"]
-
-
-14 [shape="box", label="Terminal
- info gain: 0.0
- counts: [1]
- probs: [1.]
- class: reptile"]
-
-
-15 [shape="box", label="Terminal
- info gain: 0.0
+ classes: ['fish']
  counts: [4]
  probs: [1.]
- class: amphibian"]
-
-
-}
+ best class: fish"]8 [shape="box", label="Terminal
+ info gain: 0.0
+ classes: ['reptile']
+ counts: [2]
+ probs: [1.]
+ best class: reptile"]9 [shape="box", label="Terminal
+ info gain: 0.0
+ classes: ['amphibian']
+ counts: [3]
+ probs: [1.]
+ best class: amphibian"]}
