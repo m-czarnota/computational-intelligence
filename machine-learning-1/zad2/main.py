@@ -17,7 +17,10 @@ def experiment(x, y, model, visualize: bool = True):
     t2 = time.time()
     print(f'Time of fitting for zoo: {t2 - t1}s')
 
+    t1 = time.time()
     y_pred = model.predict(X_test)
+    t2 = time.time()
+    print(f'prediction time: {t2 - t1}s')
     print(f'accuracy score: {accuracy_score(y_test, y_pred)}')
 
     if visualize:
