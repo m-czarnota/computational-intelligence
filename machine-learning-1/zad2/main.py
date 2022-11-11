@@ -23,6 +23,7 @@ def experiment(x, y, model, visualize: bool = True):
     if visualize:
         s = graphviz.Source(model.tree_, format='png')
         s.view()
+        # model.tree_.view()
 
 
 if __name__ == '__main__':
@@ -32,9 +33,9 @@ if __name__ == '__main__':
     X['legs'] = X['legs'] > np.mean(X['legs'])
     Y = zoo['type']
 
-    experiment(X, Y, DecisionTree())
+    # experiment(X, Y, DecisionTree())
     print()
-    # experiment(X, Y, DecisionTreeClassifier())
+    experiment(X, Y, DecisionTreeClassifier())
 
     # rcv1 = fetch_rcv1()
     # X = rcv1['data'] > 0

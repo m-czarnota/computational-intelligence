@@ -1,3 +1,4 @@
+import graphviz
 import numpy as np
 from scipy import sparse
 
@@ -118,7 +119,7 @@ class DecisionTree:
         return type(column) == sparse.csr_matrix or type(column) == sparse.csc_matrix
 
     @property
-    def tree_(self):
+    def tree_str(self):
         if self.root is None:
             return None
 
@@ -133,12 +134,61 @@ class DecisionTree:
             label = f'{node.best_attribute if node.best_attribute is not None else "Terminal"}\n {label}'
             dot += f'{node.id} [shape="{shape}", label="{label}"]'
 
-            if node.left is not None:
-                dot += f'{node.id}->{node.left.id} [label="False"]\n'
-                successors.append(node.left)
+            if node.is_leaf():
+                continue
 
-            if node.right is not None:
-                dot += f'{node.id}->{node.right.id} [label="True"]\n'
-                successors.append(node.right)
+            dot += f'{node.id}->{node.left.id} [label="False"]\n'
+            successors.append(node.left)
+
+            dot += f'{node.id}->{node.right.id} [label="True"]\n'
+            successors.append(node.right)
 
         return dot + '}'
+
+    @property
+    def tree_(self):
+        def add_nodes(dot_var):
+            dot_var.attr('node')
+            successors = [self.root]
+
+            while len(successors) > 0:
+                node = successors.pop(0)
+
+                shape = 'box' if node.best_attribute is None else 'ellipse'
+                label = f'info gain: {node.impurity_value}\n classes: {node.classes}\n counts: {node.classes_count}\n probs: {node.classes_probs}\n best class: {node.class_best}'
+                label = f'{node.best_attribute if node.best_attribute is not None else "Terminal"}\n {label}'
+
+                dot_var.node(node.id, label=label, shape=shape)
+
+                if node.is_leaf() is False:
+                    successors.append(node.left)
+                    successors.append(node.right)
+
+            return dot_var
+
+        def add_edges(dot_var):
+            dot_var.attr('edge')
+            successors = [self.root]
+
+            while len(successors) > 0:
+                node = successors.pop(0)
+
+                if node.is_leaf() is True:
+                    continue
+
+                dot_var.edge(node.id, node.left.id)
+                successors.append(node.left)
+
+                dot_var.edge(node.id, node.right.id)
+                successors.append(node.right)
+
+            return dot_var
+
+        if self.root is None:
+            return None
+
+        dot = graphviz.Digraph()
+        add_nodes(dot)
+        add_edges(dot)
+
+        return dot
