@@ -72,7 +72,7 @@ class DecisionTree:
         if max_value == 0 or len(impurity_values) == 1 or len(uniques_y) == 1 or self.pruning_conditions(node):
             return
 
-        node.best_attribute = x.columns[max_index]
+        node.best_attribute = max_index if is_sparse else x.columns[max_index]
         node.best_attribute_index = max_index
         x_negatives, x_positives, y_negatives, y_positives = self.split(x, y, max_index)
 
@@ -98,7 +98,7 @@ class DecisionTree:
 
         if is_sparse:
             set1 = set(np.arange(x.shape[1]))
-            set2 = set(x[:, index])
+            set2 = set(x[:, index].indices)
             intersect = list(set1.intersection(set2))
             print(intersect)
 
@@ -119,7 +119,7 @@ class DecisionTree:
         return type(column) == sparse.csr_matrix or type(column) == sparse.csc_matrix
 
     @property
-    def tree_str(self):
+    def tree_(self):
         if self.root is None:
             return None
 
@@ -146,7 +146,7 @@ class DecisionTree:
         return dot + '}'
 
     @property
-    def tree_(self):
+    def tree_var(self):
         def add_nodes(dot_var):
             dot_var.attr('node')
             successors = [self.root]

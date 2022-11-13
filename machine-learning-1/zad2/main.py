@@ -24,9 +24,7 @@ def experiment(x, y, model, visualize: bool = True):
     print(f'accuracy score: {accuracy_score(y_test, y_pred)}')
 
     if visualize:
-        s = graphviz.Source(model.tree_, format='png')
-        s.view()
-        # model.tree_.view()
+        model.tree_.view()
 
 
 if __name__ == '__main__':
@@ -36,19 +34,6 @@ if __name__ == '__main__':
     X['legs'] = X['legs'] > np.mean(X['legs'])
     Y = zoo['type']
 
-    # experiment(X, Y, DecisionTree())
+    experiment(X, Y, DecisionTree())
     print()
-    experiment(X, Y, DecisionTreeClassifier())
-
-    # rcv1 = fetch_rcv1()
-    # X = rcv1['data'] > 0
-    # Xr = X[:, 2]
-    # Y = rcv1['target'][:, 8]
-    # print(X.shape)
-    #
-    # X = X.tocsc()
-    # Y = Y.tocsc()
-
-    # print(X[:, 2])
-    # xc = X[X[:, 2].indices > 0]
-    # print(xc)
+    experiment(X, Y, DecisionTreeClassifier(), visualize=False)
