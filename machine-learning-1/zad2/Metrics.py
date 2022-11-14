@@ -3,27 +3,23 @@ import numpy as np
 
 
 def freq(x, prob: bool = True) -> list:
+    counts = {}
+
     if type(x) == sparse.csr_matrix or type(x) == sparse.csc_matrix:
         nonzero = x.nonzero()[0]
-        uniques = set(nonzero)
 
         count_nonzero = len(nonzero)
         counts = {
             0: x.shape[0] - count_nonzero,
             1: count_nonzero
         }
-        total = sum(counts.values())
+    else:
+        for val in x:
+            if val in counts.keys():
+                counts[val] += 1
+                continue
 
-        return [uniques, counts if prob is False else {key: val / total for key, val in counts.items()}]
-
-    counts = {}
-
-    for val in x:
-        if val in counts.keys():
-            counts[val] += 1
-            continue
-
-        counts[val] = 1
+            counts[val] = 1
 
     xi = np.array(list(counts.keys()))
     ni = np.array(list(counts.values()))
@@ -32,6 +28,8 @@ def freq(x, prob: bool = True) -> list:
 
 
 def freq2(x, y, prob: bool = True) -> list:
+    counts = {}
+
     if (type(x) == sparse.csr_matrix or type(x) == sparse.csc_matrix) and (type(y) == sparse.csr_matrix or type(y) == sparse.csc_matrix):
         x_nonzero = x.nonzero()[0]
         y_nonzero = y.nonzero()[0]
@@ -49,22 +47,18 @@ def freq2(x, y, prob: bool = True) -> list:
             (0, 0): count_shared_zeros,
             (0, 1): count_y_nonzero - count_intersection,
             (1, 0): count_x_nonzero - count_intersection,
-            (1, 1): count_intersection
         }
-        # print(counts)
-        total = sum(counts.values())
 
-        return [uniques_x, uniques_y, counts if prob is False else {key: val / total for key, val in counts.items()}]
+        if count_intersection > 0:
+            counts[(1, 1)] = count_intersection
+    else:
+        for x_val, y_val in zip(x, y):
+            key = (x_val, y_val)
 
-    counts = {}
-
-    for x_val, y_val in zip(x, y):
-        key = (x_val, y_val)
-
-        if key in counts.keys():
-            counts[key] += 1
-        else:
-            counts[key] = 1
+            if key in counts.keys():
+                counts[key] += 1
+            else:
+                counts[key] = 1
 
     counts = np.array(list(counts.values()))
     return [freq(x)[0], freq(y)[0], counts / np.sum(counts) if prob is True else counts]
@@ -87,7 +81,6 @@ def entropy(x, y=None, conditional_reverse: bool = False):
 
 def infogain(x, y, reverse: bool = False):
     uniques_x, uniques_y, probs = freq2(x, y)
-    # return entropy(x) - entropy(x, y, conditional_reverse=True)
     return entropy(x) + entropy(y) - entropy(x, y)
 
 
