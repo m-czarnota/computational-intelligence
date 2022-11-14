@@ -8,9 +8,10 @@ class Perceptron(LinearClassifier):
 
         while n < x.shape[0]:
             for i in range(x.shape[0]):
-                print(d[i] * (x[i].dot(w) + b))
+                print(d[i])
+                print(d[i] * (x[i, :].dot(w) + b))
 
-                if d[i] * (x[i].dot(w) + b) <= 0:
+                if d[i] * (x[i, :].dot(w) + b) <= 0:
                     w += d[i] * x[i]
                     b += d[i]
                     n = 0
