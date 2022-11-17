@@ -24,11 +24,11 @@ FEATURE_MIN = 0.25
 FEATURE_MAX = 0.5
 
 DETECT_SCALES = 4
-DETECT_WINDOW_HEIGHT_MIN = 64
-DETECT_WINDOW_WIDTH_MIN = 64
+DETECT_WINDOW_HEIGHT_MIN = 48
+DETECT_WINDOW_WIDTH_MIN = 48
 DETECT_WINDOW_GROWTH = 1.25  # increase window about 25%
 DETECT_WINDOW_JUMP = 0.1
-DETECT_THRESHOLD = 0.15
+DETECT_THRESHOLD = 2.0
 
 
 def img_resize(i):
@@ -527,6 +527,7 @@ def detect(classifier: AdaBoostClassifier, image: np.array, h_coords, n, feature
     detections = []
     progress_check = int(np.round(0.1 * windows_count))
 
+    # ta pętla nadaje się do zrównoleglenia
     for window_index, (scale, j, k, h, w) in enumerate(windows):
         if window_index % progress_check == 0:
             print(f'PROGRESS: {window_index / windows_count:.2}')
@@ -576,11 +577,14 @@ def detect(classifier: AdaBoostClassifier, image: np.array, h_coords, n, feature
     return detections
 
 
-def get_metrics(classifier, x, y):
+def get_metrics(classifier, x, y, train: bool = True):
+    indexed_positive = indexed_positive_train if train else indexed_positive_test
+    indexed_negative = indexed_negative_train if train else indexed_negative_test
+
     # acc_train = np.mean(classifier.predict(X_train) == y_train)
     acc_train = classifier.score(x, y)
-    sensitivity_train = classifier.score(x[indexed_positive_train], y[indexed_positive_train])
-    false_alarm_rate_train = 1.0 - classifier.score(x[indexed_negative_train], y[indexed_negative_train])
+    sensitivity_train = classifier.score(x[indexed_positive], y[indexed_positive])
+    false_alarm_rate_train = 1.0 - classifier.score(x[indexed_negative], y[indexed_negative])
 
     return acc_train, sensitivity_train, false_alarm_rate_train
 
@@ -589,12 +593,13 @@ if __name__ == '__main__':
     s = 3
     p = 4
     n = len(HAAR_TEMPLATED) * s ** 2 * (2 * p - 1) ** 2
-    T = 8  # number of boosting rounds
+    T = 32  # number of boosting rounds
     B = 8  # number fo bins (buckets)
     random_seed = 1
 
     DATA_NAME = f'face_n_{n}_s_{s}_p_{p}.bin'
-    CLFS_NAME = f'face_n_{n}_s_{s}_p_{p}_T_{T}_ada.bin'
+    # CLFS_NAME = f'face_n_{n}_s_{s}_p_{p}_T_{T}_ada.bin'
+    CLFS_NAME = f'face_n_{n}_s_{s}_p_{p}_T_{T}_B_{B}_real.bin'
     print(f's: {s}, p: {p}, n: {n}')
 
     h_indexes = haar_indexes(s, p)
@@ -638,9 +643,16 @@ if __name__ == '__main__':
     # print(f'ACC TRAIN: {acc_train}, SENS TRAIN: {sensitivity_train}, FAR TRAIN: {false_alarm_rate_train}')
 
     # --- REAL BOOST ---
-    clf = RealBoostBins(t=T, b=B)
-    clf.fit(X_train, y_train)
-    print(clf.logits_)
+    # clf = RealBoostBins(t=T, b=B)
+    # clf.fit(X_train, y_train)
+    # pickle_all(CLFS_FOLDER + CLFS_NAME, [clf])
+    [clf] = unpickle_all(CLFS_FOLDER + CLFS_NAME)
+    selected_feature_indexes = clf.features_
+
+    acc_train, sensitivity_train, false_alarm_rate_train = get_metrics(clf, X_train, y_train)
+    print(f'ACC TRAIN: {acc_train}, SENS TRAIN: {sensitivity_train}, FAR TRAIN: {false_alarm_rate_train}')
+    acc_test, sensitivity_test, false_alarm_rate_test = get_metrics(clf, X_test, y_test, False)
+    print(f'ACC TRAIN: {acc_test}, SENS TRAIN: {sensitivity_test}, FAR TRAIN: {false_alarm_rate_test}')
 
     # --- ACCURACY MEASURES ---
     # acc_test = classifier.score(X_test, y_test)
@@ -648,16 +660,22 @@ if __name__ == '__main__':
     # false_alarm_rate_test = 1.0 - classifier.score(X_test[indexed_negative_test], y_test[indexed_negative_test])
     # print(f'ACC TEST: {acc_test}, SENS TEST: {sensitivity_test}, FAR TEST: {false_alarm_rate_test}')
 
-    # detections = detect(classifier, i, h_coords, n, selected_feature_indexes, preprocess=True, verbose=True)
-    #
-    # for j0, k0, h, w in detections:
-    #     cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (0, 0, 255))
-    # cv2.imshow("TEST IMAGE", i_resized)
-    # cv2.waitKey()
+    detections = detect(clf, i, h_coords, n, selected_feature_indexes, preprocess=True, verbose=True)
+
+    for j0, k0, h, w in detections:
+        cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (0, 0, 255))
+    cv2.imshow("TEST IMAGE", i_resized)
+    cv2.waitKey()
 
     """
     zad domowe:
     odkomentować resztę plików w fddb_data, zwiększyć rozmiar okienka s=3 i p=4, gdzie będzie n=2225, i s=5 oraz p=5
     zrzucić wyniki do plików
     zwiększyć n z 3 na 10 przy fddb_data
+    """
+
+    """
+    zad domowe:
+    przygotować 128 rund i 32 rundy
+    s = 3, p = 4 oraz s=5, p=5
     """
