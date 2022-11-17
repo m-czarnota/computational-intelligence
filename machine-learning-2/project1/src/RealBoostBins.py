@@ -13,6 +13,8 @@ class RealBoostBins(BaseEstimator, ClassifierMixin):
         self.mins_ = None
         self.maxes_ = None
         self.features_ = np.zeros(t, dtype='int16')  # indexes of selected features
+        self.mins_selected = None
+        self.maxes_selected = None
         self.logits_ = np.zeros((t, b))  # b - number of bins (buckets)
         self.class_labels_ = None
 
@@ -61,7 +63,7 @@ class RealBoostBins(BaseEstimator, ClassifierMixin):
                 for b in range(self.B_):
                     j_in_b = x_binned[:, j] == b  # where variable False is in bucket b
                     w_positives[b] = np.sum(w[indexer_positives[j, b]])
-                    w_negatives[b] = np.sum(w[indexes_negatives[j, b]])
+                    w_negatives[b] = np.sum(w[indexer_negatives[j, b]])
 
                     logits_j[b] = self.logit(w_positives[b], w_negatives[b])
                     # logits_j[b] = 0.0 if w_positives[b] == w_negatives[b] else (
@@ -82,11 +84,20 @@ class RealBoostBins(BaseEstimator, ClassifierMixin):
         t2_main_loop = time.time()
         print(f'MAIN BOOSTING LOOP DONE. [TIME: {t2_main_loop - t1_main_loop}s]')
 
+        self.mins_selected = self.mins_[self.features_]
+        self.maxes_selected = self.maxes_[self.features_]
+
         t2 = time.time()
         print(f'FIT DONE. [TIME: {t2 - t1}s]')
 
     def decision_function(self, x):
-        pass
+        x_selected = x[:, self.features_]  # zakładamy, że fit się odbył i możemy tutaj numery kolumn podać
+        x_binned = np.clip(np.int8((x_selected - self.mins_selected) / (self.maxes_selected - self.mins_selected) * self.B_), 0, self.B_ - 1)
+
+        m = x_binned.shape[0]
+        responses = np.array([np.sum(self.logits_[np.arange(self.T_), x_binned[i]]) for i in range(m)])
+
+        return responses
 
     def predict(self, x):
         return self.class_labels_[1 * (self.decision_function(x) > 0.0)]
@@ -103,7 +114,7 @@ class RealBoostBins(BaseEstimator, ClassifierMixin):
         for j in range(n):
             x_j_sorted = np.sort(x[:, j])
             self.mins_[j] = x_j_sorted[int(np.ceil(self.OUTLIERS_RATIO * m))]
-            self.mins_[j] = x_j_sorted[int(np.floor((1.0 - self.OUTLIERS_RATIO) * m))]
+            self.maxes_[j] = x_j_sorted[int(np.floor((1.0 - self.OUTLIERS_RATIO) * m))]
 
         t2_ranges = time.time()
         print(f'FINDING RANGES DONE. [TIME: {t2_ranges - t1_ranges}s]')
