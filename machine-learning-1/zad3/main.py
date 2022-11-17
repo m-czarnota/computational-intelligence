@@ -48,6 +48,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from LinearClassifier import LinearClassifier
 from Perceptron import Perceptron
 
 
@@ -59,14 +60,30 @@ def linear_separetly_dataset():
     return x, d
 
 
+def plot_class(x: np.array, y: np.array, clf: LinearClassifier):
+    n, m = x.shape
+
+    [x1, x2] = np.meshgrid(n, m)
+    x_1_2_flatten = np.array([x1.flatten(), x2.flatten()]).T
+
+    z = clf.predict(x_1_2_flatten)
+    z = z.reshape((n, n))
+
+    plt.contour(x1, x2, z, [0, 0])
+    plt.show()
+
+
 if __name__ == '__main__':
     x, d = linear_separetly_dataset()
 
+    perceptron = Perceptron()
+    w, b = perceptron.fit(x, d)
+    print(w, b)
+
     plt.figure()
     plt.scatter(x[:, 0], x[:, 1], c=d)
-    # plt.show()
+    plt.show()
 
-    perceptron = Perceptron()
-    print(perceptron.fit(x, d))
+    # plot_class(x, d, perceptron)
 
 
