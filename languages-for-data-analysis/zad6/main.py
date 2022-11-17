@@ -5,47 +5,49 @@ import numpy as np
 DATA_FOLDER = './data'
 
 
-def get_quality_and_relevance(x: pd.DataFrame):
+def calc_quality(x: pd.DataFrame, y: list):
+    duplicates = x[x.duplicated(keep=False)]
+    duplicates = duplicates.groupby(list(x)).apply(lambda a: tuple(a.index))
+
+    conflicted_count = 0
+
+    for index_row, duplicate_indexes in duplicates.items():
+        decisions = [y[index] for index in duplicate_indexes]
+        uniques = np.unique(decisions)
+
+        if len(uniques) > 1:
+            conflicted_count += len(uniques)
+
+    non_conflicted_count = x.shape[0] - conflicted_count
+    quality = non_conflicted_count / x.shape[0]
+
+    return quality
+
+
+def calc_quality_and_relevance(x: pd.DataFrame, y: list):
+    x_quality = calc_quality(x, y)
+    x_column_dropped_qualities = [calc_quality(x.drop(column, axis=1), y) for column in x.columns]
+    x_relevances = [(x_quality - quality) / x_quality for quality in x_column_dropped_qualities]
+
+    return x_column_dropped_qualities, x_relevances
+
+
+def simplify_dataset(x: pd.DataFrame):
     y = x[x.columns[-1]].tolist()
-    x = x.drop(x.columns[-1], axis=1)
+    x_data = x.drop(x.columns[-1], axis=1)
 
     quality_p = 0.75
-    quality_current = 1
+    quality_current = calc_quality(x_data, y)
 
     while quality_current > quality_p:
-        for column in x.columns:
-            x_copy = x.drop(column, axis=1)
-            counts = {}
+        print(quality_current)
+        qualities, relevances = calc_quality_and_relevance(x_data, y)
+        column_to_remove = x_data.columns[np.argmin(relevances)]
 
-            print(x_copy)
+        x_data = x_data.drop(column_to_remove, axis=1)
+        quality_current = calc_quality(x_data, y)
 
-            for index, row_copy in x_copy.iterrows():
-                print(row_copy)
-                key = ''
-                for value in row_copy:
-                    key += str(value)
-
-                counts[key] = y[index]
-
-            uniques, counts = np.unique(counts, return_counts=True)
-            print(uniques, counts)
-
-            break
-
-        break
-
-    while quality_current > quality_p:
-        for column in x.columns:
-            x_copy = x.drop(column, axis=1)
-
-            duplicates = f = df[df.duplicated(keep=False)]
-            duplicates = duplicates.groupby(list(df)).apply(lambda a: tuple(a.index))
-            print(duplicates)
-
-
-            break
-
-        break
+    return x_data, quality_current
 
 
 if __name__ == '__main__':
@@ -64,7 +66,8 @@ if __name__ == '__main__':
         'x3': [2, 0, 2, 0, 2, 1],
         'c': [0, 1, 1, 0, 1, 1],
     })
-    get_quality_and_relevance(arr)
+    arr_simplified, quality = simplify_dataset(arr)
+    print(arr_simplified, quality)
 
 """
 zad 4:
