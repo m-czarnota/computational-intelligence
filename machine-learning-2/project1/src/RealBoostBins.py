@@ -52,6 +52,8 @@ class RealBoostBins(BaseEstimator, ClassifierMixin):
         t1_main_loop = time.time()
 
         for t in range(self.T_):  # pętla po rundach boostingu
+            print(f"{t + 1}/{self.T_}")
+
             err_exp_best = np.inf  # błąd wykładniczy najlepszy
             best_j = -1
 
