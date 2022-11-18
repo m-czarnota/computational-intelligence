@@ -28,7 +28,7 @@ DETECT_WINDOW_HEIGHT_MIN = 48
 DETECT_WINDOW_WIDTH_MIN = 48
 DETECT_WINDOW_GROWTH = 1.25  # increase window about 25%
 DETECT_WINDOW_JUMP = 0.1
-DETECT_THRESHOLD = 2.0
+DETECT_THRESHOLD = 1.5
 
 
 def img_resize(i):
@@ -513,7 +513,7 @@ def detect(classifier: AdaBoostClassifier, image: np.array, h_coords, n, feature
         h_reminder_half = ((H - h) % dj) // 2
         w_reminder_half = ((W - w) % dk) // 2
 
-        h_coords_window_subsets.append(np.array([np.array(h_coords[q] * h).astype("int32") for q in range(h_coords_subset.shape[0])]))
+        h_coords_window_subsets.append(np.array([np.array(h_coords_subset[q] * h).astype("int32") for q in range(h_coords_subset.shape[0])], dtype='object'))
 
         for j in np.arange(h_reminder_half, H - h + 1, dj):
             for k in np.arange(w_reminder_half, W - w + 1, dk):
@@ -525,6 +525,7 @@ def detect(classifier: AdaBoostClassifier, image: np.array, h_coords, n, feature
 
     t1_main_loop = time.time()
     detections = []
+    responses = []
     progress_check = int(np.round(0.1 * windows_count))
 
     # ta pętla nadaje się do zrównoleglenia
@@ -537,6 +538,7 @@ def detect(classifier: AdaBoostClassifier, image: np.array, h_coords, n, feature
 
         if response > DETECT_THRESHOLD:
             detections.append(np.array([j, k, h, w]))
+            responses.append(response)
 
     t2_main_loop = time.time()
     print(f'MAIN LOOP DONE. [TIME: {t2_main_loop - t1_main_loop}s]')
@@ -574,7 +576,7 @@ def detect(classifier: AdaBoostClassifier, image: np.array, h_coords, n, feature
     t2 = time.time()
     print(f'DETECT DONE. [TIME: {t2 - t1}s, WINDOWS CHECKED: {windows_count}]')
 
-    return detections
+    return detections, responses
 
 
 def get_metrics(classifier, x, y, train: bool = True):
@@ -587,6 +589,58 @@ def get_metrics(classifier, x, y, train: bool = True):
     false_alarm_rate_train = 1.0 - classifier.score(x[indexed_negative], y[indexed_negative])
 
     return acc_train, sensitivity_train, false_alarm_rate_train
+
+
+def iou2(jkhw1, jkhw2):
+    j11 = jkhw1[0]  # j
+    k11 = jkhw1[1]  # k
+    j12 = j11 + jkhw1[2] - 1
+    k12 = k11 + jkhw1[3] - 1  # pkt końcowy musi być pomniejszony o 1, bo będzie za dużo
+
+    j21 = jkhw2[0]
+    k21 = jkhw2[1]
+    j22 = j21 + jkhw2[2]
+    k22 = k21 + jkhw2[3]
+
+    dj = np.min([j12, j22]) - np.max([j21, j11]) + 1
+    if dj <= 0:
+        return 0.0
+    dk = np.min([k12, k22]) - np.max([k21, k11]) + 1
+    if dk <= 0:
+        return 0.0
+    i = dj * dk
+    u = (j12 - j11 + 1) * (k12 - k11 + 1) + (j22 - j21 + 1) * (k22 - k21 + 1) - i
+    return i / u
+
+
+def min_max_suppression(detections, responses, threshold: int = 0.5):
+    d = np.array(detections)
+    r = np.array(responses)
+    indexes = np.ones(len(detections), dtype=np.bool)
+
+    arg_sort = np.argsort(-r, kind='stable')
+    d = d[arg_sort]
+    r = r[arg_sort]
+
+    d_final = []
+    r_final = []
+
+    for i in range(len(detections) - 1):
+        if indexes[i] is False:
+            continue
+
+        indexes[i] = False
+        d_final.append(d[i])
+        r_final.append(r[i])
+
+        for j in range(i + 1, len(detections)):
+            if indexes[j] is False:
+                continue
+
+            if iou2(d[i], d[j]) >= threshold:
+                indexes[j] = False
+
+    return d_final, r_final
 
 
 if __name__ == '__main__':
@@ -628,6 +682,8 @@ if __name__ == '__main__':
     indexed_negative_train = y_train == -1
     indexed_positive_test = y_test == 1
     indexed_negative_test = y_test == -1
+    print(f'P_TEST(Y=-): {np.sum(indexed_negative_test) / X_test.shape[0]}')
+    print(f'P_TEST(Y=+): {np.sum(indexed_positive_test) / X_test.shape[0]}')
 
     # --- ADA BOOST ---
     # t1 = time.time()
@@ -652,7 +708,7 @@ if __name__ == '__main__':
     acc_train, sensitivity_train, false_alarm_rate_train = get_metrics(clf, X_train, y_train)
     print(f'ACC TRAIN: {acc_train}, SENS TRAIN: {sensitivity_train}, FAR TRAIN: {false_alarm_rate_train}')
     acc_test, sensitivity_test, false_alarm_rate_test = get_metrics(clf, X_test, y_test, False)
-    print(f'ACC TRAIN: {acc_test}, SENS TRAIN: {sensitivity_test}, FAR TRAIN: {false_alarm_rate_test}')
+    print(f'ACC TEST: {acc_test}, SENS TEST: {sensitivity_test}, FAR TEST: {false_alarm_rate_test}')
 
     # --- ACCURACY MEASURES ---
     # acc_test = classifier.score(X_test, y_test)
@@ -660,10 +716,16 @@ if __name__ == '__main__':
     # false_alarm_rate_test = 1.0 - classifier.score(X_test[indexed_negative_test], y_test[indexed_negative_test])
     # print(f'ACC TEST: {acc_test}, SENS TEST: {sensitivity_test}, FAR TEST: {false_alarm_rate_test}')
 
-    detections = detect(clf, i, h_coords, n, selected_feature_indexes, preprocess=True, verbose=True)
+    # --- DRAWING ---
+    detections, responses = detect(clf, i, h_coords, n, selected_feature_indexes, preprocess=True, verbose=True)
+    detections_final, responses_final = min_max_suppression(detections, responses)
 
-    for j0, k0, h, w in detections:
+    for (j0, k0, h, w), response in zip(detections, responses):
         cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (0, 0, 255))
+        cv2.putText(i_resized, f'{response[0]:0.2}', (k0, j0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+    for (j0, k0, h, w), response in zip(detections_final, responses_final):
+        cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (0, 255, 0))
+        cv2.putText(i_resized, f'{response[0]:0.2}', (k0, j0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
     cv2.imshow("TEST IMAGE", i_resized)
     cv2.waitKey()
 
@@ -678,4 +740,38 @@ if __name__ == '__main__':
     zad domowe:
     przygotować 128 rund i 32 rundy
     s = 3, p = 4 oraz s=5, p=5
+    """
+
+    """
+    oś FAR dla krzywej ROC musi być w skali logarytmicznej
+    można wykorzystać scikit-learn
+    trzeba znaleźć pkt o największej dokładności
+    będzie to jeden z ząbków wypukłych
+    funkcja z scikit-learn da trójki danych (far, czułość, próg decyzyjny)
+    jak wyliczyść dokładność? załóżmy, że f=far oraz s=czułość
+    P(Y==-)=0.85, P(Y==+)=0.15
+    acc = P(F=+ | Y=+) * P(Y=+) + P(F=- | Y=-) * P(Y=-) = s * 0.85 + (1 - f) * 0.15
+    przeiterować się po krzywej ROC i znaleść największą dokładność z całej krzywej
+    """
+
+    """
+    funkcja która przebiega przez 100 obrazków
+    na podstawie pliku tekstowego sprawdzamy, gdzie są spodziewane zapalone twarze
+    jak się umówimy na progowe intersection over union (IoU)=0.5
+    tam gdzie okienko ma >= IoU to TP += 1
+    jak mniej to FP += 1
+    te niewykryte, niepokryte spodziewane FN += 1
+    funckja w kodzie fddb_single_fold. zrobić copy paste funkcji, odać argument i zliczać
+    """
+
+    """
+    zrównoleglenie z biblioteką joblib
+    w detect zamiast w końcowej pętli odłożyć wektory cech hara dla poszczególnych okienek
+    response dać w zrónoleglenie
+    i wysłać do funkcji decision function - tam można pozbyć się pętli jako wektoryzacja
+    """
+
+    """
+    jak ktoś chce piątkę to zrobić 3 pkt
+    trzeba zrobić minimum jeden pkt, aby mieć 3
     """
