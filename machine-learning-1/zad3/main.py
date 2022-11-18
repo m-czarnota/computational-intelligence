@@ -46,6 +46,7 @@
 
 
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from LinearClassifier import LinearClassifier
@@ -63,18 +64,23 @@ def linear_separetly_dataset():
 def plot_class(x: np.array, y: np.array, clf: LinearClassifier):
     n, m = x.shape
 
-    [x1, x2] = np.meshgrid(n, m)
+    [x1, x2] = np.meshgrid(x[:, 0], x[:, 1])
     x_1_2_flatten = np.array([x1.flatten(), x2.flatten()]).T
+    print(x_1_2_flatten)
 
     z = clf.predict(x_1_2_flatten)
     z = z.reshape((n, n))
 
-    plt.contour(x1, x2, z, [0, 0])
+    plt.contourf(x1, x2, z)
     plt.show()
 
 
 if __name__ == '__main__':
     x, d = linear_separetly_dataset()
+
+    sonar_data = pd.read_csv('sonar_csv.csv')
+    # d = sonar_data[sonar_data.columns[-1]]
+    # x = sonar_data.drop(sonar_data.columns[-1], axis=1).to_numpy()
 
     perceptron = Perceptron()
     w, b = perceptron.fit(x, d)
@@ -82,8 +88,14 @@ if __name__ == '__main__':
 
     plt.figure()
     plt.scatter(x[:, 0], x[:, 1], c=d)
-    plt.show()
 
-    # plot_class(x, d, perceptron)
+    # w = perceptron.coef_[0]
+    # a = -w[0] / w[1]
+    # xx = np.linspace(-5, 5)
+    # yy = a * xx - (perceptron.intercept_[0] / w[1])
+    # plt.plot(xx, yy, 'k-')
+    # plt.show()
+
+    plot_class(x, d, perceptron)
 
 
