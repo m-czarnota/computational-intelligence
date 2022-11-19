@@ -7,9 +7,9 @@ from NxGraphAnimatorPosLayoutEnum import NxGraphAnimatorPosLayoutEnum
 
 def random_graph():
     node_count = 8
-    k = 2
+    edge_creation_prob = 0.6
 
-    g = nx.erdos_renyi_graph(node_count, k)
+    g = nx.erdos_renyi_graph(node_count, edge_creation_prob)
     pos = nx.spring_layout(g)
 
     nx.draw(g, pos=pos, with_labels=True)
@@ -21,10 +21,10 @@ def random_graph():
 
 def small_world_graph():
     nodes_count = 8
-    k = 4
-    p = 0.7
+    nearest_neighbour_count = 4
+    each_rewiring_prob = 0.7
 
-    g = nx.watts_strogatz_graph(nodes_count, k, p)
+    g = nx.watts_strogatz_graph(nodes_count, nearest_neighbour_count, each_rewiring_prob)
     pos = nx.circular_layout(g)
 
     nx.draw(g, pos=pos, with_labels=True)
