@@ -1,11 +1,12 @@
 import networkx as nx
 import numpy as np
 from matplotlib import animation, rc, pyplot as plt
+from abc import ABC, abstractmethod
 
-from NxGraphAnimatorPosLayoutEnum import NxGraphAnimatorPosLayoutEnum
+from src.Enum.NxGraphAnimatorPosLayoutEnum import NxGraphAnimatorPosLayoutEnum
 
 
-class NxGraphAnimator:
+class NxGraphAnimator(ABC):
     def __init__(self, layout: NxGraphAnimatorPosLayoutEnum = NxGraphAnimatorPosLayoutEnum.SPRING):
         self.layout = NxGraphAnimatorPosLayoutEnum.get_nx_layout(layout)
 
@@ -18,7 +19,45 @@ class NxGraphAnimator:
         self.fig = None
         self.pos = None
 
-    def draw(self, graph):
+        self.default_filepath_images = './images'
+        self.default_filepath_animations = './animations'
+
+    @abstractmethod
+    def initialise_new_random_graph(self):
+        ...
+
+    def save_visualisation_to_file(self, filename: str):
+        self.visualise__()
+        plt.savefig(filename)
+
+    @abstractmethod
+    def save_animation_to_file(self, filename: str):
+        anim = self.draw_animate(self.graph)
+        anim.save(filename)
+
+    def show_animation(self, graph):
+        anim = self.draw_animate(graph)
+        plt.show()
+
+    def show_graph(self):
+        self.visualise__()
+        plt.show()
+
+    def draw_animate(self, graph):
+        plt.clf()
+        self.prepare_to_draw__(graph)
+
+        anim = animation.FuncAnimation(self.fig, self.update_animation__, repeat=False)
+        rc('animation', html='jshtml')
+
+        return anim
+
+    def visualise__(self):
+        plt.clf()
+        pos = self.layout(self.graph)
+        nx.draw(self.graph, pos=pos, with_labels=True)
+
+    def prepare_to_draw__(self, graph):
         self.actual_node = 0
         self.actual_edge = 0
 
@@ -28,10 +67,6 @@ class NxGraphAnimator:
 
         self.nodes_to_draw = np.array(graph.nodes())
         self.edges_to_draw = np.array(graph.edges())
-
-        ani = animation.FuncAnimation(self.fig, self.update_animation__, repeat=False)
-        rc('animation', html='jshtml')
-        plt.show()
 
     def update_animation__(self, frame):
         if self.actual_node < len(self.nodes_to_draw):
