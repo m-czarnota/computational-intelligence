@@ -54,8 +54,8 @@ from Perceptron import Perceptron
 
 
 def linear_separetly_dataset():
-    w, b = [1, 1], -1
-    x = np.random.randn(100, 2)
+    w, b = [1, 1, 1], -1
+    x = np.random.randn(100, 3)
     d = np.sign(x.dot(w) + b)
 
     return x, d
@@ -89,13 +89,11 @@ if __name__ == '__main__':
     plt.figure()
     plt.scatter(x[:, 0], x[:, 1], c=d)
 
-    # w = perceptron.coef_[0]
-    # a = -w[0] / w[1]
-    # xx = np.linspace(-5, 5)
-    # yy = a * xx - (perceptron.intercept_[0] / w[1])
-    # plt.plot(xx, yy, 'k-')
-    # plt.show()
+    x1 = np.array([np.min(x[:, 0]), np.max(x[:, 1])])
+    x2 = -(w[0] + w[1] * x1) / w[2]
+    plt.plot(x1, x2)
+    plt.show()
 
-    plot_class(x, d, perceptron)
+    # plot_class(x, d, perceptron)
 
 
