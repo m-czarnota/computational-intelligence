@@ -26,28 +26,77 @@ def calc_quality(x: pd.DataFrame, y: list):
 
 def calc_quality_and_relevance(x: pd.DataFrame, y: list):
     x_quality = calc_quality(x, y)
-    x_column_dropped_qualities = [calc_quality(x.drop(column, axis=1), y) for column in x.columns]
+    x_column_dropped_qualities = [calc_quality(x.drop(column, axis=1), y) for column in x.columns if len(x.columns) > 1]
     x_relevances = [(x_quality - quality) / x_quality for quality in x_column_dropped_qualities]
 
     return x_column_dropped_qualities, x_relevances
 
 
 def simplify_dataset(x: pd.DataFrame):
-    y = x[x.columns[-1]].tolist()
-    x_data = x.drop(x.columns[-1], axis=1)
+    decision_column_name = x.columns[-1]
+    y = x[decision_column_name].tolist()
+    x_data = x.drop(decision_column_name, axis=1)
 
     quality_p = 0.75
     quality_current = calc_quality(x_data, y)
 
-    while quality_current > quality_p:
-        print(quality_current)
-        qualities, relevances = calc_quality_and_relevance(x_data, y)
-        column_to_remove = x_data.columns[np.argmin(relevances)]
+    iteration_count = 0
+    iteration_max = 5000
 
-        x_data = x_data.drop(column_to_remove, axis=1)
+    while quality_current > quality_p:
+        qualities, relevances = calc_quality_and_relevance(x_data, y)
+
+        if iteration_count > iteration_max:
+            break
+
+        if len(relevances) > 1:
+            column_to_remove = x_data.columns[np.argmin(relevances)]
+            x_data = x_data.drop(column_to_remove, axis=1)
+
         quality_current = calc_quality(x_data, y)
+        iteration_count += 1
+
+    x_data[decision_column_name] = y
 
     return x_data, quality_current
+
+
+def create_decision_table(dataset: pd.DataFrame):
+    x_data = dataset.copy()
+
+    decision_column_name = x_data.columns[-1]
+    y = x_data[decision_column_name].tolist()
+    x = x_data.drop(decision_column_name, axis=1)
+
+    duplicates = x[x.duplicated(keep=False)]
+    duplicates = duplicates.groupby(list(x)).apply(lambda a: tuple(a.index))
+    duplicates_decisions = {index: y[index] for duplicate in duplicates for index in duplicate}
+
+    certainty = []
+    for row_index in range(x_data.shape[0]):
+        current_duplicate = None
+
+        for duplicate in duplicates:
+            if row_index in duplicate:
+                current_duplicate = duplicate
+                break
+
+        if current_duplicate is None:
+            certainty.append(1)
+            continue
+
+        non_conflicted_count = 0
+
+        for index in current_duplicate:
+            if duplicates_decisions[index] == duplicates_decisions[row_index]:
+                non_conflicted_count += 1
+
+        certainty.append(non_conflicted_count / len(current_duplicate))
+
+    x_data['certainty'] = certainty
+    x_data.sort_values(by='certainty', ascending=False, inplace=True)
+
+    return x_data
 
 
 if __name__ == '__main__':
@@ -57,8 +106,6 @@ if __name__ == '__main__':
     meta = pd.DataFrame(meta)
 
     df = df.replace('?', np.nan).dropna()
-    # for column in df.columns:
-    #     df[column] = pd.qcut(df[column], 4)
 
     arr = pd.DataFrame({
         'x1': [0, 0, 1, 1, 1, 1],
@@ -66,8 +113,11 @@ if __name__ == '__main__':
         'x3': [2, 0, 2, 0, 2, 1],
         'c': [0, 1, 1, 0, 1, 1],
     })
-    arr_simplified, quality = simplify_dataset(arr)
-    print(arr_simplified, quality)
+    arr_simplified, quality = simplify_dataset(df)
+    print(f'dataset quality: {quality}')
+
+    decision_table = create_decision_table(arr_simplified)
+    print(decision_table)
 
 """
 zad 4:
