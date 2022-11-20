@@ -12,19 +12,9 @@ class ScaleFreeGraph(NxGraphAnimator):
         self.nodes_count = nodes_count
         self.edges_count = edges_count
 
+        self.default_filename__ = 'scale_free_graph'
+
         self.initialise_new_random_graph()
 
     def initialise_new_random_graph(self):
         self.graph = nx.barabasi_albert_graph(self.nodes_count, self.edges_count)
-
-    def save_visualisation_to_file(self, filename: str = None):
-        if filename is None:
-            filename = f'{self.default_filepath_images}/scale_free_graph.png'
-
-        super().save_visualisation_to_file(filename)
-
-    def save_animation_to_file(self, filename: str = None):
-        if filename is None:
-            filename = f'{self.default_filepath_animations}/scale_free_graph_animation.gif'
-
-        super().save_animation_to_file(filename)
