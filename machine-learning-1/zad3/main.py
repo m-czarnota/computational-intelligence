@@ -114,14 +114,14 @@ def experiment(x, d):
 
 if __name__ == '__main__':
     x_data, decisions = linear_separable_dataset()
-    # experiment(x_data, decisions)
+    experiment(x_data, decisions)
 
     x_data, decisions = non_linear_separable_dataset()
-    # experiment(x_data, decisions)
+    experiment(x_data, decisions)
 
     sonar_data = pd.read_csv('sonar_csv.csv')
     decisions = sonar_data[sonar_data.columns[-1]]
     decisions = normalize_decisions(decisions)
-    x_data = sonar_data.drop(sonar_data.columns[-1], axis=1).replace(0, -1).to_numpy()
+    x_data = sonar_data.drop(sonar_data.columns[-1], axis=1).to_numpy()
 
     experiment(x_data, decisions)
