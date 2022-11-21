@@ -54,13 +54,16 @@ from Perceptron import Perceptron
 
 
 def linear_separetly_dataset():
-    w, b = [1, 1, 1], -1
-    x = np.random.randn(100, 3)
+    w, b = [1, 1], -1
+    x = np.random.randn(100, 2)
     d = np.sign(x.dot(w) + b)
 
     return x, d
 
+# dla nieseparowalnych liniowo daję random na klasie jako -1, 1
 
+
+# nie jest wymagane
 def plot_class(x: np.array, y: np.array, clf: LinearClassifier):
     n, m = x.shape
 
@@ -90,7 +93,7 @@ if __name__ == '__main__':
     plt.scatter(x[:, 0], x[:, 1], c=d)
 
     x1 = np.array([np.min(x[:, 0]), np.max(x[:, 1])])
-    x2 = -(w[0] + w[1] * x1) / w[2]
+    x2 = -(b + w[0] * x1) / w[1]
     plt.plot(x1, x2)
     plt.show()
 
