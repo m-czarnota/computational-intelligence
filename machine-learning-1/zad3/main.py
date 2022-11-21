@@ -23,6 +23,7 @@
 #         return w, b
 #
 # są próbki dodatnie, są próbki ujemne. chcemy znaleźć prostą która separuje próbki
+import time
 
 # def dane_liniowo_separowalne():
 #     w, b = [1, 3], -1
@@ -53,17 +54,25 @@ from LinearClassifier import LinearClassifier
 from Perceptron import Perceptron
 
 
-def linear_separetly_dataset():
+def linear_separable_dataset():
     w, b = [1, 1], -1
     x = np.random.randn(100, 2)
     d = np.sign(x.dot(w) + b)
 
     return x, d
 
-# dla nieseparowalnych liniowo daję random na klasie jako -1, 1
+
+def non_linear_separable_dataset():
+    w, b = [1, 1], -1
+    x = np.random.randn(100, 2)
+
+    d = np.random.rand(x.shape[0])
+    d[d < 0.5] = -1
+    d[d >= 0.5] = 1
+
+    return x, d
 
 
-# nie jest wymagane
 def plot_class(x: np.array, y: np.array, clf: LinearClassifier):
     n, m = x.shape
 
@@ -78,16 +87,20 @@ def plot_class(x: np.array, y: np.array, clf: LinearClassifier):
     plt.show()
 
 
-if __name__ == '__main__':
-    x, d = linear_separetly_dataset()
+def normalize_decisions(d):
+    d_normalized = np.ones(d.shape[0]).astype("int8")
+    d_normalized[d == np.unique(d)[0]] = -1
 
-    sonar_data = pd.read_csv('sonar_csv.csv')
-    # d = sonar_data[sonar_data.columns[-1]]
-    # x = sonar_data.drop(sonar_data.columns[-1], axis=1).to_numpy()
+    return d_normalized
 
+
+def experiment(x, d):
     perceptron = Perceptron()
+
+    t1 = time.time()
     w, b = perceptron.fit(x, d)
-    print(w, b)
+    t2 = time.time()
+    print(f'Time of fitting: {t2 - t1}s.\nNumber of iterations: {perceptron.iteration_count}')
 
     plt.figure()
     plt.scatter(x[:, 0], x[:, 1], c=d)
@@ -95,8 +108,20 @@ if __name__ == '__main__':
     x1 = np.array([np.min(x[:, 0]), np.max(x[:, 1])])
     x2 = -(b + w[0] * x1) / w[1]
     plt.plot(x1, x2)
+
     plt.show()
 
-    # plot_class(x, d, perceptron)
 
+if __name__ == '__main__':
+    x_data, decisions = linear_separable_dataset()
+    # experiment(x_data, decisions)
 
+    x_data, decisions = non_linear_separable_dataset()
+    # experiment(x_data, decisions)
+
+    sonar_data = pd.read_csv('sonar_csv.csv')
+    decisions = sonar_data[sonar_data.columns[-1]]
+    decisions = normalize_decisions(decisions)
+    x_data = sonar_data.drop(sonar_data.columns[-1], axis=1).replace(0, -1).to_numpy()
+
+    experiment(x_data, decisions)
