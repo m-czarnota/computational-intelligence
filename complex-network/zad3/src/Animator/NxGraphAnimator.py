@@ -26,7 +26,7 @@ class NxGraphAnimator(ABC):
         self.default_filename__ = None
 
     @abstractmethod
-    def initialise_new_random_graph(self):
+    def initialise_new_random_graph__(self):
         ...
 
     def save_visualisation_to_file(self, filename: str = None):

@@ -13,7 +13,7 @@ class RandomGraph(NxGraphAnimator):
 
         self.default_filename__ = 'random_graph'
 
-        self.initialise_new_random_graph()
+        self.initialise_new_random_graph__()
 
-    def initialise_new_random_graph(self):
+    def initialise_new_random_graph__(self):
         self.graph = nx.erdos_renyi_graph(self.node_count, self.edge_creation_prob)

@@ -14,7 +14,7 @@ class ScaleFreeGraph(NxGraphAnimator):
 
         self.default_filename__ = 'scale_free_graph'
 
-        self.initialise_new_random_graph()
+        self.initialise_new_random_graph__()
 
-    def initialise_new_random_graph(self):
+    def initialise_new_random_graph__(self):
         self.graph = nx.barabasi_albert_graph(self.nodes_count, self.edges_count)
