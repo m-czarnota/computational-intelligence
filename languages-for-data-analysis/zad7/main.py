@@ -8,9 +8,24 @@ def forecast_course(x: pd.Series, samples_count: int, polynomial_degree: int, da
     if polynomial_degree > samples_count - 1:
         raise f'k={polynomial_degree} must be lower or equal than n - 1 = {samples_count} - 1'
 
-    t = []  # 0 dzisiejszy dzień, i 'n' wcześniejszych
-    # potem y = prognozowana_wartosc_dnia_ntego * a1 + 0.0
-    t = [[x.iloc[n], 1] for n in np.arange(day, day - samples_count, 1)]
+    # y = prognozowana_wartosc_dnia_ntego * a1 + 0.0
+    t = [[t_val, 1] for t_val in np.arange(day, day - samples_count, 1)]  # 0 dzisiejszy dzień, i 'n' wcześniejszych
+    y = np.array([x.iloc[d] for d in t]).T
+    a = np.linalg.lstsq(t, y)
+
+
+def plot_charts(df: pd.DataFrame):
+    plt.figure()
+    [plt.plot(df.index, df[column], label=column) for column in df.columns]
+    plt.legend()
+    plt.xlabel('Date')
+    plt.ylabel('Company stock quotes')
+    plt.show()
+
+    plt.figure()
+    [df[column].rolling(25).mean().plot(label=column) for column in df.columns]
+    plt.legend()
+    plt.show()
 
 
 if __name__ == '__main__':
@@ -19,23 +34,15 @@ if __name__ == '__main__':
     df = df.applymap(lambda x: str(x, encoding='utf-8') if type(x) == bytes else x)
     meta = pd.DataFrame(meta)
 
-    print(df)
+    print(df['company1'])
     print(df['company1'].iloc[0])
 
-    # plt.figure()
-    # [plt.plot(df.index, df[column], label=column) for column in df.columns]
-    # plt.legend()
-    # plt.xlabel('Date')
-    # plt.ylabel('Company stock quotes')
-    # plt.show()
-    #
-    # plt.figure()
-    # [df[column].rolling(25).mean().plot(label=column) for column in df.columns]
-    # plt.legend()
-    # plt.show()
-    #
+    # plot_charts(df)
+
     # correlation = df.corr().abs().unstack().sort_values(kind='quicksort')
     # print(correlation)
+
+    forecast_course(df['company1'], 5, 2, 6)
 
 """
 X = np.liang.lstsq(A, B) - zwraca te mnożenie macierzy A z końca zad 6
