@@ -23,14 +23,14 @@ def get_dataset() -> pd.DataFrame:
 
 
 def plot_two_charts(df: pd.DataFrame):
-    plt.figure()
+    plt.figure(figsize=(20, 10))
     plt.plot(df['Date'], df['Close/Last'])
     plt.xlabel('Date')
     plt.ylabel('Daily action price')
     plt.savefig(f'{IMAGES_DIR}/daily_action_price.png')
     # plt.show()
 
-    plt.figure()
+    plt.figure(figsize=(20, 10))
     plt.plot(df['Date'], df['Price_change'])
     plt.xlabel('Date')
     plt.ylabel('Daily change in price of actions')
@@ -39,7 +39,7 @@ def plot_two_charts(df: pd.DataFrame):
 
 
 def markov_experiment(file: TextIO, x: np.array):
-    n_components = [1, 2, 3, 5, 10, 25, 50, 100]
+    n_components = [2, 3, 4, 5]
 
     for n in n_components:
         model = hmm.GaussianHMM(n_components=n, covariance_type='spherical')
@@ -47,10 +47,7 @@ def markov_experiment(file: TextIO, x: np.array):
         X, Z = model.sample(len(x))
 
         predicted = model.predict(X)
-        print(predicted)
-
         bins = sorted(df['Price_change'].unique())
-        # print(bins)
 
         file.write(f'-------------- state number: {n} --------------\n')
         file.write(f'uniques:\n{bins}\n')
@@ -59,17 +56,15 @@ def markov_experiment(file: TextIO, x: np.array):
         file.write(f'means for gauss distribution:\n{model.means_}\n')
         file.write(f'covariance for gauss distribution:\n{model.covars_}\n\n')
 
-        plt.figure()
-        plt.plot(df['Date'], df['Close/Last'])
-        plt.plot(df['Date'], predicted)
+        plt.figure(figsize=(20, 10))
+        plt.scatter(df['Date'], df['Close/Last'], c=predicted, s=0.2)
         plt.xlabel('Date')
         plt.ylabel('Daily action price')
         plt.savefig(f'{IMAGES_DIR}/daily_action_price_n_{n}')
         # plt.show()
 
-        plt.figure()
-        plt.plot(df['Date'], df['Price_change'])
-        plt.plot(df['Date'], model.means_[predicted])
+        plt.figure(figsize=(20, 10))
+        plt.scatter(df['Date'], df['Price_change'], c=predicted, s=0.2)
         plt.xlabel('Date')
         plt.ylabel('Daily change in price of actions')
         plt.savefig(f'{IMAGES_DIR}/daily_change_price_actions_n_{n}')
