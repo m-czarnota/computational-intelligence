@@ -15,7 +15,7 @@ class SmallWorldGraph(NxGraphAnimator):
 
         self.default_filename__ = 'small_world_graph'
 
-        self.initialise_new_random_graph()
+        self.initialise_new_random_graph__()
 
-    def initialise_new_random_graph(self):
+    def initialise_new_random_graph__(self):
         self.graph = nx.watts_strogatz_graph(self.nodes_count, self.nearest_neighbour_count, self.each_rewiring_prob)

@@ -1,48 +1,65 @@
 import networkx as nx
 import numpy as np
 
+from src.Animator.NxGraphAnimator import NxGraphAnimator
+from src.DTO.NodeDto import NodeDto
 
-class ProgModel:
-    def __init__(self, number_of_nodes: int = 8, edges_connections: list = ((0, 1), (1, 2), (2, 4), (2, 6), (4, 3), (6, 7), (6, 5))):
+
+class ProgModel(NxGraphAnimator):
+    def __init__(self, number_of_nodes: int = 8, pp: float = 0.5,
+                 edges_connections: list = ((0, 1), (1, 2), (2, 4), (2, 6), (4, 3), (6, 7), (6, 5)),
+                 seed_indexes: list = [1]):
+        super().__init__()
+        
         self.graph = None
-        self.pp = 0.5
+        self.pp = pp
+
         self.number_of_node = number_of_nodes
         self.edges_connections = edges_connections
-        self.seed_index = 1
-        self.infected_indexes = {self.seed_index}
-        self.visited = {}
 
-        self.initialise_graph()
+        self.infected_nodes = seed_indexes
+        self.infected_nodes_probs = {index: 1 for index in seed_indexes}
+        self.seeds = seed_indexes
+        self.nodes_visited_by_node__ = {}
 
-    def initialise_graph(self):
+        self.infected_nodes_views = []
+
+        self.initialise_new_random_graph__()
+
+    def initialise_new_random_graph__(self):
         self.graph = nx.Graph()
         [self.graph.add_node(i) for i in range(self.number_of_node)]
         [self.graph.add_edge(edge[0], edge[1]) for edge in self.edges_connections]
 
     def propagate(self):
-        while True:
-            for node_index in self.infected_indexes:
-                list(filter(lambda x: node_index in x, self.graph.edges))
-                edges = list(filter(lambda x: node_index in x, self.graph.edges))
+        infected_nodes_to_visit = self.seeds.copy()
 
-                print(edges)
+        while len(infected_nodes_to_visit) > 0:
+            infected = infected_nodes_to_visit.pop(0)
+            nodes_to_visit = self.get_nodes_to_visit_for_node__(infected)
 
-                break
+            if infected not in self.nodes_visited_by_node__:
+                self.nodes_visited_by_node__[infected] = set()
 
-                for edge in edges:
-                    if node_index not in self.visited.keys():
-                        self.visited[node_index] = []
+            for node in nodes_to_visit:
+                if node in self.nodes_visited_by_node__[infected]:
+                    continue
 
-                    if edge == node_index:
-                        continue
+                self.nodes_visited_by_node__[infected].add(node)
+                infect_prob = np.random.rand()
+                if infect_prob >= self.pp:
+                    continue
 
-                    self.visited[node_index].append(edge)
-                    infect_prob = np.random.rand()
+                self.infected_nodes.append(node)
+                self.infected_nodes_views.append(NodeDto(node, is_infected=True, infected_by=infected, infect_prob=infect_prob))
+                self.infected_nodes_probs[node] = infect_prob
+                infected_nodes_to_visit.append(node)
 
-                    if infect_prob < self.pp:
-                        self.infected_indexes.add(edge)
+    def get_nodes_to_visit_for_node__(self, node: int):
+        edges_list = list(filter(lambda x: node in x, self.graph.edges))
+        node_edges = list(
+            map(lambda edges: list(filter(lambda edge_val: edge_val != node, edges))[0], edges_list))
 
-            break
+        nodes_to_visit = [node_edge for node_edge in node_edges if node_edge not in self.infected_nodes]
 
-        print(self.visited)
-        print(self.infected_indexes)
+        return nodes_to_visit
