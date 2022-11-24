@@ -10,7 +10,7 @@ from DecisionTree import DecisionTree
 
 
 def experiment(x, y, model, visualize: bool = True):
-    X_train, X_test, y_train, y_test = train_test_split(x, y, train_size=0.5, test_size=0.5, random_state=0)
+    X_train, X_test, y_train, y_test = train_test_split(x, y, train_size=0.8, test_size=0.2, random_state=0)
 
     t1 = time.time()
     model.fit(X_train, y_train)
@@ -24,7 +24,7 @@ def experiment(x, y, model, visualize: bool = True):
     print(f'accuracy score: {accuracy_score(y_test, y_pred)}')
 
     if visualize:
-        model.tree_.view()
+        model.tree_var.view()
 
 
 if __name__ == '__main__':
