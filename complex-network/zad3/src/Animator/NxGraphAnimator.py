@@ -23,6 +23,7 @@ class NxGraphAnimator(ABC):
         self.default_filepath_animations = './animations'
 
         self.graph_to_animate__ = None
+        self.animation_interval__ = 200
         self.default_filename__ = None
 
     @abstractmethod
@@ -77,7 +78,7 @@ class NxGraphAnimator(ABC):
         # plt.clf()
         self.prepare_to_draw__()
 
-        anim = animation.FuncAnimation(self.fig, self.update_animation__, repeat=False)
+        anim = animation.FuncAnimation(self.fig, self.update_animation__, repeat=False, interval=self.animation_interval__)
         rc('animation', html='jshtml')
 
         return anim
@@ -92,7 +93,7 @@ class NxGraphAnimator(ABC):
         self.actual_edge = 0
 
         self.graph_to_animate__ = nx.Graph()
-        self.fig = plt.figure()
+        self.fig = plt.figure(figsize=(20,10))
         self.pos = self.layout(self.graph)
 
         self.nodes_to_draw = np.array(self.graph.nodes())
