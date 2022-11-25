@@ -8,10 +8,10 @@ def forecast_course(x: pd.Series, samples_count: int, polynomial_degree: int, da
     if polynomial_degree > samples_count - 1:
         raise f'k={polynomial_degree} must be lower or equal than n - 1 = {samples_count} - 1'
 
-    # y = prognozowana_wartosc_dnia_ntego * a1 + 0.0
-    t = [[t_val, 1] for t_val in np.arange(day, day - samples_count, 1)]  # 0 dzisiejszy dzień, i 'n' wcześniejszych
-    y = np.array([x.iloc[d] for d in t]).T
+    t = np.array([[x_val ** k for k in np.arange(polynomial_degree, -1, -1)] for x_val in x])
+    y = np.array([[x_val, 1] for x_val in x])
     a = np.linalg.lstsq(t, y)
+
 
 
 def plot_charts(df: pd.DataFrame):

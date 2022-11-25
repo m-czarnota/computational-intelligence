@@ -473,10 +473,11 @@ def haar_features_demo():
     print(features, f'time: {t2 - t1}')
 
 
-def detect(classifier: AdaBoostClassifier, image: np.array, h_coords, n, feature_indexes=None, preprocess: bool = True, verbose: bool = False):
+def detect(clf, image: np.array, h_coords, n, feature_indexes=None, preprocess: bool = True, verbose: bool = False):
+    print("DETECT...")
     t1 = time.time()
 
-    print(f'[IMAGE SHAPE: {image.shape}]')
+    print(f"[IMAGE SHAPE: {i.shape}]")
     if preprocess:
         t1_preprocess = time.time()
 
@@ -484,9 +485,12 @@ def detect(classifier: AdaBoostClassifier, image: np.array, h_coords, n, feature
         i_gray = cv2.cvtColor(i_resized, cv2.COLOR_BGR2GRAY)
 
         t2_preprocess = time.time()
-        print(f'PREPROCESS DONE. [TIME: {t2_preprocess - t1_preprocess}s]')
+        print(f"PREPROCESS DONE. [TIME: {t2_preprocess - t1_preprocess} s.]")
     else:
         i_gray = image
+
+    H, W = i_gray.shape
+    print(f"IMAGE SHAPE NOW: {(H, W)}")
 
     t1_ii = time.time()
     ii = integral_image(i_gray)
@@ -510,18 +514,20 @@ def detect(classifier: AdaBoostClassifier, image: np.array, h_coords, n, feature
         dj = np.int32(np.round(h * DETECT_WINDOW_JUMP))
         dk = np.int32(np.round(w * DETECT_WINDOW_JUMP))
 
-        h_reminder_half = ((H - h) % dj) // 2
-        w_reminder_half = ((W - w) % dk) // 2
+        h_remainder_half = ((H - h) % dj) // 2
+        w_remainder_half = ((W - w) % dk) // 2
 
-        h_coords_window_subsets.append(np.array([np.array(h_coords_subset[q] * h).astype("int32") for q in range(h_coords_subset.shape[0])], dtype='object'))
+        h_coords_window_subsets.append(
+            np.array([np.array(h_coords_subset[q] * h).astype("int32") for q in range(h_coords_subset.shape[0])],
+                     dtype="object"))
 
-        for j in np.arange(h_reminder_half, H - h + 1, dj):
-            for k in np.arange(w_reminder_half, W - w + 1, dk):
+        for j in np.arange(h_remainder_half, H - h + 1, dj):
+            for k in np.arange(w_remainder_half, W - w + 1, dk):
                 windows_count += 1
                 windows.append([scale, j, k, h, w])
 
     t2_raw_loops = time.time()
-    print(f'RAW LOOPS DONE> [TIME: {t2_raw_loops - t1_raw_loops}s, WINDOWS TO CHECK: {windows_count}]')
+    print(f"RAW LOOPS DONE. [TIME: {t2_raw_loops - t1_raw_loops} s, WINDOWS TO CHECK: {windows_count}.]")
 
     t1_main_loop = time.time()
     detections = []
@@ -534,14 +540,19 @@ def detect(classifier: AdaBoostClassifier, image: np.array, h_coords, n, feature
             print(f'PROGRESS: {window_index / windows_count:.2}')
 
         features = haar_features(ii, j, k, h_coords_window_subsets[scale], n, feature_indexes=feature_indexes)
-        response = classifier.decision_function(np.array([features]))
+        response = clf.decision_function(np.array([features]))[0]
 
         if response > DETECT_THRESHOLD:
             detections.append(np.array([j, k, h, w]))
             responses.append(response)
 
     t2_main_loop = time.time()
-    print(f'MAIN LOOP DONE. [TIME: {t2_main_loop - t1_main_loop}s]')
+    print(f"MAIN LOOP DONE. [TIME: {t2_main_loop - t1_main_loop} s.]")
+
+    t2 = time.time()
+    print(f"DETECT DONE. [TIME: {t2 - t1} s, WINDOWS CHECKED: {windows_count}]")
+
+    return detections, responses
 
     # for scale in range(DETECT_SCALES):
     #     h = np.int32(np.round(DETECT_WINDOW_HEIGHT_MIN * DETECT_WINDOW_GROWTH ** scale))
@@ -573,11 +584,6 @@ def detect(classifier: AdaBoostClassifier, image: np.array, h_coords, n, feature
     #
     #             windows_count += 1
 
-    t2 = time.time()
-    print(f'DETECT DONE. [TIME: {t2 - t1}s, WINDOWS CHECKED: {windows_count}]')
-
-    return detections, responses
-
 
 def get_metrics(classifier, x, y, train: bool = True):
     indexed_positive = indexed_positive_train if train else indexed_positive_test
@@ -599,24 +605,27 @@ def iou2(jkhw1, jkhw2):
 
     j21 = jkhw2[0]
     k21 = jkhw2[1]
-    j22 = j21 + jkhw2[2]
-    k22 = k21 + jkhw2[3]
+    j22 = j21 + jkhw2[2] - 1
+    k22 = k21 + jkhw2[3] - 1
 
     dj = np.min([j12, j22]) - np.max([j21, j11]) + 1
     if dj <= 0:
         return 0.0
+
     dk = np.min([k12, k22]) - np.max([k21, k11]) + 1
     if dk <= 0:
         return 0.0
+
     i = dj * dk
     u = (j12 - j11 + 1) * (k12 - k11 + 1) + (j22 - j21 + 1) * (k22 - k21 + 1) - i
+
     return i / u
 
 
-def min_max_suppression(detections, responses, threshold: int = 0.5):
+def non_max_suppression(detections, responses, threshold: int = 0.5):
     d = np.array(detections)
     r = np.array(responses)
-    indexes = np.ones(len(detections), dtype=np.bool)
+    indexes = np.ones(len(detections), dtype='bool')
 
     arg_sort = np.argsort(-r, kind='stable')
     d = d[arg_sort]
@@ -626,7 +635,7 @@ def min_max_suppression(detections, responses, threshold: int = 0.5):
     r_final = []
 
     for i in range(len(detections) - 1):
-        if indexes[i] is False:
+        if bool(indexes[i]) is False:
             continue
 
         indexes[i] = False
@@ -634,7 +643,7 @@ def min_max_suppression(detections, responses, threshold: int = 0.5):
         r_final.append(r[i])
 
         for j in range(i + 1, len(detections)):
-            if indexes[j] is False:
+            if bool(indexes[j]) is False:
                 continue
 
             if iou2(d[i], d[j]) >= threshold:
@@ -718,14 +727,12 @@ if __name__ == '__main__':
 
     # --- DRAWING ---
     detections, responses = detect(clf, i, h_coords, n, selected_feature_indexes, preprocess=True, verbose=True)
-    detections_final, responses_final = min_max_suppression(detections, responses)
+    detections_final, responses_final = non_max_suppression(detections, responses)
 
-    for (j0, k0, h, w), response in zip(detections, responses):
-        cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (0, 0, 255))
-        cv2.putText(i_resized, f'{response[0]:0.2}', (k0, j0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
     for (j0, k0, h, w), response in zip(detections_final, responses_final):
-        cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (0, 255, 0))
-        cv2.putText(i_resized, f'{response[0]:0.2}', (k0, j0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (255, 255, 0))
+        cv2.putText(i_resized, f"{response:0.2}", (k0, j0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+
     cv2.imshow("TEST IMAGE", i_resized)
     cv2.waitKey()
 
