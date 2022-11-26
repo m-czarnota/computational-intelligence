@@ -3,9 +3,12 @@ import numpy as np
 import time
 from numba import jit, uint8, int32, int16
 import pickle
+from sklearn import metrics
+from sklearn.preprocessing import label_binarize
 from sklearn.ensemble import AdaBoostClassifier
 import matplotlib.pyplot as plt
 from src.RealBoostBins import RealBoostBins
+from joblib import Parallel, delayed
 
 DATA_FOLDER = './data/'
 CLFS_FOLDER = './clasifiers/'
@@ -534,8 +537,7 @@ def detect(clf, image: np.array, h_coords, n, feature_indexes=None, preprocess: 
     responses = []
     progress_check = int(np.round(0.1 * windows_count))
 
-    # ta pętla nadaje się do zrównoleglenia
-    for window_index, (scale, j, k, h, w) in enumerate(windows):
+    def work(window_index, scale, j, k, h, w):
         if window_index % progress_check == 0:
             print(f'PROGRESS: {window_index / windows_count:.2}')
 
@@ -545,6 +547,9 @@ def detect(clf, image: np.array, h_coords, n, feature_indexes=None, preprocess: 
         if response > DETECT_THRESHOLD:
             detections.append(np.array([j, k, h, w]))
             responses.append(response)
+
+    # Parallel()(delayed(work)(window_index, scale, j, k, h, w) for window_index, (scale, j, k, h, w) in enumerate(windows))
+    [work(window_index, scale, j, k, h, w) for window_index, (scale, j, k, h, w) in enumerate(windows)]
 
     t2_main_loop = time.time()
     print(f"MAIN LOOP DONE. [TIME: {t2_main_loop - t1_main_loop} s.]")
@@ -652,11 +657,28 @@ def non_max_suppression(detections, responses, threshold: int = 0.5):
     return d_final, r_final
 
 
+def plot_roc(y_true, y_score):
+    fpr, tpr, thresholds = metrics.roc_curve(y_true, y_score)
+
+    acc = [tpr[i] * p_test_y_minus + (1 - fpr[i]) * p_test_y_plus for i in np.arange(fpr.shape[0])]
+    acc_max_index = np.argmax(acc)
+    acc_max = acc[acc_max_index]
+
+    plt.figure()
+    plt.plot([0, 1], [0, 1], 'k--', color='navy')
+    plt.plot(fpr, tpr, color='darkorange', label='ROC curve')
+    plt.scatter(fpr[acc_max_index], tpr[acc_max_index], s=100, c='red', marker='*', label='decision threshold')
+    plt.legend()
+    plt.title('ROC curve')
+    plt.yscale('symlog')
+    plt.show()
+
+
 if __name__ == '__main__':
     s = 3
     p = 4
     n = len(HAAR_TEMPLATED) * s ** 2 * (2 * p - 1) ** 2
-    T = 32  # number of boosting rounds
+    T = 8  # number of boosting rounds
     B = 8  # number fo bins (buckets)
     random_seed = 1
 
@@ -691,8 +713,10 @@ if __name__ == '__main__':
     indexed_negative_train = y_train == -1
     indexed_positive_test = y_test == 1
     indexed_negative_test = y_test == -1
-    print(f'P_TEST(Y=-): {np.sum(indexed_negative_test) / X_test.shape[0]}')
-    print(f'P_TEST(Y=+): {np.sum(indexed_positive_test) / X_test.shape[0]}')
+    p_test_y_minus = np.sum(indexed_negative_test) / X_test.shape[0]
+    p_test_y_plus = np.sum(indexed_positive_test) / X_test.shape[0]
+    print(f'P_TEST(Y=-): {p_test_y_minus}')
+    print(f'P_TEST(Y=+): {p_test_y_plus}')
 
     # --- ADA BOOST ---
     # t1 = time.time()
@@ -725,16 +749,20 @@ if __name__ == '__main__':
     # false_alarm_rate_test = 1.0 - classifier.score(X_test[indexed_negative_test], y_test[indexed_negative_test])
     # print(f'ACC TEST: {acc_test}, SENS TEST: {sensitivity_test}, FAR TEST: {false_alarm_rate_test}')
 
+    # --- ROC CURVE ---
+    y_score = clf.decision_function(X_test)
+    plot_roc(y_test, y_score)
+
     # --- DRAWING ---
-    detections, responses = detect(clf, i, h_coords, n, selected_feature_indexes, preprocess=True, verbose=True)
-    detections_final, responses_final = non_max_suppression(detections, responses)
-
-    for (j0, k0, h, w), response in zip(detections_final, responses_final):
-        cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (255, 255, 0))
-        cv2.putText(i_resized, f"{response:0.2}", (k0, j0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-
-    cv2.imshow("TEST IMAGE", i_resized)
-    cv2.waitKey()
+    # detections, responses = detect(clf, i, h_coords, n, selected_feature_indexes, preprocess=True, verbose=True)
+    # detections_final, responses_final = non_max_suppression(detections, responses)
+    #
+    # for (j0, k0, h, w), response in zip(detections_final, responses_final):
+    #     cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (255, 255, 0))
+    #     cv2.putText(i_resized, f"{response:0.2}", (k0, j0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+    #
+    # cv2.imshow("TEST IMAGE", i_resized)
+    # cv2.waitKey()
 
     """
     zad domowe:
@@ -768,7 +796,7 @@ if __name__ == '__main__':
     tam gdzie okienko ma >= IoU to TP += 1
     jak mniej to FP += 1
     te niewykryte, niepokryte spodziewane FN += 1
-    funckja w kodzie fddb_single_fold. zrobić copy paste funkcji, odać argument i zliczać
+    funckja w kodzie fddb_single_fold. zrobić copy paste funkcji, dodać argument i zliczać
     """
 
     """
