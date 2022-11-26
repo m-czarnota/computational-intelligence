@@ -9,6 +9,7 @@ from sklearn.ensemble import AdaBoostClassifier
 import matplotlib.pyplot as plt
 from src.RealBoostBins import RealBoostBins
 from joblib import Parallel, delayed
+from multiprocessing import Process
 
 DATA_FOLDER = './data/'
 CLFS_FOLDER = './clasifiers/'
@@ -210,7 +211,8 @@ def iou(coords_1, coords_2):
     return i / u
 
 
-def fddb_read_single_fold(path_root, path_fold_relative, n_negs_per_img, hfs_coords: np.array, n: int, verbose: bool = False, fold_title: str = ""):
+def fddb_read_single_fold(path_root, path_fold_relative, n_negs_per_img, hfs_coords: np.array, n: int,
+                          verbose: bool = False, fold_title: str = ""):
     np.random.seed(1)
 
     # settings for sampling negatives
@@ -255,7 +257,8 @@ def fddb_read_single_fold(path_root, path_fold_relative, n_negs_per_img, hfs_coo
                     print("WINDOW " + str(img_face_coords) + " OUT OF BOUNDS. [IGNORED]")
                 continue
 
-            if w / ii.shape[0] < 0.075:  # min relative size of positive window (smaller may lead to division by zero when white regions in haar features have no area)
+            # min relative size of positive window (smaller may lead to division by zero when white regions in haar features have no area)
+            if w / ii.shape[0] < 0.075:
                 if verbose:
                     print("WINDOW " + str(img_face_coords) + " TOO SMALL. [IGNORED]")
                 continue
@@ -292,7 +295,8 @@ def fddb_read_single_fold(path_root, path_fold_relative, n_negs_per_img, hfs_coo
 
                 if max_iou < neg_max_iou:
                     hfs_coords_window = w * hfs_coords
-                    hfs_coords_window = np.array(list(map(lambda npa: npa.astype("int32"), hfs_coords_window)), dtype='object')
+                    hfs_coords_window = np.array(list(map(lambda npa: npa.astype("int32"), hfs_coords_window)),
+                                                 dtype='object')
                     feats = haar_features(ii, j0, k0, hfs_coords_window, n)
 
                     X_list.append(feats)
@@ -315,6 +319,105 @@ def fddb_read_single_fold(path_root, path_fold_relative, n_negs_per_img, hfs_coo
         if verbose:
             cv2.imshow("FDDB", i0)
             cv2.waitKey(0)
+
+        line = f.readline().strip()
+
+    print("IMAGES IN THIS FOLD: " + str(n_img) + ".")
+    print("ACCEPTED FACES IN THIS FOLD: " + str(n_faces) + ".")
+
+    f.close()
+    X = np.stack(X_list)
+    y = np.stack(y_list)
+
+    return X, y
+
+
+def fddb_read_single_fold_counter(path_root, path_fold_relative, n_negs_per_img, hfs_coords: np.array, n: int,
+                          fold_title: str = ""):
+    np.random.seed(1)
+
+    # settings for sampling negatives
+    w_relative_min = 0.1
+    w_relative_max = 0.35
+    w_relative_spread = w_relative_max - w_relative_min
+    neg_max_iou = 0.5
+
+    X_list = []
+    y_list = []
+
+    f = open(path_root + path_fold_relative, "r")
+    line = f.readline().strip()
+    n_img = 0
+    n_faces = 0
+    counter = 0
+
+    while line != "":
+        file_name = path_root + line + ".jpg"
+        log_line = str(counter) + ": [" + file_name + "]"
+        if fold_title != "":
+            log_line += " [" + fold_title + "]"
+        print(log_line)
+        counter += 1
+
+        i0 = cv2.imread(file_name)
+        i = cv2.cvtColor(i0, cv2.COLOR_BGR2GRAY)
+        ii = integral_image(i)
+        n_img += 1
+        n_img_faces = int(f.readline())
+        img_faces_coords = []
+
+        for z in range(n_img_faces):
+            r_major, r_minor, angle, center_x, center_y, dummy_one = list(map(float, f.readline().strip().split()))
+            w = int(1.5 * r_major)
+            j0 = int(center_y - w / 2)
+            k0 = int(center_x - w / 2)
+            img_face_coords = np.array([j0, k0, j0 + w - 1, k0 + w - 1])
+
+            if j0 < 0 or k0 < 0 or j0 + w - 1 >= i.shape[0] or k0 + w - 1 >= i.shape[1]:
+                continue
+
+            # min relative size of positive window (smaller may lead to division by zero when white regions in haar features have no area)
+            if w / ii.shape[0] < 0.075:
+                continue
+
+            n_faces += 1
+            img_faces_coords.append(img_face_coords)
+
+            hfs_coords_window = w * hfs_coords
+            hfs_coords_window = np.array(list(map(lambda npa: npa.astype("int32"), hfs_coords_window)), dtype='object')
+            feats = haar_features(ii, j0, k0, hfs_coords_window, n)
+
+            X_list.append(feats)
+            y_list.append(1)
+
+        tp = 0  # jak IoU większe bądź równe threshold
+        fp = 0  # jak IoU mniejsze niż threshold
+        fn = 0  # niewykryte, niepokryte, a spodziewane
+
+        for z in range(n_negs_per_img):
+            while True:
+                w = int((np.random.random() * w_relative_spread + w_relative_min) * i.shape[0])
+                j0 = int(np.random.random() * (i.shape[0] - w + 1))
+                k0 = int(np.random.random() * (i.shape[1] - w + 1))
+
+                patch = np.array([j0, k0, j0 + w - 1, k0 + w - 1])
+                ious = list(map(lambda ifc: iou(patch, ifc), img_faces_coords))
+                max_iou = max(ious) if len(ious) > 0 else 0.0
+
+                if max_iou < neg_max_iou:
+                    fp += 1
+
+                    hfs_coords_window = w * hfs_coords
+                    hfs_coords_window = np.array(list(map(lambda npa: npa.astype("int32"), hfs_coords_window)),
+                                                 dtype='object')
+                    feats = haar_features(ii, j0, k0, hfs_coords_window, n)
+
+                    X_list.append(feats)
+                    y_list.append(-1)
+
+                    break
+
+                tp += 1
 
         line = f.readline().strip()
 
@@ -469,7 +572,8 @@ def demo_of_features():
 def haar_features_demo():
     h_coords = haar_coordinates(s, p, h_indexes)
     # h_coords_window_subset = (h_coords * h).astype('int32')  # error
-    h_coords_window_subset = np.array([np.array(h_coords[q] * h).astype('int32') for q in range(h_coords.shape[0])], dtype='object')
+    h_coords_window_subset = np.array([np.array(h_coords[q] * h).astype('int32') for q in range(h_coords.shape[0])],
+                                      dtype='object')
     t1 = time.time()
     features = haar_features(ii, j0, k0, h_coords_window_subset, n)
     t2 = time.time()
@@ -660,17 +764,21 @@ def non_max_suppression(detections, responses, threshold: int = 0.5):
 def plot_roc(y_true, y_score):
     fpr, tpr, thresholds = metrics.roc_curve(y_true, y_score)
 
-    acc = [tpr[i] * p_test_y_minus + (1 - fpr[i]) * p_test_y_plus for i in np.arange(fpr.shape[0])]
+    acc = [tpr[l] * p_test_y_minus + (1 - fpr[l]) * p_test_y_plus for l in np.arange(fpr.shape[0])]
     acc_max_index = np.argmax(acc)
     acc_max = acc[acc_max_index]
 
     plt.figure()
+
     plt.plot([0, 1], [0, 1], 'k--', color='navy')
     plt.plot(fpr, tpr, color='darkorange', label='ROC curve')
-    plt.scatter(fpr[acc_max_index], tpr[acc_max_index], s=100, c='red', marker='*', label='decision threshold')
+    plt.scatter(fpr[acc_max_index], tpr[acc_max_index], s=100, c='red', marker='*',
+                label=f'decision threshold {acc_max:0.2}')
+
     plt.legend()
     plt.title('ROC curve')
     plt.yscale('symlog')
+
     plt.show()
 
 
@@ -678,7 +786,7 @@ if __name__ == '__main__':
     s = 3
     p = 4
     n = len(HAAR_TEMPLATED) * s ** 2 * (2 * p - 1) ** 2
-    T = 8  # number of boosting rounds
+    T = 32  # number of boosting rounds
     B = 8  # number fo bins (buckets)
     random_seed = 1
 
@@ -751,18 +859,18 @@ if __name__ == '__main__':
 
     # --- ROC CURVE ---
     y_score = clf.decision_function(X_test)
-    plot_roc(y_test, y_score)
+    # plot_roc(y_test, y_score)
 
     # --- DRAWING ---
-    # detections, responses = detect(clf, i, h_coords, n, selected_feature_indexes, preprocess=True, verbose=True)
-    # detections_final, responses_final = non_max_suppression(detections, responses)
-    #
-    # for (j0, k0, h, w), response in zip(detections_final, responses_final):
-    #     cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (255, 255, 0))
-    #     cv2.putText(i_resized, f"{response:0.2}", (k0, j0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-    #
-    # cv2.imshow("TEST IMAGE", i_resized)
-    # cv2.waitKey()
+    detections, responses = detect(clf, i, h_coords, n, selected_feature_indexes, preprocess=True, verbose=True)
+    detections_final, responses_final = non_max_suppression(detections, responses)
+
+    for (j0, k0, h, w), response in zip(detections_final, responses_final):
+        cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (255, 255, 0))
+        cv2.putText(i_resized, f"{response:0.2}", (k0, j0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+
+    cv2.imshow("TEST IMAGE", i_resized)
+    cv2.waitKey()
 
     """
     zad domowe:
