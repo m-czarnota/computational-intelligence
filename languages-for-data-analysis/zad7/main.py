@@ -12,6 +12,10 @@ def forecast_course(x: pd.Series, samples_count: int, polynomial_degree: int, da
     y = np.array([[x_val, 1] for x_val in x])
     a = np.linalg.lstsq(t, y)
 
+    y_pred = a[1] + a[0]
+    print(y_pred)
+
+    # nie wiem jak zrobić dalej pkt 6
 
 
 def plot_charts(df: pd.DataFrame):
@@ -37,10 +41,10 @@ if __name__ == '__main__':
     print(df['company1'])
     print(df['company1'].iloc[0])
 
-    # plot_charts(df)
+    plot_charts(df)
 
-    # correlation = df.corr().abs().unstack().sort_values(kind='quicksort')
-    # print(correlation)
+    correlation = df.corr().abs().unstack().sort_values(kind='quicksort')
+    print(correlation)
 
     forecast_course(df['company1'], 5, 2, 6)
 
