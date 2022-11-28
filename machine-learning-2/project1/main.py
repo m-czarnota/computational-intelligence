@@ -28,11 +28,11 @@ FEATURE_MIN = 0.25
 FEATURE_MAX = 0.5
 
 DETECT_SCALES = 4
-DETECT_WINDOW_HEIGHT_MIN = 48
-DETECT_WINDOW_WIDTH_MIN = 48
+DETECT_WINDOW_HEIGHT_MIN = 64
+DETECT_WINDOW_WIDTH_MIN = 64
 DETECT_WINDOW_GROWTH = 1.25  # increase window about 25%
 DETECT_WINDOW_JUMP = 0.1
-DETECT_THRESHOLD = 1.5
+DETECT_THRESHOLD = 0.75
 
 
 def img_resize(i):
@@ -642,7 +642,7 @@ def detect(clf, image: np.array, h_coords, n, feature_indexes=None, preprocess: 
     progress_check = int(np.round(0.1 * windows_count))
 
     def work(window_index, scale, j, k, h, w):
-        if window_index % progress_check == 0:
+        if window_index % progress_check == 0 and verbose:
             print(f'PROGRESS: {window_index / windows_count:.2}')
 
         features = haar_features(ii, j, k, h_coords_window_subsets[scale], n, feature_indexes=feature_indexes)
@@ -878,7 +878,7 @@ if __name__ == '__main__':
         ret, frame = vid.read()
         i_resized = img_resize(frame)
 
-        detections, responses = detect(clf, frame, h_coords, n, selected_feature_indexes, preprocess=True, verbose=True)
+        detections, responses = detect(clf, i_resized, h_coords, n, selected_feature_indexes, preprocess=True, verbose=False)
         detections_final, responses_final = non_max_suppression(detections, responses)
 
         for (j0, k0, h, w), response in zip(detections_final, responses_final):
