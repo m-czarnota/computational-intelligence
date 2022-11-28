@@ -28,8 +28,8 @@ FEATURE_MIN = 0.25
 FEATURE_MAX = 0.5
 
 DETECT_SCALES = 4
-DETECT_WINDOW_HEIGHT_MIN = 48
-DETECT_WINDOW_WIDTH_MIN = 48
+DETECT_WINDOW_HEIGHT_MIN = 64
+DETECT_WINDOW_WIDTH_MIN = 64
 DETECT_WINDOW_GROWTH = 1.25  # increase window about 25%
 DETECT_WINDOW_JUMP = 0.1
 DETECT_THRESHOLD = 1.5
@@ -588,7 +588,7 @@ def detect(clf, image: np.array, h_coords, n, feature_indexes=None, preprocess: 
     if preprocess:
         t1_preprocess = time.time()
 
-        i_resized = img_resize(i)
+        i_resized = img_resize(image)
         i_gray = cv2.cvtColor(i_resized, cv2.COLOR_BGR2GRAY)
 
         t2_preprocess = time.time()
@@ -642,7 +642,7 @@ def detect(clf, image: np.array, h_coords, n, feature_indexes=None, preprocess: 
     progress_check = int(np.round(0.1 * windows_count))
 
     def work(window_index, scale, j, k, h, w):
-        if window_index % progress_check == 0:
+        if window_index % progress_check == 0 and verbose:
             print(f'PROGRESS: {window_index / windows_count:.2}')
 
         features = haar_features(ii, j, k, h_coords_window_subsets[scale], n, feature_indexes=feature_indexes)
@@ -777,14 +777,24 @@ def plot_roc(y_true, y_score):
 
     plt.legend()
     plt.title('ROC curve')
-    plt.yscale('symlog')
+    plt.xscale('symlog')
 
     plt.show()
 
+    """
+    funkcja zewnętrzna która robi to co jest w pętli
+    trzeba dodać else, który zwraca np.zeros(4), 0
+    nowy haar_feature bez predefiniowanych typów
+    delta bez predefiniowanych typów
+    to co zwraca Parallel trzeba zip i *
+    usunąć 0 wiersze z responses, 0 wartości
+    
+    """
+
 
 if __name__ == '__main__':
-    s = 3
-    p = 4
+    s = 5
+    p = 5
     n = len(HAAR_TEMPLATED) * s ** 2 * (2 * p - 1) ** 2
     T = 32  # number of boosting rounds
     B = 8  # number fo bins (buckets)
@@ -861,16 +871,27 @@ if __name__ == '__main__':
     y_score = clf.decision_function(X_test)
     # plot_roc(y_test, y_score)
 
+    vid = cv2.VideoCapture(0)
+
     # --- DRAWING ---
-    detections, responses = detect(clf, i, h_coords, n, selected_feature_indexes, preprocess=True, verbose=True)
-    detections_final, responses_final = non_max_suppression(detections, responses)
+    while True:
+        ret, frame = vid.read()
+        i_resized = img_resize(frame)
 
-    for (j0, k0, h, w), response in zip(detections_final, responses_final):
-        cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (255, 255, 0))
-        cv2.putText(i_resized, f"{response:0.2}", (k0, j0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+        detections, responses = detect(clf, i_resized, h_coords, n, selected_feature_indexes, preprocess=True, verbose=False)
+        detections_final, responses_final = non_max_suppression(detections, responses)
 
-    cv2.imshow("TEST IMAGE", i_resized)
-    cv2.waitKey()
+        for (j0, k0, h, w), response in zip(detections_final, responses_final):
+            cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (255, 255, 0))
+            cv2.putText(i_resized, f"{response:0.2}", (k0, j0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+
+        cv2.imshow("TEST IMAGE", i_resized)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    vid.release()
+    cv2.destroyAllWindows()
 
     """
     zad domowe:
