@@ -777,9 +777,19 @@ def plot_roc(y_true, y_score):
 
     plt.legend()
     plt.title('ROC curve')
-    plt.yscale('symlog')
+    plt.xscale('symlog')
 
     plt.show()
+
+    """
+    funkcja zewnętrzna która robi to co jest w pętli
+    trzeba dodać else, który zwraca np.zeros(4), 0
+    nowy haar_feature bez predefiniowanych typów
+    delta bez predefiniowanych typów
+    to co zwraca Parallel trzeba zip i *
+    usunąć 0 wiersze z responses, 0 wartości
+    
+    """
 
 
 if __name__ == '__main__':
@@ -859,7 +869,7 @@ if __name__ == '__main__':
 
     # --- ROC CURVE ---
     y_score = clf.decision_function(X_test)
-    # plot_roc(y_test, y_score)
+    plot_roc(y_test, y_score)
 
     # --- DRAWING ---
     detections, responses = detect(clf, i, h_coords, n, selected_feature_indexes, preprocess=True, verbose=True)
