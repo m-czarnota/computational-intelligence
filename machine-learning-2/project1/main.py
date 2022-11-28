@@ -32,7 +32,7 @@ DETECT_WINDOW_HEIGHT_MIN = 64
 DETECT_WINDOW_WIDTH_MIN = 64
 DETECT_WINDOW_GROWTH = 1.25  # increase window about 25%
 DETECT_WINDOW_JUMP = 0.1
-DETECT_THRESHOLD = 0.75
+DETECT_THRESHOLD = 1.5
 
 
 def img_resize(i):
@@ -793,8 +793,8 @@ def plot_roc(y_true, y_score):
 
 
 if __name__ == '__main__':
-    s = 3
-    p = 4
+    s = 5
+    p = 5
     n = len(HAAR_TEMPLATED) * s ** 2 * (2 * p - 1) ** 2
     T = 32  # number of boosting rounds
     B = 8  # number fo bins (buckets)
