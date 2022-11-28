@@ -588,7 +588,7 @@ def detect(clf, image: np.array, h_coords, n, feature_indexes=None, preprocess: 
     if preprocess:
         t1_preprocess = time.time()
 
-        i_resized = img_resize(i)
+        i_resized = img_resize(image)
         i_gray = cv2.cvtColor(i_resized, cv2.COLOR_BGR2GRAY)
 
         t2_preprocess = time.time()
@@ -869,18 +869,29 @@ if __name__ == '__main__':
 
     # --- ROC CURVE ---
     y_score = clf.decision_function(X_test)
-    plot_roc(y_test, y_score)
+    # plot_roc(y_test, y_score)
+
+    vid = cv2.VideoCapture(0)
 
     # --- DRAWING ---
-    detections, responses = detect(clf, i, h_coords, n, selected_feature_indexes, preprocess=True, verbose=True)
-    detections_final, responses_final = non_max_suppression(detections, responses)
+    while True:
+        ret, frame = vid.read()
+        i_resized = img_resize(frame)
 
-    for (j0, k0, h, w), response in zip(detections_final, responses_final):
-        cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (255, 255, 0))
-        cv2.putText(i_resized, f"{response:0.2}", (k0, j0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+        detections, responses = detect(clf, frame, h_coords, n, selected_feature_indexes, preprocess=True, verbose=True)
+        detections_final, responses_final = non_max_suppression(detections, responses)
 
-    cv2.imshow("TEST IMAGE", i_resized)
-    cv2.waitKey()
+        for (j0, k0, h, w), response in zip(detections_final, responses_final):
+            cv2.rectangle(i_resized, (k0, j0), (k0 + w - 1, j0 + h - 1), (255, 255, 0))
+            cv2.putText(i_resized, f"{response:0.2}", (k0, j0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+
+        cv2.imshow("TEST IMAGE", i_resized)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    vid.release()
+    cv2.destroyAllWindows()
 
     """
     zad domowe:

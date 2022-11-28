@@ -79,13 +79,22 @@ if __name__ == '__main__':
     markov_experiment(column)
 
     """
-    początkowe prawdopodobieństwa:
-    dla liczby stanów 2 oraz 3 jest możliwe wskazanie stanu, który w większości przypadków będzie stanem początkowym
-    natomiast dla większej liczby stanów jest to trudne to zdefiniowania, ponieważ żadne prawdopodobieństwo startowe nie jest równe 1
+    początkowe prawdopodobieństwa:   
+        najbardziej prawdopodobne stany według liczby stanów:
+            2 - drugi = 1.00000000e+00
+            3 - drugi = 1.00000000e+000
+            4 - czwarty = 9.69545568e-01
+            5 - trzeci = 9.99997713e-01
     
     macierze przejścia dla stanów ukrytych:
-    najbardziej prawdopodobne przejścia pomiędzy stanami są dla liczby stanów 3, ze względu na zróżnicowanie, ale też nie zbyt duże zmiany, tak jak w przypadku liczby stanów 4 i 5
+        najbardziej prawdopodobne przejścia pomiędzy stanami są dla liczby stanów 3, ze względu na zróżnicowanie, ale też nie zbyt duże zmiany, tak jak w przypadku liczby stanów 4 i 5
+        
+        najbardziej prawdopodobne przejścia według liczby stanów:
+            2 - drugi wiersz = [0.02704475 0.97295525]
+            3 - trzeci wiersz = [8.94597516e-01 2.83040466e-02 7.70984370e-02]
+            4 - trzeci wiersz = [8.56806406e-01 1.11208471e-02 1.20938293e-01 1.11344535e-02]
+            5 - czwarty wiersz = [7.75619325e-01 2.93375019e-03 1.10357412e-01 5.95138779e-02 5.15756352e-02]
     
     wnioski:
-    najlepszą liczbą stanów wydaje się być liczba 3, ze względu na łatwą interpretację
+        najlepszą liczbą stanów wydaje się być liczba 3, ze względu na łatwą interpretację
     """
