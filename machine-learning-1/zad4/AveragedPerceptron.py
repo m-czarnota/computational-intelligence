@@ -8,6 +8,8 @@ class AveragedPerceptron(LinearClassifier):
     def __init__(self):
         super().__init__()
 
+        self.c_ = None
+
     def fit(self, x, d):
         self.class_labels_ = np.unique(d)
 
@@ -35,8 +37,9 @@ class AveragedPerceptron(LinearClassifier):
                 n = 0
 
                 self.iteration_count += 1
-        # można robić wewnątrz pętli
+
         """
+        można robić wewnątrz pętli
         średnia = suma(xi) / n
         srednia(x[i+1]) = (x * i + x[i + 1]) / i + 1
         zmienić predycję!! prezentacja
@@ -44,5 +47,12 @@ class AveragedPerceptron(LinearClassifier):
 
         self.coef_ = w - 1 / c * averaged_w
         self.intercept_ = b - 1 / c * beta
+        self.c_ = c
 
         return self.coef_, self.intercept_
+
+    # def predict(self, x: np.array):
+    #     results = np.sign(self.c_ * (x.dot(self.coef_) + self.intercept_))
+    #     results_mapped = self.class_labels_[1 * (results > 0)] if self.class_labels_ is not None else results
+    #
+    #     return results_mapped

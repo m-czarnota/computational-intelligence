@@ -138,10 +138,10 @@ def svm_test():
 
 
 if __name__ == '__main__':
-    svm_test()
+    # svm_test()
 
-    # x_data, decisions = linear_separable_dataset()
-    # experiment(x_data, decisions)
+    x_data, decisions = linear_separable_dataset()
+    experiment(x_data, decisions)
 
     # x_data, decisions = non_linear_separable_dataset()
     # experiment(x_data, decisions)
