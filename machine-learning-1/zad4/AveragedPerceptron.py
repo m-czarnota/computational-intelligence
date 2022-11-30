@@ -1,12 +1,12 @@
 import time
 import numpy as np
 
-from LinearClassifier import LinearClassifier
+from Perceptron import Perceptron
 
 
-class AveragedPerceptron(LinearClassifier):
-    def __init__(self):
-        super().__init__()
+class AveragedPerceptron(Perceptron):
+    def __init__(self, max_seconds: int = 5):
+        super().__init__(max_seconds=max_seconds)
 
         self.c_ = None
 
@@ -30,11 +30,14 @@ class AveragedPerceptron(LinearClassifier):
                     c += 1
                     continue
 
-                w += d[i] * x[i]
-                averaged_w += d[i] * c * x[i]  # accumulate the curr weight values (good weights reused)
+                actual_w = d[i] * x[i]
+
+                w += actual_w
                 b += d[i]
-                beta += d[i] * c
                 n = 0
+
+                averaged_w += actual_w * c  # accumulate the curr weight values (good weights reused)
+                beta += d[i] * c
 
                 self.iteration_count += 1
 
@@ -45,8 +48,8 @@ class AveragedPerceptron(LinearClassifier):
         zmienić predycję!! prezentacja
         """
 
-        self.coef_ = w - 1 / c * averaged_w
-        self.intercept_ = b - 1 / c * beta
+        self.coef_ = averaged_w
+        self.intercept_ = b
         self.c_ = c
 
         return self.coef_, self.intercept_

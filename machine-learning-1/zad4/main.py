@@ -27,6 +27,7 @@ import time
 
 from AveragedPerceptron import AveragedPerceptron
 from Svm2 import Svm2
+from VotedPerceptron import VotedPerceptron
 
 # def dane_liniowo_separowalne():
 #     w, b = [1, 3], -1
@@ -118,14 +119,16 @@ def experiment(x, d):
     t2 = time.time()
     print(f'Time of fitting: {t2 - t1}s.\nNumber of iterations: {perceptron.iteration_count}')
 
-    plt.figure()
-    plt.scatter(x[:, 0], x[:, 1], c=d)
+    perceptron.plot_class(x, d)
 
-    x1 = np.array([np.min(x[:, 0]), np.max(x[:, 1])])
-    x2 = -(b + w[0] * x1) / w[1]
-    plt.plot(x1, x2)
-
-    plt.show()
+    # plt.figure()
+    # plt.scatter(x[:, 0], x[:, 1], c=d)
+    #
+    # x1 = np.array([np.min(x[:, 0]), np.max(x[:, 1])])
+    # x2 = -(b + w[0] * x1) / w[1]
+    # plt.plot(x1, x2)
+    #
+    # plt.show()
 
 
 def svm_test():
