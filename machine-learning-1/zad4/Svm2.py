@@ -12,9 +12,15 @@ class Svm2(LinearClassifier):
         self.svinds_ = None
 
     def fit(self, x: np.array, y: np.array):
+        """
+        G = [[d*x, 0], [0, 0]]
+        z to są lambdy  dwa razy więcej ich jet niż próbek
+        solution['z'][0:n]
+        """
+
         m, n = x.shape
 
-        gp = -np.hstack((np.outer(y, np.ones(n + 1)) * np.hstack((x, np.ones((m, 1)))), -np.eye(m)))
+        gp = -np.hstack((np.outer(y, np.ones(n + 1)) * np.hstack((x, np.ones((m, 1)))), np.eye(m)))
         gpp = np.hstack((np.zeros((m, n + 1)), -np.eye(m)))
         g = cvx.matrix(np.vstack((gp, gpp)))
 
@@ -29,4 +35,4 @@ class Svm2(LinearClassifier):
 
         self.coef_ = solution['x'][:n]
         self.intercept_ = solution['x'][n]
-        self.svinds_ = np.nonzero(np.array(solution['z']) > 10e-5)[0]
+        self.svinds_ = np.nonzero(np.array(solution['z'][:n]) > 10e-5)[0]

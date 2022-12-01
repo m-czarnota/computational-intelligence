@@ -25,6 +25,11 @@
 # są próbki dodatnie, są próbki ujemne. chcemy znaleźć prostą która separuje próbki
 import time
 
+from matplotlib.colors import ListedColormap
+from sklearn.neural_network import MLPClassifier
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+
 from AveragedPerceptron import AveragedPerceptron
 from Svm2 import Svm2
 from VotedPerceptron import VotedPerceptron
@@ -90,6 +95,16 @@ def non_linear_separable_dataset():
     return x, d
 
 
+def chessboard_dataset(n: int = 1000, m: int = 3):
+    X = np.random.rand(n, 2) * 2 - 1
+    y = np.zeros(n)
+    X = np.random.rand(n, 2) * m
+    y = np.mod(np.sum(np.floor(X), axis=1), 2) * 2. - 1.
+    X = X + np.random.randn(*X.shape) * 0.1
+
+    return X, y
+
+
 def plot_class(x: np.array, y: np.array, clf: LinearClassifier):
     n, m = x.shape
 
@@ -112,7 +127,7 @@ def normalize_decisions(d):
 
 
 def experiment(x, d):
-    perceptron = AveragedPerceptron()
+    perceptron = VotedPerceptron()
 
     t1 = time.time()
     w, b = perceptron.fit(x, d)
@@ -132,19 +147,82 @@ def experiment(x, d):
 
 
 def svm_test():
-    X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
-    y = np.array([-1, -1, -1, 1])
+    """
+    porównać 2 warianty svm
+    czy to rozwiązanie które mamy jest efektywne?
+    zwrócić uwagę na macierz G - są tam macierze rzadkie, w macierzy p też
+    jak zwiększymy liczbę próbek to macierz się rozszerzy i będzie w 1/4 wypełniona
+    może się zdarzyć, że x będzie macierzą rzadką. więc lepiej byłoby trzymać macierz g jako macierz rzadką
+    [[]mxn  []mxm(jednostkowa)]
+     []mxm(rzadka)  []mxm(jednostkowa)]
+    cvx.matrix zamienić na cvx.sv_matrix
+    wszystkie te macierze mogą być rzadkie, powinny być rzadkie macierze g i p
+    można zrobić svm2 sparse i sprawdzić czy to pomoże
+    nie będzie dużego zysku jeżeli macierz x jest gęsta i n jest duże
+    będzie zysk jak n jest małe w stosunku do m
+    """
+
+    # X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+    # y = np.array([-1, -1, -1, 1])
+
+    n = 50
+    X = np.vstack((np.random.randn(n, 2), np.random.randn(n, 2) + 2))
+    y = np.concatenate((np.ones(n), -np.ones(n)))
 
     clf = Svm2(c=1e-3)
     clf.fit(X, y)
     clf.plot_class(X, y, True)
 
 
+def plot_class_universal(clf, x, y, is_line: bool = False):
+    x1_min = np.min(x[:, 0]) - 0.5
+    x1_max = np.max(x[:, 0]) + 0.5
+
+    plt.figure()
+
+    if is_line:
+        points = np.array([[i, -(clf.coefs_[0] * i + clf.intercepts_) / clf.coefs_[1]] for i in np.linspace(x1_min, x1_max)])
+        plt.plot(points[:, 0], points[:, 1], 'k')
+    else:
+        x2_min = np.min(x[:, 1]) - 0.5
+        x2_max = np.max(x[:, 1]) + 0.5
+
+        number_of_points = 250
+        xn, yn = np.meshgrid(np.linspace(x1_min, x1_max, number_of_points), np.linspace(x2_min, x2_max, number_of_points))
+        zn = clf.predict(np.c_[xn.flatten(), yn.flatten()]).reshape(xn.shape)
+
+        plt.contourf(xn, yn, zn, cmap=ListedColormap(['y', 'r']))
+
+    # !!circular import error of Linear Classifier!!
+    # if isinstance(self, Svm1):
+    #     indexes = self.svinds_
+    #     plt.plot(x[indexes, 0], x[indexes, 1], 'co', markersize=10, alpha=0.5)
+
+    plt.scatter(x[:, 0], x[:, 1], c=y, cmap=ListedColormap(['b', 'g']))
+    plt.title('Boundary of separation')
+
+    plt.show()
+
+
+def mlp_scikit_learn_test():
+    X, y = chessboard_dataset()
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
+    mlp = MLPClassifier((50, 40), max_iter=1000, alpha=0.01)
+
+    t1 = time.time()
+    mlp.fit(X_train, y_train)
+    t2 = time.time()
+    print(f'Time of fitting: {t2 - t1}s')
+
+    plot_class_universal(mlp, X_test, y_test)
+
+
 if __name__ == '__main__':
     # svm_test()
+    mlp_scikit_learn_test()
 
-    x_data, decisions = linear_separable_dataset()
-    experiment(x_data, decisions)
+    # x_data, decisions = linear_separable_dataset()
+    # experiment(x_data, decisions)
 
     # x_data, decisions = non_linear_separable_dataset()
     # experiment(x_data, decisions)

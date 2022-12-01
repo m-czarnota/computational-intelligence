@@ -57,20 +57,23 @@ class VotedPerceptron(LinearClassifier):
         biere z tego znaki i mam odp
         """
 
-        # results = [np.sign(x.dot(old_w) + old_b) for old_w, old_b in zip(self.old_w_, self.old_b_)]
+        results = np.array([np.sign(x.dot(old_w) + old_b) for old_w, old_b in zip(self.old_w_, self.old_b_)])
+        results = np.array([result * counter for result, counter in zip(results, self.counter_life_weights_)])
+        results_mapped = np.array([np.sum(result) for result in results])
+        results_mapped = np.sign(results_mapped)
         # results_mapped = [self.class_labels_[1 * (result > 0)] if self.class_labels_ is not None else result for result in results]
         # results_mapped = np.array([results * counter_life_weight for results, counter_life_weight in zip(results_mapped, self.counter_life_weights_)])
+
+        return results_mapped
+
+        # predictions = []
         #
-        # return np.sign(results_mapped)
-
-        predictions = []
-
-        for x_val in x:
-            s = 0
-
-            for w, c in zip(self.old_w_, self.counter_life_weights_):
-                s += c * np.sign(x_val.dot(w))
-
-            predictions.append(np.sign(s))
-
-        return np.array(predictions)
+        # for x_val in x:
+        #     s = 0
+        #
+        #     for w, c in zip(self.old_w_, self.counter_life_weights_):
+        #         s += c * np.sign(x_val.dot(w))
+        #
+        #     predictions.append(np.sign(s))
+        #
+        # return np.array(predictions)
