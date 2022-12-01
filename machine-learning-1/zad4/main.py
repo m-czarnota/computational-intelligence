@@ -1,71 +1,14 @@
-# xi, di
-# xi - współrzędne x
-# di - decyzje
-# <w, x> to wektor
-# <w, x> + b
-#
-# def perceptron(x, d):
-#     n == lr
-#     stop_condition = n < count_samples
-#     while (not stop_condition):
-#         mozna dodać warunek bezpieczeństwa na czas
-#
-#         iterowanie po próbkach i
-#
-#         if (d[i] * iloczyn_skalarny(w, x) + b <= 0):
-#             #update
-#             w = w + d[i] * x[i]
-#             b = b + d[i] * 1
-#             n = 0
-#         else:
-#             n += 1
-#
-#         return w, b
-#
-# są próbki dodatnie, są próbki ujemne. chcemy znaleźć prostą która separuje próbki
 import time
-
 from matplotlib.colors import ListedColormap
 from sklearn.neural_network import MLPClassifier
 from sklearn import datasets
 from sklearn.model_selection import train_test_split
 
 from AveragedPerceptron import AveragedPerceptron
+from Svm1 import Svm1
 from Svm2 import Svm2
+from Svm2Sparse import Svm2Sparse
 from VotedPerceptron import VotedPerceptron
-
-# def dane_liniowo_separowalne():
-#     w, b = [1, 3], -1
-#     x = np.random.rand(10, 2) * 3
-#     d = np.sign(x.dot(w) + b)
-#     x.dot(w) - iloczyn skalarny <w, x>
-#
-# w i b to parametry prostej (hiperpłaszczyzny - równanie hiperpłaszczyzny: <w, x> + b = 0, czyli sum(w[i] * x[i] + b) = 0)
-# jak znaleźć b? mając pkt (0,0) liczymy x/||w||
-#
-# aby narysować prostą, trzeba wyznaczyć dwa pkt
-
-# def funkcja_uniwersalna_brzydka():
-#     contour
-#     [x1, x2] = meshgrid(zakres)  # daje nam 2 macierze współrzędnych
-#     X = np.array([x1.flatten(), x2.flatten()]).T  # flatten robi kopię, raven modyfikuje oryginalne
-#
-#     z = clf.predict(X)
-#     z = z.reshape((n, n))
-#     contour(x1, x2, z, [0, 0])
-
-"""
-averaged uśredniamy sumę wag, dla tych która była dobra
-uśredniamy wagi, lista w, b. ile razy wagi były dobre i uśredniamy
-
-do margin dodajemy distance = True. jak jest 
-jeset prosta. to odległość pkt od prostej to d=<w, x> + b / ||w|| -> odległość
-margines (<w, x> + b) * di**2
-jak distance == True to dzielimy przez ||w||, jak False to nie dzielimy
-
-trzeba pomnożyć kolumna * kolumna, więc element przez element
-w matlabie jest mnożenie .*
-"""
 
 
 import numpy as np
@@ -174,38 +117,8 @@ def svm_test():
     clf.plot_class(X, y, True)
 
 
-def plot_class_universal(clf, x, y, is_line: bool = False):
-    x1_min = np.min(x[:, 0]) - 0.5
-    x1_max = np.max(x[:, 0]) + 0.5
-
-    plt.figure()
-
-    if is_line:
-        points = np.array([[i, -(clf.coefs_[0] * i + clf.intercepts_) / clf.coefs_[1]] for i in np.linspace(x1_min, x1_max)])
-        plt.plot(points[:, 0], points[:, 1], 'k')
-    else:
-        x2_min = np.min(x[:, 1]) - 0.5
-        x2_max = np.max(x[:, 1]) + 0.5
-
-        number_of_points = 250
-        xn, yn = np.meshgrid(np.linspace(x1_min, x1_max, number_of_points), np.linspace(x2_min, x2_max, number_of_points))
-        zn = clf.predict(np.c_[xn.flatten(), yn.flatten()]).reshape(xn.shape)
-
-        plt.contourf(xn, yn, zn, cmap=ListedColormap(['y', 'r']))
-
-    # !!circular import error of Linear Classifier!!
-    # if isinstance(self, Svm1):
-    #     indexes = self.svinds_
-    #     plt.plot(x[indexes, 0], x[indexes, 1], 'co', markersize=10, alpha=0.5)
-
-    plt.scatter(x[:, 0], x[:, 1], c=y, cmap=ListedColormap(['b', 'g']))
-    plt.title('Boundary of separation')
-
-    plt.show()
-
-
 def mlp_scikit_learn_test():
-    X, y = chessboard_dataset()
+    X, y = datasets.make_circles(1000)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
     mlp = MLPClassifier((50, 40), max_iter=1000, alpha=0.01)
 
@@ -214,7 +127,7 @@ def mlp_scikit_learn_test():
     t2 = time.time()
     print(f'Time of fitting: {t2 - t1}s')
 
-    plot_class_universal(mlp, X_test, y_test)
+    LinearClassifier.plot_class_universal(mlp, X_test, y_test)
 
 
 if __name__ == '__main__':

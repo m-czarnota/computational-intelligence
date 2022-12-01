@@ -8,7 +8,7 @@ class Svm1(LinearClassifier):
     def __init__(self, cls_lab=None):
         super().__init__(cls_lab)
 
-        self.svinds_ = None
+        self.sv_indexes_ = None
 
     def fit(self, x: np.array, y: np.array):
         m, n = x.shape
@@ -26,7 +26,7 @@ class Svm1(LinearClassifier):
         # print(g, h, p, q)
         # [print(k, ':', v) for k, v in solution.items()]
 
-        self.coef_ = solution['x'][:n]
-        self.intercept_ = solution['x'][n]
-        self.svinds_ = np.zeros(np.array(solution['z']) > 10e-5)[0]
+        self.coefs_ = solution['x'][:n]
+        self.intercepts_ = solution['x'][n]
+        self.sv_indexes_ = np.zeros(np.array(solution['z']) > 10e-5)[0]
 

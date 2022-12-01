@@ -4,7 +4,7 @@ import cvxopt as cvx
 from LinearClassifier import LinearClassifier
 
 
-class Svm2(LinearClassifier):
+class Svm2Sparse(LinearClassifier):
     def __init__(self, c: float = 1.0, cls_lab=None):
         super().__init__(cls_lab)
 
@@ -12,20 +12,14 @@ class Svm2(LinearClassifier):
         self.sv_indexes_ = None
 
     def fit(self, x: np.array, y: np.array):
-        """
-        G = [[d*x, 0], [0, 0]]
-        z to są lambdy  dwa razy więcej ich jet niż próbek
-        solution['z'][0:n]
-        """
-
         m, n = x.shape
 
         gp = -np.hstack((np.outer(y, np.ones(n + 1)) * np.hstack((x, np.ones((m, 1)))), np.eye(m)))
         gpp = np.hstack((np.zeros((m, n + 1)), -np.eye(m)))
-        g = cvx.matrix(np.vstack((gp, gpp)))
+        g = cvx.spmatrix(np.vstack((gp, gpp)))
 
         h = cvx.matrix(np.concatenate((np.ones(m) * -1, np.zeros(m))))
-        p = cvx.matrix(np.diag(np.concatenate((np.ones(n), np.zeros(m + 1)))))
+        p = cvx.spmatrix(np.diag(np.concatenate((np.ones(n), np.zeros(m + 1)))))
         q = cvx.matrix(np.concatenate((np.zeros(n + 1), self.c_ * np.ones(m))))
 
         solution = cvx.solvers.qp(p, q, g, h)

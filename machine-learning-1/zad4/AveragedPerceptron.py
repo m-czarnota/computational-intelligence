@@ -3,6 +3,26 @@ import numpy as np
 
 from Perceptron import Perceptron
 
+"""
+averaged uśredniamy sumę wag, dla tych która była dobra
+uśredniamy wagi, lista w, b. ile razy wagi były dobre i uśredniamy
+
+do margin dodajemy distance = True. jak jest 
+jeset prosta. to odległość pkt od prostej to d=<w, x> + b / ||w|| -> odległość
+margines (<w, x> + b) * di**2
+jak distance == True to dzielimy przez ||w||, jak False to nie dzielimy
+
+trzeba pomnożyć kolumna * kolumna, więc element przez element
+w matlabie jest mnożenie .*
+
+------------------
+można robić wewnątrz pętli
+średnia = suma(xi) / n
+srednia(x[i+1]) = (x * i + x[i + 1]) / i + 1
+zmienić predycję!! prezentacja
+
+"""
+
 
 class AveragedPerceptron(Perceptron):
     def __init__(self, max_seconds: int = 5):
@@ -41,21 +61,8 @@ class AveragedPerceptron(Perceptron):
 
                 self.iteration_count += 1
 
-        """
-        można robić wewnątrz pętli
-        średnia = suma(xi) / n
-        srednia(x[i+1]) = (x * i + x[i + 1]) / i + 1
-        zmienić predycję!! prezentacja
-        """
-
-        self.coef_ = averaged_w
-        self.intercept_ = b
+        self.coefs_ = averaged_w
+        self.intercepts_ = b
         self.c_ = c
 
-        return self.coef_, self.intercept_
-
-    # def predict(self, x: np.array):
-    #     results = np.sign(self.c_ * (x.dot(self.coef_) + self.intercept_))
-    #     results_mapped = self.class_labels_[1 * (results > 0)] if self.class_labels_ is not None else results
-    #
-    #     return results_mapped
+        return self.coefs_, self.intercepts_
