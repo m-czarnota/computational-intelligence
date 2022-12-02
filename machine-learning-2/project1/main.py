@@ -777,7 +777,7 @@ def plot_roc(y_true, y_score):
 
     plt.legend()
     plt.title('ROC curve')
-    plt.xscale('symlog')
+    plt.xscale('log')
 
     plt.show()
 
@@ -869,7 +869,7 @@ if __name__ == '__main__':
 
     # --- ROC CURVE ---
     y_score = clf.decision_function(X_test)
-    # plot_roc(y_test, y_score)
+    plot_roc(y_test, y_score)
 
     vid = cv2.VideoCapture(0)
 
