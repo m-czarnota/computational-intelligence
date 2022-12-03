@@ -1,5 +1,70 @@
+import numpy as np
+from sklearn.neighbors import KDTree
+from matplotlib import pyplot as plt
+import time
+
+DATA_FOLDER = './data'
+
+
+def grid():
+    x_min = np.min(data[:, 0])
+    x_max = np.max(data[:, 0])
+    rows_count = int(np.ceil((x_max - x_min) * grid_resolution))
+    print(x_min, x_max, rows_count)
+
+    y_min = np.min(data[:, 1])
+    y_max = np.max(data[:, 1])
+    columns_count = int(np.ceil((y_max - y_min) * grid_resolution))
+    print(y_min, y_max, columns_count)
+    print(data.shape)
+
+    array = np.zeros((rows_count, columns_count))
+
+    for x_iter in np.arange(rows_count):
+        x_index = x_min + x_iter
+
+        for y_iter in np.arange(columns_count):
+            y_index = y_min + y_iter
+
+            indexes, distances = kd_tree.query_radius([[x_index, y_index]], r=circle_size, return_distance=True)
+            indexes = indexes[0]
+            distances = distances[0]
+            # print(data[indexes][:, 2], distances)
+
+            powered_distances = distances ** power
+            measured_values = data[indexes][:, 2]
+            estimated_val = np.NaN
+
+            if len(indexes) >= min_points_count:
+                nominator = np.sum(np.divide(measured_values, powered_distances, out=np.zeros_like(measured_values), where=powered_distances != 0))
+                denominator = np.sum(np.divide(1, powered_distances, out=np.zeros_like(distances), where=powered_distances != 0))
+                estimated_val = nominator / denominator
+
+            array[x_iter, y_iter] = estimated_val
+
+    return array
+
+
 if __name__ == '__main__':
-    pass
+    data = np.loadtxt(f'{DATA_FOLDER}/UTM-brama.txt')
+    # data = data[:, :2]
+    # print(data)
+    kd_tree = KDTree(data[:, :2])
+
+    grid_resolution = 1
+    circle_size = 15
+    min_points_count = 3
+    power = 2
+
+    t1 = time.time()
+    array = grid()
+    t2 = time.time()
+    print(f'Time: {t2 - t1}s')
+
+    print(array)
+    plt.figure()
+    plt.scatter(array[:, 0], array[:, 1])
+    plt.show()
 
 """
 utm-brama, utm-obrotnica, wraki utm 
