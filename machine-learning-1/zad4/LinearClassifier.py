@@ -53,15 +53,15 @@ class LinearClassifier(ABC):
     def __str__(self):
         return f'{self.__class__.__name__}[w={self.coefs_}, b={self.intercepts_}]'
 
-    def plot_class(self, x, y, is_line: bool = False):
-        self.plot_class_universal(self, x, y, is_line)
+    def plot_class(self, x, y, is_line: bool = False, support_vectors: np.array = None):
+        self.plot_class_universal(self, x, y, is_line, support_vectors)
 
     @staticmethod
-    def plot_class_universal(clf, x, y, is_line: bool = False):
+    def plot_class_universal(clf, x, y, is_line: bool = False, support_vectors: np.array = None):
         x1_min = np.min(x[:, 0]) - 0.5
         x1_max = np.max(x[:, 0]) + 0.5
 
-        plt.figure()
+        plt.figure(figsize=(20, 10))
 
         if is_line:
             points = np.array([[i, -(clf.coefs_[0] * i + clf.intercepts_) / clf.coefs_[1]] for i in np.linspace(x1_min, x1_max)])
@@ -76,12 +76,10 @@ class LinearClassifier(ABC):
 
             plt.contourf(xn, yn, zn, cmap=ListedColormap(['y', 'r']))
 
-        # !!circular import error of Linear Classifier!!
-        # if isinstance(self, Svm1):
-        #     indexes = self.sv_indexes_
-        #     plt.plot(x[indexes, 0], x[indexes, 1], 'co', markersize=10, alpha=0.5)
+        if support_vectors is not None:
+            plt.plot(x[support_vectors, 0], x[support_vectors, 1], 'co', markersize=10, alpha=0.5)
 
         plt.scatter(x[:, 0], x[:, 1], c=y, cmap=ListedColormap(['b', 'g']))
-        plt.title('Boundary of separation')
+        plt.title(f'{clf} - Boundary of separation')
 
         plt.show()

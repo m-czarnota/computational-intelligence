@@ -3,20 +3,18 @@ from matplotlib.colors import ListedColormap
 from sklearn.neural_network import MLPClassifier
 from sklearn import datasets
 from sklearn.model_selection import train_test_split
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 
 from AveragedPerceptron import AveragedPerceptron
 from Svm1 import Svm1
 from Svm2 import Svm2
 from Svm2Sparse import Svm2Sparse
 from VotedPerceptron import VotedPerceptron
-
-
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-
 from LinearClassifier import LinearClassifier
 from Perceptron import Perceptron
+from MlpTest import MlpTest
 
 
 def linear_separable_dataset():
@@ -132,7 +130,8 @@ def mlp_scikit_learn_test():
 
 if __name__ == '__main__':
     # svm_test()
-    mlp_scikit_learn_test()
+    mlpTest = MlpTest()
+    mlpTest.experiment()
 
     # x_data, decisions = linear_separable_dataset()
     # experiment(x_data, decisions)

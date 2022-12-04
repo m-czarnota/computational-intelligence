@@ -37,15 +37,15 @@ class SvmTest:
         self.fit_measure(clf, x, y)
         self.predict_measure_and_visualise(clf, x, y)
 
-        print(f'Separation margin: {clf.margin(x, y)}')
-        print(f'Support vectors\n{clf.sv_indexes_}')
+        print(f'Separation margin for {clf}: {clf.margin(x, y)}')
+        print(f'Support vectors for {clf}\n{clf.sv_indexes_}')
 
     def svm_sklearn_experiment(self, x, y):
         svc = SVC(C=self.c_)
         self.fit_measure(svc, x, y)
         self.predict_measure_and_visualise(svc, x, y, True)
 
-        print(f'Support vectors\n{svc.support_vectors_}')
+        print(f'Support vectors for {svc}\n{svc.support_vectors_}')
 
     @staticmethod
     def fit_measure(clf, x, y):
