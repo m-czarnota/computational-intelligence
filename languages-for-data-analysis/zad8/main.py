@@ -31,22 +31,33 @@ def grid():
             distances = distances[0]
             # print(data[indexes][:, 2], distances)
 
-            powered_distances = distances ** power
-            measured_values = data[indexes][:, 2]
             estimated_val = np.NaN
 
             if len(indexes) >= min_points_count:
+                powered_distances = distances ** power
+                measured_values = data[indexes][:, 2]
+
                 nominator = np.sum(np.divide(measured_values, powered_distances, out=np.zeros_like(measured_values), where=powered_distances != 0))
                 denominator = np.sum(np.divide(1, powered_distances, out=np.zeros_like(distances), where=powered_distances != 0))
                 estimated_val = nominator / denominator
 
             array[x_iter, y_iter] = estimated_val
 
+    print(array[array != np.NaN].shape)
     return array
 
 
+def save_grid_to_file(array: np.array):
+    with open('my_grid.asc', 'w') as f:
+        f.write(f'ncols {array.shape[1]}\n')
+        f.write(f'nrows {array.shape[0]}\n')
+
+        f.write(f'cellsize {grid_resolution}\n')
+        f.write(f'nodata_value {np.NaN}')
+
+
 if __name__ == '__main__':
-    data = np.loadtxt(f'{DATA_FOLDER}/UTM-brama.txt')
+    data = np.loadtxt(f'{DATA_FOLDER}/wraki utm.txt')
     # data = data[:, :2]
     # print(data)
     kd_tree = KDTree(data[:, :2])
@@ -61,7 +72,7 @@ if __name__ == '__main__':
     t2 = time.time()
     print(f'Time: {t2 - t1}s')
 
-    print(array)
+    # print(array)
     plt.figure()
     plt.scatter(array[:, 0], array[:, 1])
     plt.show()
