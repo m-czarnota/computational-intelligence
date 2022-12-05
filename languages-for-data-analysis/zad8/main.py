@@ -4,90 +4,108 @@ from matplotlib import pyplot as plt
 import time
 
 DATA_FOLDER = './data'
+IMAGES_FOLDER = './images'
 
 
-def grid(grid_resolution, circle_size, min_points_count, power):
-    x_min = np.min(data[:, 0])
-    x_max = np.max(data[:, 0])
-    rows_count = int(np.ceil((x_max - x_min) * grid_resolution))
-    print(x_min, x_max, rows_count)
+class Seabed:
+    def __init__(self, grid_resolution: float = 1.0, circle_size: float = 1.0, min_points_count: int = 2, power: float = 2.0):
+        self.grid_resolution = grid_resolution
+        self.circle_size = circle_size
+        self.min_points_count = min_points_count
+        self.power = power
 
-    y_min = np.min(data[:, 1])
-    y_max = np.max(data[:, 1])
-    columns_count = int(np.ceil((y_max - y_min) * grid_resolution))
-    print(y_min, y_max, columns_count)
-    print(data.shape)
+        self.passed_filename = None
+        self.default_filename = 'wraki utm.txt'
+        self.grid = None
+        self.x_min_max = {'min': 0, 'max': 0}
+        self.y_min_max = {'min': 0, 'max': 0}
+        self.grid_shape = [0, 0]
 
-    array = np.zeros((rows_count, columns_count))
+    def calc_grid(self, filepath: str = None):
+        data = np.loadtxt(filepath) if filepath else self.read_default_data()
+        self.passed_filename = str(filepath if filepath else self.default_filename).split('/')[-1].split('.')[0]
 
-    for x_iter in np.arange(rows_count):
-        x_index = x_min + x_iter
-        print(f'Progress: {x_iter + 1}/{rows_count}')
+        self.calc_mins_maxes(data)
+        self.grid = np.zeros(self.grid_shape)
+        kd_tree = KDTree(data[:, :2])
 
-        for y_iter in np.arange(columns_count):
-            y_index = y_min + y_iter
+        for x_iter, x_point in enumerate(np.linspace(self.x_min_max['min'], self.x_min_max['max'], self.grid_shape[0])):
+            print(f'Progress: {x_iter + 1}/{self.grid_shape[0]}')
 
-            indexes, distances = kd_tree.query_radius([[x_index, y_index]], r=circle_size, return_distance=True)
-            indexes = indexes[0]
-            distances = distances[0]
-            # print(data[indexes][:, 2], distances)
+            for y_iter, y_point in enumerate(np.linspace(self.y_min_max['min'], self.y_min_max['max'], self.grid_shape[1])):
+                indexes, distances = kd_tree.query_radius([[x_point, y_point]], r=self.circle_size, return_distance=True)
+                indexes = indexes[0]
+                distances = distances[0]
 
-            if len(indexes) < min_points_count:
-                array[x_iter, y_iter] = np.NaN
-                continue
+                if len(indexes) < self.min_points_count:
+                    self.grid[x_iter, y_iter] = np.NaN
+                    continue
 
-            powered_distances = distances ** power
-            measured_values = data[indexes][:, 2]
+                powered_distances = distances ** self.power
+                measured_values = data[indexes][:, 2]
 
-            nominator = np.sum(np.divide(measured_values, powered_distances, out=np.zeros_like(measured_values), where=powered_distances != 0))
-            denominator = np.sum(np.divide(1, powered_distances, out=np.zeros_like(distances), where=powered_distances != 0))
-            estimated_val = nominator / denominator
+                nominator = np.sum(np.divide(measured_values, powered_distances, out=np.zeros_like(measured_values), where=powered_distances != 0))
+                denominator = np.sum(np.divide(1, powered_distances, out=np.zeros_like(distances), where=powered_distances != 0))
+                estimated_val = nominator / denominator
 
-            array[x_iter, y_iter] = estimated_val
+                self.grid[x_iter, y_iter] = estimated_val
 
-    with open(f'{filename_raw}.asc', 'w') as f:
-        f.write(f'ncols {array.shape[1]}\n')
-        f.write(f'nrows {array.shape[0]}\n')
-        f.write(f'xllcenter {x_min}\n')
-        f.write(f'yllcenter {y_min}\n')
-        f.write(f'cellsize {grid_resolution}\n')
-        f.write(f'nodata_value {np.NaN}\n')
+        return self.grid
 
-        for row in array:
-            f.write(' '.join(np.char.mod('%f', row)) + '\n')
+    def calc_mins_maxes(self, data: np.array):
+        self.x_min_max['min'] = np.min(data[:, 0])
+        self.x_min_max['max'] = np.max(data[:, 0])
+        self.grid_shape[0] = int(np.ceil((self.x_min_max['max'] - self.x_min_max['min']) / self.grid_resolution))
 
-    return array
+        self.y_min_max['min'] = np.min(data[:, 1])
+        self.y_min_max['max'] = np.max(data[:, 1])
+        self.grid_shape[1] = int(np.ceil((self.y_min_max['max'] - self.y_min_max['min']) / self.grid_resolution))
+
+    def save_grid_to_file(self):
+        with open(f'{DATA_FOLDER}/{self.generate_name_to_save()}.asc', 'w') as f:
+            f.write(f'ncols {self.grid.shape[1]}\n')
+            f.write(f'nrows {self.grid.shape[0]}\n')
+            f.write(f'xllcenter {self.x_min_max["min"]}\n')
+            f.write(f'yllcenter {self.y_min_max["min"]}\n')
+            f.write(f'cellsize {self.grid_resolution}\n')
+            f.write(f'nodata_value {np.NaN}\n')
+
+            for row in self.grid:
+                f.write(' '.join(np.char.mod('%f', row)) + '\n')
+
+    def visualise_grid_2d(self, save_to_file: bool = True):
+        x = np.arange(self.x_min_max['min'], self.x_min_max['max'], self.grid_resolution)
+        y = np.arange(self.y_min_max['min'], self.y_min_max['max'], self.grid_resolution)
+        [xx, yy] = np.meshgrid(x, y)
+
+        plt.figure(figsize=(20, 10))
+        plt.contourf(xx, yy, self.grid.T)
+
+        if save_to_file:
+            filename = self.generate_name_to_save()
+            plt.savefig(f'{IMAGES_FOLDER}/{filename}.png')
+            return
+
+        plt.show()
+
+    def read_default_data(self):
+        return np.loadtxt(f'{DATA_FOLDER}/{self.default_filename}')
+
+    def generate_name_to_save(self):
+        return f'{self.passed_filename}_grid_{self.grid_resolution}_circle_{self.circle_size}_points_{self.min_points_count}_power_{self.power}'
 
 
 if __name__ == '__main__':
-    filename_raw = 'wraki utm'
-    data = np.loadtxt(f'{DATA_FOLDER}/{filename_raw}.txt')
-    # data = data[:, :2]
-    # print(data)
-    kd_tree = KDTree(data[:, :2])
-
-    grid_resolution = 1
-    circle_size = 1
-    min_points_count = 3
-    power = 2
+    filepath = f'{DATA_FOLDER}/UTM-obrotnica.txt'
+    seabed = Seabed(grid_resolution=1.0)
 
     t1 = time.time()
-    array = grid(grid_resolution, circle_size, min_points_count, power)
+    seabed.calc_grid(filepath)
     t2 = time.time()
     print(f'Time: {t2 - t1}s')
 
-    x_min = np.min(data[:, 0])
-    x_max = np.max(data[:, 0])
-
-    y_min = np.min(data[:, 1])
-    y_max = np.max(data[:, 1])
-
-    # print(array)
-    plt.figure(figsize=(20, 10))
-    [x, y] = np.meshgrid(np.arange(x_min, x_max, grid_resolution), np.arange(y_min, y_max, grid_resolution))
-    plt.contourf(x, y, array.T)
-    # plt.show()
-    plt.savefig(f'./images/{filename_raw}.png')
+    seabed.save_grid_to_file()
+    seabed.visualise_grid_2d()
 
 """
 utm-brama, utm-obrotnica, wraki utm 
