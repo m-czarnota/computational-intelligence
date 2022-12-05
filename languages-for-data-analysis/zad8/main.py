@@ -43,7 +43,18 @@ def grid():
 
             array[x_iter, y_iter] = estimated_val
 
-    print(array[array != np.NaN].shape)
+    with open(f'{filename_raw}.asc', 'w') as f:
+        f.write(f'ncols {array.shape[1]}\n')
+        f.write(f'nrows {array.shape[0]}\n')
+        f.write(f'xllcenter {x_min}')
+        f.write(f'yllcenter {y_min}')
+        f.write(f'cellsize {grid_resolution}\n')
+        f.write(f'nodata_value {np.NaN}')
+
+        for row in array:
+            f.write(' '.join(row) + '\n')
+
+
     return array
 
 
@@ -57,13 +68,14 @@ def save_grid_to_file(array: np.array):
 
 
 if __name__ == '__main__':
-    data = np.loadtxt(f'{DATA_FOLDER}/wraki utm.txt')
+    filename_raw = 'wraki utm'
+    data = np.loadtxt(f'{DATA_FOLDER}/{filename_raw}.txt')
     # data = data[:, :2]
     # print(data)
     kd_tree = KDTree(data[:, :2])
 
     grid_resolution = 1
-    circle_size = 15
+    circle_size = 1
     min_points_count = 3
     power = 2
 
@@ -72,9 +84,16 @@ if __name__ == '__main__':
     t2 = time.time()
     print(f'Time: {t2 - t1}s')
 
+    x_min = np.min(data[:, 0])
+    x_max = np.max(data[:, 0])
+
+    y_min = np.min(data[:, 1])
+    y_max = np.max(data[:, 1])
+
     # print(array)
     plt.figure()
-    plt.scatter(array[:, 0], array[:, 1])
+    [x, y] = np.meshgrid(np.arange(x_min, x_max, grid_resolution), np.arange(y_min, y_max, grid_resolution))
+    plt.contourf(x, y, array.T)
     plt.show()
 
 """
