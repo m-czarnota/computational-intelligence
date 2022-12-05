@@ -6,7 +6,7 @@ import time
 DATA_FOLDER = './data'
 
 
-def grid():
+def grid(grid_resolution, circle_size, min_points_count, power):
     x_min = np.min(data[:, 0])
     x_max = np.max(data[:, 0])
     rows_count = int(np.ceil((x_max - x_min) * grid_resolution))
@@ -22,6 +22,7 @@ def grid():
 
     for x_iter in np.arange(rows_count):
         x_index = x_min + x_iter
+        print(f'Progress: {x_iter + 1}/{rows_count}')
 
         for y_iter in np.arange(columns_count):
             y_index = y_min + y_iter
@@ -31,40 +32,31 @@ def grid():
             distances = distances[0]
             # print(data[indexes][:, 2], distances)
 
-            estimated_val = np.NaN
+            if len(indexes) < min_points_count:
+                array[x_iter, y_iter] = np.NaN
+                continue
 
-            if len(indexes) >= min_points_count:
-                powered_distances = distances ** power
-                measured_values = data[indexes][:, 2]
+            powered_distances = distances ** power
+            measured_values = data[indexes][:, 2]
 
-                nominator = np.sum(np.divide(measured_values, powered_distances, out=np.zeros_like(measured_values), where=powered_distances != 0))
-                denominator = np.sum(np.divide(1, powered_distances, out=np.zeros_like(distances), where=powered_distances != 0))
-                estimated_val = nominator / denominator
+            nominator = np.sum(np.divide(measured_values, powered_distances, out=np.zeros_like(measured_values), where=powered_distances != 0))
+            denominator = np.sum(np.divide(1, powered_distances, out=np.zeros_like(distances), where=powered_distances != 0))
+            estimated_val = nominator / denominator
 
             array[x_iter, y_iter] = estimated_val
 
     with open(f'{filename_raw}.asc', 'w') as f:
         f.write(f'ncols {array.shape[1]}\n')
         f.write(f'nrows {array.shape[0]}\n')
-        f.write(f'xllcenter {x_min}')
-        f.write(f'yllcenter {y_min}')
+        f.write(f'xllcenter {x_min}\n')
+        f.write(f'yllcenter {y_min}\n')
         f.write(f'cellsize {grid_resolution}\n')
-        f.write(f'nodata_value {np.NaN}')
+        f.write(f'nodata_value {np.NaN}\n')
 
         for row in array:
-            f.write(' '.join(row) + '\n')
-
+            f.write(' '.join(np.char.mod('%f', row)) + '\n')
 
     return array
-
-
-def save_grid_to_file(array: np.array):
-    with open('my_grid.asc', 'w') as f:
-        f.write(f'ncols {array.shape[1]}\n')
-        f.write(f'nrows {array.shape[0]}\n')
-
-        f.write(f'cellsize {grid_resolution}\n')
-        f.write(f'nodata_value {np.NaN}')
 
 
 if __name__ == '__main__':
@@ -80,7 +72,7 @@ if __name__ == '__main__':
     power = 2
 
     t1 = time.time()
-    array = grid()
+    array = grid(grid_resolution, circle_size, min_points_count, power)
     t2 = time.time()
     print(f'Time: {t2 - t1}s')
 
@@ -91,10 +83,11 @@ if __name__ == '__main__':
     y_max = np.max(data[:, 1])
 
     # print(array)
-    plt.figure()
+    plt.figure(figsize=(20, 10))
     [x, y] = np.meshgrid(np.arange(x_min, x_max, grid_resolution), np.arange(y_min, y_max, grid_resolution))
     plt.contourf(x, y, array.T)
-    plt.show()
+    # plt.show()
+    plt.savefig(f'./images/{filename_raw}.png')
 
 """
 utm-brama, utm-obrotnica, wraki utm 
