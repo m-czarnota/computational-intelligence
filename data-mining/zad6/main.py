@@ -15,23 +15,26 @@ w page rank warunek zatrzymania może być iteracyjny, różnica
 import numpy as np
 
 
-def page_rank_algorithm(a: np.array, d: float = 0.75):
+def page_rank_algorithm(a: np.array, d: float = 0.75, iteration_count: int = np.inf):
     n, m = a.shape
     epsilon = 0.01
 
     e = np.ones(a.shape)
     val_0 = e / n
+    k = 0
 
     while True:
-        val_k = ((1 - d) * e + d * a.T) * val_0
+        val_k = val_0.dot((1 - d) * (e / n) + d * a.T)
+        print(val_k)
 
-        if np.linalg.norm(val_k - val_0) < epsilon:
+        if np.linalg.norm(val_k - val_0) < epsilon or k >= iteration_count:
             val_0 = val_k
             break
 
         val_0 = val_k
+        k += 1
 
-    return np.array([np.sum(row) for row in val_0])
+    return val_0
 
 
 def zad2():
@@ -45,7 +48,7 @@ if __name__ == '__main__':
         [1 / 3, 0, 0, 0],
         [1 / 3, 0, 0, 0],
     ])
-    print(page_rank_algorithm(a))
+    print(page_rank_algorithm(a, iteration_count=1))
 
     a = np.array([
         [0, 1 / 3, 1 / 4, 1 / 3, 0],
