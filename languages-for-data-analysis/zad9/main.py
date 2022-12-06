@@ -1,5 +1,83 @@
+import numpy as np
+import cv2
+import zipfile
+import time
+import os
+import scipy
+
+DATA_FOLDER = './data'
+IMAGES_FOLDER = './images'
+
+
+class DctDtm:
+    def __init__(self):
+        pass
+
+    def compress(self, data: np.array, block_size: int = 16, compress_accuracy: float = 5, zipping: bool = True):
+        blocks = self.split_matrix_to_blocks(data, block_size)
+
+        compressed_data = []
+        for block in blocks:
+            is_block_nan = np.isnan(block)
+
+            if is_block_nan.all():
+                compressed_data.append(f'16{np.NaN}')
+                continue
+
+            if is_block_nan.any():
+                compressed_data.append(block)
+                continue
+
+            dct_block = self.dct(block)
+            vector = self.get_vector_for_block(dct_block)
+            compressed_data.append(vector[:compress_accuracy])
+
+    @staticmethod
+    def split_matrix_to_blocks(data: np.array, block_size: int):
+        blocks = []
+
+        for which_row in range(0, data.shape[0], block_size):
+            for which_column in range(0, data.shape[1], block_size):
+                blocks.append(data[which_row: which_row + block_size, which_column: which_column + block_size])
+
+        return np.array(blocks)
+
+    @staticmethod
+    def dct(array: np.array):
+        return scipy.fftpack.dct(
+            scipy.fftpack.dct(
+                array.astype(float),
+                axis=0,
+                norm='ortho'
+            ),
+            axis=1,
+            norm='ortho'
+        )
+
+    @staticmethod
+    def get_vector_for_block(block: np.array):
+        vector = [[] for _ in range(block.shape[0] + block.shape[1] - 1)]
+
+        for i in range(block.shape[0]):
+            for j in range(block.shape[1]):
+                iter_sum = i + j
+
+                if iter_sum % 2 == 0:
+                    vector[iter_sum].insert(0, block[i, j])
+                else:
+                    vector[iter_sum].append(block[i, j])
+
+        vector_flatten = []
+        for val_list in vector:
+            vector_flatten.extend(val_list)
+
+        return np.array(vector_flatten)
+
+
 if __name__ == '__main__':
-    pass
+    data = np.loadtxt(f'{DATA_FOLDER}/wraki utm_grid_0.1_circle_1.0_points_2_power_2.0.asc', skiprows=6)
+    dct_dtm = DctDtm()
+    dct_dtm.compress(data)
 
 """
 na potrzeby zajęć wygenerować takie powierzchnie, które mają po 1000 w x i y
