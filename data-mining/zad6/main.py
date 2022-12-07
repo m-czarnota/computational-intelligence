@@ -20,12 +20,11 @@ def page_rank_algorithm(a: np.array, d: float = 0.75, iteration_count: int = np.
     epsilon = 0.01
 
     e = np.ones(a.shape)
-    val_0 = e / n
-    k = 0
+    val_0 = e[:, 0] / n
+    k = 1
 
     while True:
         val_k = val_0.dot((1 - d) * (e / n) + d * a.T)
-        print(val_k)
 
         if np.linalg.norm(val_k - val_0) < epsilon or k >= iteration_count:
             val_0 = val_k
