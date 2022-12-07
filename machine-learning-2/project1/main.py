@@ -115,7 +115,7 @@ def integral_image_cumsum(image_gray: np.array):
     return np.cumsum(np.cumsum(image_gray, axis=0), axis=1)
 
 
-@jit(int32[:, :](uint8[:, :]), nopython=True, cache=True)
+@jit(nopython=True, cache=True)
 def integral_image(image_gray: np.array):
     h, w = image_gray.shape
     ii = np.zeros(image_gray.shape, dtype='int32')
@@ -134,7 +134,7 @@ def integral_image(image_gray: np.array):
     return ii
 
 
-@jit(int32(int32[:, :], int32, int32, int32, int32), nopython=True, cache=True)
+@jit(nopython=True, cache=True)
 def integral_image_delta(integral_image: np.array, j1: int, k1: int, j2: int, k2: int):
     # integral_image[j2, k2] - integral_image[j1 - 1, k2] - integral_image[j2, k1 - 1] + integral_image[j1 - 1, k1 - 1]
     delta = integral_image[j2, k2]
@@ -149,7 +149,7 @@ def integral_image_delta(integral_image: np.array, j1: int, k1: int, j2: int, k2
     return delta
 
 
-@jit(int16(int32[:, :], int32, int32, int32[:, :]), nopython=True, cache=True)
+@jit(nopython=True, cache=True)
 def haar_feature(integral_image: np.array, j0: int, k0: int, haar_coords_window):
     """
     (j0, k0) - window top left corner
@@ -652,8 +652,8 @@ def detect(clf, image: np.array, h_coords, n, feature_indexes=None, preprocess: 
             detections.append(np.array([j, k, h, w]))
             responses.append(response)
 
-    # Parallel()(delayed(work)(window_index, scale, j, k, h, w) for window_index, (scale, j, k, h, w) in enumerate(windows))
-    [work(window_index, scale, j, k, h, w) for window_index, (scale, j, k, h, w) in enumerate(windows)]
+    Parallel(n_jobs=4)(delayed(work)(window_index, scale, j, k, h, w) for window_index, (scale, j, k, h, w) in enumerate(windows))
+    # [work(window_index, scale, j, k, h, w) for window_index, (scale, j, k, h, w) in enumerate(windows)]
 
     t2_main_loop = time.time()
     print(f"MAIN LOOP DONE. [TIME: {t2_main_loop - t1_main_loop} s.]")
@@ -869,7 +869,7 @@ if __name__ == '__main__':
 
     # --- ROC CURVE ---
     y_score = clf.decision_function(X_test)
-    plot_roc(y_test, y_score)
+    # plot_roc(y_test, y_score)
 
     vid = cv2.VideoCapture(0)
 
