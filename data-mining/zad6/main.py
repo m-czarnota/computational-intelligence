@@ -50,16 +50,32 @@ if __name__ == '__main__':
     print(page_rank_algorithm(a, iteration_count=1))
 
     a = np.array([
-        [0, 1 / 3, 1 / 4, 1 / 3, 0],
-        [0, 0, 1 / 4, 0, 0],
-        [0, 1 / 3, 0, 1 / 3, 0],
-        [0, 0, 1 / 4, 0, 0],
-        [0, 1 / 3, 1 / 4, 1 / 3, 0],
+        [0, 1/3, 1/4, 1/3, 0],
+        [0, 0, 1/4, 0, 0],
+        [0, 1/3, 0, 1/3, 0],
+        [0, 0, 1/4, 0, 0],
+        [0, 1/3, 1/4, 1/3, 0],
     ])
     print(page_rank_algorithm(a, 0.9))
 
 """
+zad 1:
+    [0.625 0.125 0.125 0.125]
 zad 2:
+    1: 
+        PR(A) = (1-d) + d * ((PR(B)/1 + PR(C)/1 + PR(D)/1) / 3)
+        PR(E) = (1-d) + d * ((PR(B)/1 + PR(C)/1 + PR(D)/1) / 3)
     2: 
-        B i D mają ten sam PageRank, ponieważ mają takie same połączenia do tych samych węzłów oraz C ma tylko do tych węzłów
+        B i D mają ten sam PageRank, ponieważ tylko węzeł C je linkuje (ma do nich połączenia)
+        PR(B) = (1-d) + d * ((PR(C)/1) / 1)
+        PR(D) = (1-d) + d * ((PR(C)/1) / 1)
+        PR(B) = PR(D)
+    4: 
+        Macierz a:
+            [[0, 1/3, 1/4, 1/3, 0],
+            [0, 0, 1/4, 0, 0],
+            [0, 1/3, 0, 1/3, 0],
+            [0, 0, 1/4, 0, 0],
+            [0, 1/3, 1/4, 1/3, 0]]
+        PageRank dla każdego węzła: [0.00533815 0.00254648 0.00357289 0.00254648 0.00533815]
 """
