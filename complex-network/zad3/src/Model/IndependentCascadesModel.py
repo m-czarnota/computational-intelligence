@@ -27,6 +27,7 @@ class IndependentCascadesModel(NxGraphAnimator):
         self.infected_nodes_to_visit__ = []
 
         self.default_filename__ = 'independent_cascades_model'
+        self.condition_propagation__ = '<'
 
         self.initialise_new_random_graph__()
 
@@ -49,18 +50,27 @@ class IndependentCascadesModel(NxGraphAnimator):
         while len(self.infected_nodes_to_visit__) > 0:
             self.propagate__()
 
-    def get_nodes_to_visit_for_node__(self, node: int):
+    def get_neighbours_for_node__(self, node: int):
         edges_list = list(filter(lambda x: node in x, self.graph.edges))
-        node_edges = list(
-            map(lambda edges: list(filter(lambda edge_val: edge_val != node, edges))[0], edges_list))
+        node_edges = list(map(lambda edges: list(filter(lambda edge_val: edge_val != node, edges))[0], edges_list))
 
+        return node_edges
+
+    def get_uninfected_neighbours_for_node__(self, node: int):
+        node_edges = self.get_neighbours_for_node__(node)
         nodes_to_visit = [node_edge for node_edge in node_edges if node_edge not in self.infected_nodes]
+
+        return nodes_to_visit
+
+    def get_infected_neighbours_for_node__(self, node: int):
+        node_edges = self.get_neighbours_for_node__(node)
+        nodes_to_visit = [node_edge for node_edge in node_edges if node_edge in self.infected_nodes]
 
         return nodes_to_visit
 
     def propagate__(self):
         infected = self.infected_nodes_to_visit__.pop(0)
-        nodes_to_visit = self.get_nodes_to_visit_for_node__(infected)
+        nodes_to_visit = self.get_uninfected_neighbours_for_node__(infected)
 
         if infected not in self.nodes_visited_by_node__:
             self.nodes_visited_by_node__[infected] = set()
@@ -114,7 +124,7 @@ class IndependentCascadesModel(NxGraphAnimator):
             edge_to_check_reversed = tuple(reversed(edge_to_check))
 
             edge = list(filter(lambda x: x == edge_to_check or x == edge_to_check_reversed, self.graph.edges))[0]
-            self.graph.edges[edge][weight_key] = f'{node_view.infect_prob:.2} < {self.pp}'
+            self.graph.edges[edge][weight_key] = f'{node_view.infect_prob:.2} {self.condition_propagation__} {self.pp}'
 
         edges_list = {edge: self.graph.edges[edge][weight_key] if weight_key in self.graph.edges[edge] else ''
                       for edge in self.graph.edges}
