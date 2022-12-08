@@ -6,8 +6,10 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.svm import SVC
 
 from AveragedPerceptron import AveragedPerceptron
+from MlpExtreme import MlpExtreme
 from Svm1 import Svm1
 from Svm2 import Svm2
 from Svm2Sparse import Svm2Sparse
@@ -128,10 +130,27 @@ def mlp_scikit_learn_test():
     LinearClassifier.plot_class_universal(mlp, X_test, y_test)
 
 
+def mlp_extreme_test():
+    X, y = MlpTest.generate_chessboard_dataset()
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
+
+    svm2 = Svm2()
+    mlp = MlpExtreme(svm2, 100)
+
+    t1 = time.time()
+    mlp.fit(X, y)
+    t2 = time.time()
+    print(f'Time of fitting: {t2 - t1}s')
+
+    print()
+    mlp.plot_class(X, y)
+
+
 if __name__ == '__main__':
     # svm_test()
-    mlpTest = MlpTest()
-    mlpTest.experiment()
+    # mlpTest = MlpTest()
+    # mlpTest.experiment()
+    mlp_extreme_test()
 
     # x_data, decisions = linear_separable_dataset()
     # experiment(x_data, decisions)
