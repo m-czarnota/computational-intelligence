@@ -18,19 +18,13 @@ class DctDtm:
 
         compressed_data = []
         for block in blocks:
-            is_block_nan = np.isnan(block)
-
-            if is_block_nan.all():
-                compressed_data.append(f'16{np.NaN}')
-                continue
-
-            if is_block_nan.any():
-                compressed_data.append(block)
+            if np.isnan(block).any():
+                compressed_data.append(f'{block_size}{np.NaN}')
                 continue
 
             dct_block = self.dct(block)
-            vector = self.get_vector_for_block(dct_block)
-            compressed_data.append(vector[:compress_accuracy])
+            vector = self.map_block_by_zigzag_to_vector(dct_block)
+            compressed_data.append(vector[:np.ceil(vector.shape[0] / compress_accuracy).astype(np.int16)])
 
     @staticmethod
     def split_matrix_to_blocks(data: np.array, block_size: int):
@@ -55,29 +49,88 @@ class DctDtm:
         )
 
     @staticmethod
-    def get_vector_for_block(block: np.array):
-        vector = [[] for _ in range(block.shape[0] + block.shape[1] - 1)]
+    def map_block_by_zigzag_to_vector(block: np.array):
+        vector = []
+        row = 0
+        col = 0
+        going_down = False
 
-        for i in range(block.shape[0]):
-            for j in range(block.shape[1]):
-                iter_sum = i + j
+        while row < block.shape[0] and col < block.shape[1]:
+            vector.append(block[row, col])
 
-                if iter_sum % 2 == 0:
-                    vector[iter_sum].insert(0, block[i, j])
+            if going_down:
+                if row == block.shape[0] - 1 or col == 0:
+                    going_down = False
+
+                    if row == block.shape[0] - 1:
+                        col += 1
+                    else:
+                        row += 1
                 else:
-                    vector[iter_sum].append(block[i, j])
+                    row += 1
+                    col -= 1
+            else:
+                if row == 0 or col == block.shape[1] - 1:
+                    going_down = True
 
-        vector_flatten = []
-        for val_list in vector:
-            vector_flatten.extend(val_list)
+                    if col == block.shape[1] - 1:
+                        row += 1
+                    else:
+                        col += 1
+                else:
+                    row -= 1
+                    col += 1
 
-        return np.array(vector_flatten)
+        return np.array(vector)
+
+    @staticmethod
+    def map_vector_by_zigzag_to_block(vector: np.array):
+        block_size = np.sqrt(vector.shape[0]).astype(np.int16)
+        block = np.zeros((block_size, block_size))
+
+        row = 0
+        col = 0
+        going_down = False
+
+        for val in vector:
+            block[row, col] = val
+
+            if going_down:
+                if row == block_size - 1 or col == 0:
+                    going_down = False
+
+                    if row == block_size - 1:
+                        col += 1
+                    else:
+                        row += 1
+                else:
+                    row += 1
+                    col -= 1
+            else:
+                if row == 0 or col == block_size - 1:
+                    going_down = True
+
+                    if col == block_size - 1:
+                        row += 1
+                    else:
+                        col += 1
+                else:
+                    row -= 1
+                    col += 1
+
+        return np.array(block)
 
 
 if __name__ == '__main__':
     data = np.loadtxt(f'{DATA_FOLDER}/wraki utm_grid_0.1_circle_1.0_points_2_power_2.0.asc', skiprows=6)
     dct_dtm = DctDtm()
-    dct_dtm.compress(data)
+    # dct_dtm.compress(data)
+
+    a = np.array([
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]])
+    print(DctDtm.map_vector_by_zigzag_to_block(DctDtm.map_block_by_zigzag_to_vector(a)))
 
 """
 na potrzeby zajęć wygenerować takie powierzchnie, które mają po 1000 w x i y
