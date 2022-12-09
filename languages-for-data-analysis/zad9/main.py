@@ -1,9 +1,7 @@
 import numpy as np
-import cv2
-import zipfile
 import time
 import os
-import scipy
+from matplotlib import pyplot as plt
 
 from DctDtmDecoder import DctDtmDecoder
 from DctDtmEncoder import DctDtmEncoder
@@ -27,8 +25,11 @@ if __name__ == '__main__':
 
     dct_dtm = DctDtmEncoder(filename)
     zipping = False
-    encoding_time = dct_dtm.encode(data, block_size=16, zipping=zipping)
-    print(f'Encoding time: {encoding_time}s')
+
+    t1 = time.time()
+    dct_dtm.encode(data, block_size=16, zipping=zipping)
+    t2 = time.time()
+    print(f'Encoding time: {t2 - t1}s')
 
     extension = "zip" if zipping else "txt"
     encoded_size = os.path.getsize(f'{DATA_FOLDER}/{filename}.{extension}')
@@ -36,7 +37,18 @@ if __name__ == '__main__':
     print(f'Compression ratio: {(original_size / encoded_size):.2f}:1')
 
     dct_dtm_decoder = DctDtmDecoder()
-    dct_dtm_decoder.decode(f'{DATA_FOLDER}/{filename}.{extension}')
+
+    t1 = time.time()
+    decoded_data = dct_dtm_decoder.decode(f'{DATA_FOLDER}/{filename}.{extension}')
+    t2 = time.time()
+    print(f'Decoding time: {t2 - t1}s')
+
+    x = np.arange(np.nanmin(), self.x_min_max['max'], self.grid_resolution)
+    y = np.arange(self.y_min_max['min'], self.y_min_max['max'], self.grid_resolution)
+    [xx, yy] = np.meshgrid(x, y)
+
+    plt.figure(figsize=(20, 10))
+    plt.contourf(xx, yy, self.grid.T)
 
     # zigzag_test()
 

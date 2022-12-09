@@ -1,8 +1,7 @@
 import os
-import time
-import zipfile
 import numpy as np
 import scipy
+import zipfile
 
 DATA_FOLDER = './data'
 IMAGES_FOLDER = './images'
@@ -15,7 +14,6 @@ class DctDtmEncoder:
     def encode(self, data: np.array, block_size: int = 16, compress_accuracy: float = 5.0, zipping: bool = True):
         blocks = self.split_matrix_to_blocks(data, block_size)
         encoded_data = []
-        start_calc_time = time.time()
 
         for block_iter, block in enumerate(blocks):
             print(f'Encode progress: {((block_iter + 1) / blocks.shape[0] * 100):.2f}%')
@@ -28,7 +26,6 @@ class DctDtmEncoder:
             vector = self.map_block_by_zigzag_to_vector(dct_block)
             encoded_data.append(vector[:np.ceil(vector.shape[0] / compress_accuracy).astype(np.int16)])
 
-        end_calc_time = time.time()
         encoded_data = np.array(encoded_data)
         self.save_to_file(encoded_data)
 
@@ -37,7 +34,7 @@ class DctDtmEncoder:
                 zf.write(f'{DATA_FOLDER}/{self.filename_to_save}.txt')
             os.remove(f'{DATA_FOLDER}/{self.filename_to_save}.txt')
 
-        return end_calc_time - start_calc_time
+        return encoded_data
 
     def save_to_file(self, encoded_data: np.array):
         with open(f'{DATA_FOLDER}/{self.filename_to_save}.txt', 'w') as f:
