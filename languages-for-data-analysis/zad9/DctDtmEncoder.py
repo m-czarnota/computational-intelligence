@@ -1,7 +1,9 @@
 import os
 import numpy as np
-import scipy
 import zipfile
+from sys import getsizeof
+
+import functions
 
 DATA_FOLDER = './data'
 IMAGES_FOLDER = './images'
@@ -9,9 +11,10 @@ IMAGES_FOLDER = './images'
 
 class DctDtmEncoder:
     def __init__(self, filename_to_save: str = 'compressed_data'):
-        self.filename_to_save = filename_to_save
+        self.filename_to_save: str = filename_to_save
+        self.compressed_fully_data_size = 0
 
-    def encode(self, data: np.array, block_size: int = 16, compress_accuracy: float = 5.0, zipping: bool = True):
+    def encode(self, data: np.array, block_size: int = 16, compress_error: float = 0.05, zipping: bool = True):
         blocks = self.split_matrix_to_blocks(data, block_size)
         encoded_data = []
 
@@ -22,12 +25,14 @@ class DctDtmEncoder:
                 encoded_data.append(f'{block_size}{np.NaN}')
                 continue
 
-            dct_block = self.dct(block)
-            vector = self.map_block_by_zigzag_to_vector(dct_block)
-            encoded_data.append(vector[:np.ceil(vector.shape[0] / compress_accuracy).astype(np.int16)])
+            dct_block = functions.dct(block)
+            vector = functions.map_block_by_zigzag_to_vector(dct_block)
+
+            cropped_vector = self.crop_vector(vector, block, compress_error)
+            encoded_data.append(cropped_vector)
 
         encoded_data = np.array(encoded_data)
-        self.save_to_file(encoded_data)
+        self.save_to_file(encoded_data, data.shape)
 
         if zipping:
             with zipfile.ZipFile(f'{DATA_FOLDER}/{self.filename_to_save}.zip', 'w') as zf:
@@ -36,10 +41,16 @@ class DctDtmEncoder:
 
         return encoded_data
 
-    def save_to_file(self, encoded_data: np.array):
+    def save_to_file(self, encoded_data: np.array, data_shape: tuple):
         with open(f'{DATA_FOLDER}/{self.filename_to_save}.txt', 'w') as f:
+            f.write(f'{data_shape}\n'.replace('(', '').replace(')', ''))
+
             for data in encoded_data:
-                f.write(f'{data}\n')
+                data_str = f'{data}'
+                f.write(f'{data_str}\n')
+
+                if type(data) != str and not np.isnan(data.astype(np.float)).any():
+                    self.compressed_fully_data_size += getsizeof(data_str)
 
     @staticmethod
     def split_matrix_to_blocks(data: np.array, block_size: int):
@@ -47,45 +58,55 @@ class DctDtmEncoder:
 
         for which_row in range(0, data.shape[0], block_size):
             for which_column in range(0, data.shape[1], block_size):
-                blocks.append(data[which_row: which_row + block_size, which_column: which_column + block_size])
+                block = data[which_row: which_row + block_size, which_column: which_column + block_size]
+                row_shape, column_shape = block.shape
+
+                if column_shape < block_size:
+                    for _ in range(block_size - column_shape):
+                        block = np.c_[block, np.array([np.nan] * row_shape)]
+
+                if row_shape < block_size:
+                    for _ in range(block_size - row_shape):
+                        block = np.vstack((block, np.array([np.nan] * block_size)))
+
+                blocks.append(block)
 
         return np.array(blocks)
 
     @staticmethod
-    def dct(array: np.array):
-        return scipy.fftpack.dct(scipy.fftpack.dct(array.astype(float), axis=0, norm='ortho'), axis=1, norm='ortho')
+    def crop_vector(vector: np.array, original_block: np.array, compress_error: float):
+        vector = np.copy(vector)
+        index_modifier = 0.75
 
-    @staticmethod
-    def map_block_by_zigzag_to_vector(block: np.array):
-        vector = []
-        row = 0
-        col = 0
-        going_down = False
+        vector_copy = np.copy(vector)
+        index_to_cut = int(vector.shape[0] * index_modifier)
+        iteration_stop = 100
+        iter_count = 0
 
-        while row < block.shape[0] and col < block.shape[1]:
-            vector.append(block[row, col])
+        while iter_count < iteration_stop:
+            if index_to_cut == 0:
+                index_to_cut += 1
+                break
 
-            if going_down:
-                if row == block.shape[0] - 1 or col == 0:
-                    going_down = False
+            iter_count += 1
 
-                    if row == block.shape[0] - 1:
-                        col += 1
-                    else:
-                        row += 1
-                else:
-                    row += 1
-                    col -= 1
-            else:
-                if row == 0 or col == block.shape[1] - 1:
-                    going_down = True
+            vector_copy = vector.copy()
+            vector_copy[index_to_cut:] = 0
 
-                    if col == block.shape[1] - 1:
-                        row += 1
-                    else:
-                        col += 1
-                else:
-                    row -= 1
-                    col += 1
+            reconstructed_block = functions.map_vector_by_zigzag_to_block(vector)
+            idct_block = functions.idct(reconstructed_block)
+            subtraction_block = idct_block - original_block
 
-        return np.array(vector)
+            error = np.max(abs(subtraction_block))
+
+            if error > compress_error:
+                index_to_cut = int(index_to_cut * index_modifier)
+                continue
+
+            if error < compress_error:
+                index_to_cut = int(index_to_cut / (index_modifier * 2))
+                continue
+
+            break
+
+        return vector[:index_to_cut]

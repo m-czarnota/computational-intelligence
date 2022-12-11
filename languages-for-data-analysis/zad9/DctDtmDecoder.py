@@ -1,44 +1,67 @@
 import numpy as np
-import scipy
+
+import functions
 
 
 class DctDtmDecoder:
+    def __init__(self):
+        self.block_size: int = 0
+        self.original_data_shape: tuple = ()
+
     def decode(self, filename: str):
         vectors = self.read_from_file(filename)
         blocks = []
 
         for vector in vectors:
-            block = self.map_vector_by_zigzag_to_block(vector)
-            idct_block = self.idct(block)
+            block = functions.map_vector_by_zigzag_to_block(vector)
+            idct_block = functions.idct(block)
 
             blocks.append(idct_block)
 
-        return np.array(blocks)
+        data = self.join_blocks_to_matrix(blocks)
+
+        return np.array(data)
 
     def read_from_file(self, filename: str):
         vectors = []
         actual_vector = []
 
         is_vector = False
-        block_size = 0
+        self.block_size = 0
 
         file = open(filename)
-        for line in file:
+        for line_iter, line in enumerate(file):
             line = line.replace('\n', '')
             line = line.strip()
             line = line.replace('  ', ' ')
 
+            if line_iter == 0:
+                self.original_data_shape = tuple(map(lambda x: int(x.strip()), line.split(',')))
+                continue
+
             if 'nan' in line:
-                block_size = int(line.replace('nan', ''))
-                vectors.append(np.full(block_size ** 2, np.nan))
+                self.block_size = int(line.replace('nan', ''))
+                vectors.append(np.full(self.block_size ** 2, np.nan))
                 continue
 
             if '[' in line:
                 is_vector = True
                 line = line.replace('[', '')
 
-                numbers = self.get_numbers_from_line(line)
-                actual_vector.extend(numbers)
+                if ']' in line:
+                    line = line.replace(']', '')
+
+                    numbers = self.get_numbers_from_line(line)
+                    actual_vector.extend(numbers)
+
+                    extend_with_0_count = self.block_size ** 2 - len(actual_vector)
+                    actual_vector.extend([np.nan] * extend_with_0_count)
+
+                    vectors.append(np.array(actual_vector))
+                    actual_vector = []
+                else:
+                    numbers = self.get_numbers_from_line(line)
+                    actual_vector.extend(numbers)
 
                 continue
 
@@ -49,8 +72,8 @@ class DctDtmDecoder:
                 numbers = self.get_numbers_from_line(line)
                 actual_vector.extend(numbers)
 
-                extend_with_0_count = block_size ** 2 - len(actual_vector)
-                actual_vector.extend([0] * extend_with_0_count)
+                extend_with_0_count = self.block_size ** 2 - len(actual_vector)
+                actual_vector.extend([np.nan] * extend_with_0_count)
 
                 vectors.append(np.array(actual_vector))
                 actual_vector = []
@@ -67,53 +90,37 @@ class DctDtmDecoder:
 
         return np.array(vectors)
 
-    @staticmethod
-    def join_blocks_to_matrix(blocks: np.array, block_size: int):
-        partial_width = int(8 / block_size)
-        partial_height = int(8 / block_size)
-        which_block = 0
+    def join_blocks_to_matrix(self, blocks: np.array):
+        rows_to_add = self.block_size - (self.original_data_shape[0] % self.block_size)
+        columns_to_add = self.block_size - (self.original_data_shape[1] % self.block_size)
+        data = np.zeros((
+            self.original_data_shape[0] + rows_to_add if rows_to_add != self.block_size else 0,
+            self.original_data_shape[1] + columns_to_add if columns_to_add != self.block_size else 0,
+        ))
+
+        row = 0
+        col = 0
+
+        for block_iter, block in enumerate(blocks):
+            if block_iter >= self.original_data_shape[0]:
+                break
+
+            which_row = np.copy(row)
+
+            for block_row in block:
+                col = 0 if col >= data.shape[1] else col
+
+                for val in block_row:
+                    data[which_row, col] = val
+                    col += 1
+
+                which_row += 1
+
+            if block_iter % self.block_size == 0:
+                row += 1
+
+        return data[:self.original_data_shape[0], :self.original_data_shape[1]]
 
     @staticmethod
     def get_numbers_from_line(line: str):
         return list(map(lambda x: float(x), line.split(' ')))
-
-    @staticmethod
-    def idct(array: np.array):
-        return scipy.fftpack.idct(scipy.fftpack.idct(array.astype(float), axis=0, norm='ortho'), axis=1, norm='ortho')
-
-    @staticmethod
-    def map_vector_by_zigzag_to_block(vector: np.array):
-        block_size = np.sqrt(vector.shape[0]).astype(np.int16)
-        block = np.zeros((block_size, block_size))
-
-        row = 0
-        col = 0
-        going_down = False
-
-        for val in vector:
-            block[row, col] = val
-
-            if going_down:
-                if row == block_size - 1 or col == 0:
-                    going_down = False
-
-                    if row == block_size - 1:
-                        col += 1
-                    else:
-                        row += 1
-                else:
-                    row += 1
-                    col -= 1
-            else:
-                if row == 0 or col == block_size - 1:
-                    going_down = True
-
-                    if col == block_size - 1:
-                        row += 1
-                    else:
-                        col += 1
-                else:
-                    row -= 1
-                    col += 1
-
-        return np.array(block)

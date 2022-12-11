@@ -1,8 +1,10 @@
 import numpy as np
+import pandas as pd
 import time
 import os
 from matplotlib import pyplot as plt
 
+import functions
 from DctDtmDecoder import DctDtmDecoder
 from DctDtmEncoder import DctDtmEncoder
 
@@ -16,25 +18,36 @@ def zigzag_test():
         [4, 5, 6],
         [7, 8, 9]])
 
-    print(DctDtmDecoder.map_vector_by_zigzag_to_block(DctDtmEncoder.map_block_by_zigzag_to_vector(a)))
+    print(functions.map_vector_by_zigzag_to_block(functions.map_block_by_zigzag_to_vector(a)))
+
+
+def get_val_from_pd_series(series: pd.Series, str_to_cut: str):
+    return series.map(lambda val: float(val.replace(f'{str_to_cut} ', ''))).values[0]
 
 
 if __name__ == '__main__':
     filename = 'wraki utm_grid_0.1_circle_1.0_points_2_power_2.0'
-    data = np.loadtxt(f'{DATA_FOLDER}/{filename}.asc', skiprows=6)
+    filepath = f'{DATA_FOLDER}/{filename}.asc'
+    data = np.loadtxt(filepath, skiprows=8)
 
-    dct_dtm = DctDtmEncoder(filename)
+    data_pd = pd.read_csv(filepath)
+    original_x_min = get_val_from_pd_series(data_pd.iloc[1], 'xllmin')
+    original_x_max = get_val_from_pd_series(data_pd.iloc[2], 'xllmax')
+    original_y_min = get_val_from_pd_series(data_pd.iloc[3], 'yllmin')
+    original_y_max = get_val_from_pd_series(data_pd.iloc[4], 'yllmax')
+    grid_resolution = get_val_from_pd_series(data_pd.iloc[5], 'cellsize')
+
+    dct_dtm_encoder = DctDtmEncoder(filename)
     zipping = False
 
     t1 = time.time()
-    dct_dtm.encode(data, block_size=16, zipping=zipping)
+    dct_dtm_encoder.encode(data, block_size=16, zipping=zipping)
     t2 = time.time()
     print(f'Encoding time: {t2 - t1}s')
 
     extension = "zip" if zipping else "txt"
-    encoded_size = os.path.getsize(f'{DATA_FOLDER}/{filename}.{extension}')
     original_size = os.path.getsize(f'{DATA_FOLDER}/{filename}.asc')
-    print(f'Compression ratio: {(original_size / encoded_size):.2f}:1')
+    print(f'Compression ratio: {(original_size / dct_dtm_encoder.compressed_fully_data_size):.2f}:1')
 
     dct_dtm_decoder = DctDtmDecoder()
 
@@ -43,12 +56,19 @@ if __name__ == '__main__':
     t2 = time.time()
     print(f'Decoding time: {t2 - t1}s')
 
-    x = np.arange(np.nanmin(), self.x_min_max['max'], self.grid_resolution)
-    y = np.arange(self.y_min_max['min'], self.y_min_max['max'], self.grid_resolution)
+    x = np.arange(original_x_min, original_x_max, grid_resolution)
+    y = np.arange(original_y_min, original_y_max, grid_resolution)
     [xx, yy] = np.meshgrid(x, y)
 
     plt.figure(figsize=(20, 10))
-    plt.contourf(xx, yy, self.grid.T)
+    plt.contourf(xx, yy, data.T)
+    plt.title('Original seabed')
+    plt.show()
+
+    plt.figure(figsize=(20, 10))
+    plt.contourf(xx, yy, decoded_data.T)
+    plt.title('Original seabed')
+    plt.show()
 
     # zigzag_test()
 
