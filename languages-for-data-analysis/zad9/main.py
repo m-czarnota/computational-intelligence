@@ -40,16 +40,16 @@ if __name__ == '__main__':
     grid_resolution = get_val_from_pd_series(data_pd.iloc[5], 'cellsize')
 
     dct_dtm_encoder = DctDtmEncoder(filename)
-    zipping = False
+    zipping = True
 
-    # t1 = time.time()
-    # dct_dtm_encoder.encode(data, block_size=16, zipping=zipping)
-    # t2 = time.time()
-    # print(f'Encoding time: {t2 - t1}s')
+    t1 = time.time()
+    dct_dtm_encoder.encode(data, block_size=16, zipping=zipping)
+    t2 = time.time()
+    print(f'Encoding time: {t2 - t1}s')
 
     extension = "zip" if zipping else "txt"
     original_size = os.path.getsize(f'{DATA_FOLDER}/{filename}.asc')
-    # print(f'Compression ratio: {(original_size / dct_dtm_encoder.compressed_fully_data_size):.2f}:1')
+    print(f'Compression ratio: {(original_size / dct_dtm_encoder.compressed_fully_data_size):.2f}:1')
 
     dct_dtm_decoder = DctDtmDecoder()
 

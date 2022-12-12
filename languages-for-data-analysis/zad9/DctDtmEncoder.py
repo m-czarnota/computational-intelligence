@@ -35,7 +35,7 @@ class DctDtmEncoder:
         self.save_to_file(encoded_data, data.shape)
 
         if zipping:
-            with zipfile.ZipFile(f'{DATA_FOLDER}/{self.filename_to_save}.zip', 'w') as zf:
+            with zipfile.ZipFile(f'{DATA_FOLDER}/{self.filename_to_save}.zip', 'w', compression=zipfile.ZIP_DEFLATED) as zf:
                 zf.write(f'{DATA_FOLDER}/{self.filename_to_save}.txt')
             os.remove(f'{DATA_FOLDER}/{self.filename_to_save}.txt')
 
