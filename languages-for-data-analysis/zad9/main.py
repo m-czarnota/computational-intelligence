@@ -1,136 +1,76 @@
 import numpy as np
-import cv2
-import zipfile
+import pandas as pd
 import time
 import os
-import scipy
+from matplotlib import pyplot as plt
+
+import functions
+from DctDtmDecoder import DctDtmDecoder
+from DctDtmEncoder import DctDtmEncoder
 
 DATA_FOLDER = './data'
 IMAGES_FOLDER = './images'
 
 
-class DctDtm:
-    def __init__(self):
-        pass
-
-    def compress(self, data: np.array, block_size: int = 16, compress_accuracy: float = 5, zipping: bool = True):
-        blocks = self.split_matrix_to_blocks(data, block_size)
-
-        compressed_data = []
-        for block in blocks:
-            if np.isnan(block).any():
-                compressed_data.append(f'{block_size}{np.NaN}')
-                continue
-
-            dct_block = self.dct(block)
-            vector = self.map_block_by_zigzag_to_vector(dct_block)
-            compressed_data.append(vector[:np.ceil(vector.shape[0] / compress_accuracy).astype(np.int16)])
-
-    @staticmethod
-    def split_matrix_to_blocks(data: np.array, block_size: int):
-        blocks = []
-
-        for which_row in range(0, data.shape[0], block_size):
-            for which_column in range(0, data.shape[1], block_size):
-                blocks.append(data[which_row: which_row + block_size, which_column: which_column + block_size])
-
-        return np.array(blocks)
-
-    @staticmethod
-    def dct(array: np.array):
-        return scipy.fftpack.dct(
-            scipy.fftpack.dct(
-                array.astype(float),
-                axis=0,
-                norm='ortho'
-            ),
-            axis=1,
-            norm='ortho'
-        )
-
-    @staticmethod
-    def map_block_by_zigzag_to_vector(block: np.array):
-        vector = []
-        row = 0
-        col = 0
-        going_down = False
-
-        while row < block.shape[0] and col < block.shape[1]:
-            vector.append(block[row, col])
-
-            if going_down:
-                if row == block.shape[0] - 1 or col == 0:
-                    going_down = False
-
-                    if row == block.shape[0] - 1:
-                        col += 1
-                    else:
-                        row += 1
-                else:
-                    row += 1
-                    col -= 1
-            else:
-                if row == 0 or col == block.shape[1] - 1:
-                    going_down = True
-
-                    if col == block.shape[1] - 1:
-                        row += 1
-                    else:
-                        col += 1
-                else:
-                    row -= 1
-                    col += 1
-
-        return np.array(vector)
-
-    @staticmethod
-    def map_vector_by_zigzag_to_block(vector: np.array):
-        block_size = np.sqrt(vector.shape[0]).astype(np.int16)
-        block = np.zeros((block_size, block_size))
-
-        row = 0
-        col = 0
-        going_down = False
-
-        for val in vector:
-            block[row, col] = val
-
-            if going_down:
-                if row == block_size - 1 or col == 0:
-                    going_down = False
-
-                    if row == block_size - 1:
-                        col += 1
-                    else:
-                        row += 1
-                else:
-                    row += 1
-                    col -= 1
-            else:
-                if row == 0 or col == block_size - 1:
-                    going_down = True
-
-                    if col == block_size - 1:
-                        row += 1
-                    else:
-                        col += 1
-                else:
-                    row -= 1
-                    col += 1
-
-        return np.array(block)
-
-
-if __name__ == '__main__':
-    data = np.loadtxt(f'{DATA_FOLDER}/wraki utm_grid_0.1_circle_1.0_points_2_power_2.0.asc', skiprows=6)
-    dct_dtm = DctDtm()
-    # dct_dtm.compress(data)
-
+def zigzag_test():
     a = np.array([
         [1, 2, 3],
         [4, 5, 6],
         [7, 8, 9]])
-    print(DctDtm.map_vector_by_zigzag_to_block(DctDtm.map_block_by_zigzag_to_vector(a)))
+
+    print(functions.map_vector_by_zigzag_to_block(functions.map_block_by_zigzag_to_vector(a)))
+
+
+def get_val_from_pd_series(series: pd.Series, str_to_cut: str):
+    return series.map(lambda val: float(val.replace(f'{str_to_cut} ', ''))).values[0]
+
+
+if __name__ == '__main__':
+    filename = 'wraki utm_grid_0.1_circle_1.0_points_2_power_2.0'
+    filepath = f'{DATA_FOLDER}/{filename}.asc'
+    data = np.loadtxt(filepath, skiprows=8)
+
+    data_pd = pd.read_csv(filepath)
+    original_x_min = get_val_from_pd_series(data_pd.iloc[1], 'xllmin')
+    original_x_max = get_val_from_pd_series(data_pd.iloc[2], 'xllmax')
+    original_y_min = get_val_from_pd_series(data_pd.iloc[3], 'yllmin')
+    original_y_max = get_val_from_pd_series(data_pd.iloc[4], 'yllmax')
+    grid_resolution = get_val_from_pd_series(data_pd.iloc[5], 'cellsize')
+
+    dct_dtm_encoder = DctDtmEncoder(filename)
+    zipping = False
+
+    t1 = time.time()
+    dct_dtm_encoder.encode(data, block_size=16, zipping=zipping)
+    t2 = time.time()
+    print(f'Encoding time: {t2 - t1}s')
+
+    extension = "zip" if zipping else "txt"
+    original_size = os.path.getsize(f'{DATA_FOLDER}/{filename}.asc')
+    print(f'Compression ratio: {(original_size / dct_dtm_encoder.compressed_fully_data_size):.2f}:1')
+
+    dct_dtm_decoder = DctDtmDecoder()
+
+    t1 = time.time()
+    decoded_data = dct_dtm_decoder.decode(f'{DATA_FOLDER}/{filename}.{extension}')
+    t2 = time.time()
+    print(f'Decoding time: {t2 - t1}s')
+
+    x = np.arange(original_x_min, original_x_max, grid_resolution)
+    y = np.arange(original_y_min, original_y_max, grid_resolution)
+    [xx, yy] = np.meshgrid(x, y)
+
+    plt.figure(figsize=(20, 10))
+    plt.contourf(xx, yy, data.T)
+    plt.title('Original seabed')
+    plt.show()
+
+    plt.figure(figsize=(20, 10))
+    plt.contourf(xx, yy, decoded_data.T)
+    plt.title('Original seabed')
+    plt.show()
+
+    # zigzag_test()
 
 """
 na potrzeby zajęć wygenerować takie powierzchnie, które mają po 1000 w x i y

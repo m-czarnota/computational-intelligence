@@ -65,8 +65,10 @@ class Seabed:
         with open(f'{DATA_FOLDER}/{self.generate_name_to_save()}.asc', 'w') as f:
             f.write(f'ncols {self.grid.shape[1]}\n')
             f.write(f'nrows {self.grid.shape[0]}\n')
-            f.write(f'xllcenter {self.x_min_max["min"]}\n')
-            f.write(f'yllcenter {self.y_min_max["min"]}\n')
+            f.write(f'xllmin {self.x_min_max["min"]}\n')
+            f.write(f'xllmax {self.x_min_max["max"]}\n')
+            f.write(f'yllmin {self.y_min_max["min"]}\n')
+            f.write(f'yllmax {self.y_min_max["max"]}\n')
             f.write(f'cellsize {self.grid_resolution}\n')
             f.write(f'nodata_value {np.NaN}\n')
 
@@ -96,8 +98,8 @@ class Seabed:
 
 
 if __name__ == '__main__':
-    filepath = f'{DATA_FOLDER}/UTM-obrotnica.txt'
-    seabed = Seabed(grid_resolution=1.0)
+    filepath = f'{DATA_FOLDER}/wraki utm.txt'
+    seabed = Seabed(grid_resolution=0.1)
 
     t1 = time.time()
     seabed.calc_grid(filepath)
