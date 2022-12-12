@@ -26,6 +26,8 @@ def get_val_from_pd_series(series: pd.Series, str_to_cut: str):
 
 
 if __name__ == '__main__':
+    # zigzag_test()
+
     filename = 'wraki utm_grid_0.1_circle_1.0_points_2_power_2.0'
     filepath = f'{DATA_FOLDER}/{filename}.asc'
     data = np.loadtxt(filepath, skiprows=8)
@@ -38,7 +40,7 @@ if __name__ == '__main__':
     grid_resolution = get_val_from_pd_series(data_pd.iloc[5], 'cellsize')
 
     dct_dtm_encoder = DctDtmEncoder(filename)
-    zipping = False
+    zipping = True
 
     t1 = time.time()
     dct_dtm_encoder.encode(data, block_size=16, zipping=zipping)
@@ -67,10 +69,8 @@ if __name__ == '__main__':
 
     plt.figure(figsize=(20, 10))
     plt.contourf(xx, yy, decoded_data.T)
-    plt.title('Original seabed')
+    plt.title('Decoded seabed')
     plt.show()
-
-    # zigzag_test()
 
 """
 na potrzeby zajęć wygenerować takie powierzchnie, które mają po 1000 w x i y

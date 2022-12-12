@@ -35,7 +35,7 @@ class DctDtmEncoder:
         self.save_to_file(encoded_data, data.shape)
 
         if zipping:
-            with zipfile.ZipFile(f'{DATA_FOLDER}/{self.filename_to_save}.zip', 'w') as zf:
+            with zipfile.ZipFile(f'{DATA_FOLDER}/{self.filename_to_save}.zip', 'w', compression=zipfile.ZIP_DEFLATED) as zf:
                 zf.write(f'{DATA_FOLDER}/{self.filename_to_save}.txt')
             os.remove(f'{DATA_FOLDER}/{self.filename_to_save}.txt')
 
@@ -78,7 +78,6 @@ class DctDtmEncoder:
         vector = np.copy(vector)
         index_modifier = 0.75
 
-        vector_copy = np.copy(vector)
         index_to_cut = int(vector.shape[0] * index_modifier)
         iteration_stop = 100
         iter_count = 0
@@ -93,14 +92,14 @@ class DctDtmEncoder:
             vector_copy = vector.copy()
             vector_copy[index_to_cut:] = 0
 
-            reconstructed_block = functions.map_vector_by_zigzag_to_block(vector)
+            reconstructed_block = functions.map_vector_by_zigzag_to_block(vector_copy)
             idct_block = functions.idct(reconstructed_block)
             subtraction_block = idct_block - original_block
 
             error = np.max(abs(subtraction_block))
 
             if error > compress_error:
-                index_to_cut = int(index_to_cut * index_modifier)
+                index_to_cut = int(index_to_cut / index_modifier)
                 continue
 
             if error < compress_error:

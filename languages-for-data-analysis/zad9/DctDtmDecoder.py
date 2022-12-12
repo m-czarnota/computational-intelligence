@@ -8,7 +8,7 @@ class DctDtmDecoder:
         self.block_size: int = 0
         self.original_data_shape: tuple = ()
 
-    def decode(self, filename: str):
+    def decode(self, filename: str, zipping: bool):
         vectors = self.read_from_file(filename)
         blocks = []
 
@@ -22,7 +22,7 @@ class DctDtmDecoder:
 
         return np.array(data)
 
-    def read_from_file(self, filename: str):
+    def read_from_file(self, filename: str, zipping: bool):
         vectors = []
         actual_vector = []
 
@@ -31,57 +31,46 @@ class DctDtmDecoder:
 
         file = open(filename)
         for line_iter, line in enumerate(file):
-            line = line.replace('\n', '')
-            line = line.strip()
-            line = line.replace('  ', ' ')
+            line_transformed = self.transform_line(line)
 
             if line_iter == 0:
-                self.original_data_shape = tuple(map(lambda x: int(x.strip()), line.split(',')))
+                self.original_data_shape = tuple(map(lambda x: int(x.strip()), line_transformed.split(',')))
                 continue
 
-            if 'nan' in line:
-                self.block_size = int(line.replace('nan', ''))
+            if 'nan' in line_transformed:
+                self.block_size = int(line_transformed.replace('nan', ''))
                 vectors.append(np.full(self.block_size ** 2, np.nan))
                 continue
 
-            if '[' in line:
+            if '[' in line_transformed:
                 is_vector = True
-                line = line.replace('[', '')
+                line_transformed = line_transformed.replace('[', '')
+                line_transformed = line_transformed.replace('  ', ' ')
+                modified_line = line_transformed.replace(']', '')
 
-                if ']' in line:
-                    line = line.replace(']', '')
+                numbers = self.get_numbers_from_line(modified_line)
+                actual_vector.extend(numbers)
 
-                    numbers = self.get_numbers_from_line(line)
-                    actual_vector.extend(numbers)
-
-                    extend_with_0_count = self.block_size ** 2 - len(actual_vector)
-                    actual_vector.extend([np.nan] * extend_with_0_count)
-
-                    vectors.append(np.array(actual_vector))
+                if ']' in line_transformed:
+                    self.end_block(actual_vector, vectors)
                     actual_vector = []
-                else:
-                    numbers = self.get_numbers_from_line(line)
-                    actual_vector.extend(numbers)
 
                 continue
 
-            if ']' in line:
+            if ']' in line_transformed:
                 is_vector = False
-                line = line.replace(']', '')
+                line_transformed = line_transformed.replace(']', '')
 
-                numbers = self.get_numbers_from_line(line)
+                numbers = self.get_numbers_from_line(line_transformed)
                 actual_vector.extend(numbers)
 
-                extend_with_0_count = self.block_size ** 2 - len(actual_vector)
-                actual_vector.extend([np.nan] * extend_with_0_count)
-
-                vectors.append(np.array(actual_vector))
+                self.end_block(actual_vector, vectors)
                 actual_vector = []
 
                 continue
 
             if is_vector:
-                numbers = self.get_numbers_from_line(line)
+                numbers = self.get_numbers_from_line(line_transformed)
                 actual_vector.extend(numbers)
 
                 continue
@@ -89,6 +78,12 @@ class DctDtmDecoder:
         file.close()
 
         return np.array(vectors)
+
+    def end_block(self, actual_vector: list, vectors: list):
+        extend_with_0_count = self.block_size ** 2 - len(actual_vector)
+        actual_vector.extend([0] * extend_with_0_count)
+
+        vectors.append(np.array(actual_vector))
 
     def join_blocks_to_matrix(self, blocks: np.array):
         rows_to_add = self.block_size - (self.original_data_shape[0] % self.block_size)
@@ -98,28 +93,37 @@ class DctDtmDecoder:
             self.original_data_shape[1] + columns_to_add if columns_to_add != self.block_size else 0,
         ))
 
-        row = 0
-        col = 0
+        which_row = 0
+        which_col = 0
 
         for block_iter, block in enumerate(blocks):
-            if block_iter >= self.original_data_shape[0]:
-                break
-
-            which_row = np.copy(row)
+            row = which_row
 
             for block_row in block:
-                col = 0 if col >= data.shape[1] else col
+                col = which_col
 
                 for val in block_row:
-                    data[which_row, col] = val
+                    data[row, col] = val
                     col += 1
 
-                which_row += 1
-
-            if block_iter % self.block_size == 0:
                 row += 1
 
+            which_col += self.block_size
+
+            if which_col > self.original_data_shape[1]:
+                which_row += self.block_size
+                which_col = 0
+
         return data[:self.original_data_shape[0], :self.original_data_shape[1]]
+
+    @staticmethod
+    def transform_line(line: str):
+        line_transformed = line.replace('\n', '')
+        line_transformed = line_transformed.strip()
+        line_transformed = line_transformed.replace('  ', ' ')
+        line_transformed = line_transformed.replace('   ', ' ')
+
+        return line_transformed
 
     @staticmethod
     def get_numbers_from_line(line: str):
