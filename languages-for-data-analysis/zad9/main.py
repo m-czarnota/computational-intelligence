@@ -26,6 +26,8 @@ def get_val_from_pd_series(series: pd.Series, str_to_cut: str):
 
 
 if __name__ == '__main__':
+    # zigzag_test()
+
     filename = 'wraki utm_grid_0.1_circle_1.0_points_2_power_2.0'
     filepath = f'{DATA_FOLDER}/{filename}.asc'
     data = np.loadtxt(filepath, skiprows=8)
@@ -40,14 +42,14 @@ if __name__ == '__main__':
     dct_dtm_encoder = DctDtmEncoder(filename)
     zipping = False
 
-    t1 = time.time()
-    dct_dtm_encoder.encode(data, block_size=16, zipping=zipping)
-    t2 = time.time()
-    print(f'Encoding time: {t2 - t1}s')
+    # t1 = time.time()
+    # dct_dtm_encoder.encode(data, block_size=16, zipping=zipping)
+    # t2 = time.time()
+    # print(f'Encoding time: {t2 - t1}s')
 
     extension = "zip" if zipping else "txt"
     original_size = os.path.getsize(f'{DATA_FOLDER}/{filename}.asc')
-    print(f'Compression ratio: {(original_size / dct_dtm_encoder.compressed_fully_data_size):.2f}:1')
+    # print(f'Compression ratio: {(original_size / dct_dtm_encoder.compressed_fully_data_size):.2f}:1')
 
     dct_dtm_decoder = DctDtmDecoder()
 
@@ -67,10 +69,8 @@ if __name__ == '__main__':
 
     plt.figure(figsize=(20, 10))
     plt.contourf(xx, yy, decoded_data.T)
-    plt.title('Original seabed')
+    plt.title('Decoded seabed')
     plt.show()
-
-    # zigzag_test()
 
 """
 na potrzeby zajęć wygenerować takie powierzchnie, które mają po 1000 w x i y
