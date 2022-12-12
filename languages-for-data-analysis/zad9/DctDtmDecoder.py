@@ -1,4 +1,6 @@
+import zipfile
 import numpy as np
+from io import TextIOWrapper
 
 import functions
 
@@ -9,7 +11,7 @@ class DctDtmDecoder:
         self.original_data_shape: tuple = ()
 
     def decode(self, filename: str, zipping: bool):
-        vectors = self.read_from_file(filename)
+        vectors = self.read_encoded_data(filename, zipping)
         blocks = []
 
         for vector in vectors:
@@ -22,14 +24,21 @@ class DctDtmDecoder:
 
         return np.array(data)
 
-    def read_from_file(self, filename: str, zipping: bool):
-        vectors = []
-        actual_vector = []
+    def read_encoded_data(self, filename: str, zipping: bool):
+        if not zipping:
+            with open(filename) as file:
+                return self.read_from_file(file)
 
-        is_vector = False
+        with zipfile.ZipFile(filename) as z:
+            inner_filename = filename.replace('zip', 'txt').replace('./', '')
+
+            with TextIOWrapper(z.open(inner_filename)) as file:
+                return self.read_from_file(file)
+
+    def read_from_file(self, file):
+        vectors = []
         self.block_size = 0
 
-        file = open(filename)
         for line_iter, line in enumerate(file):
             line_transformed = self.transform_line(line)
 
@@ -42,40 +51,8 @@ class DctDtmDecoder:
                 vectors.append(np.full(self.block_size ** 2, np.nan))
                 continue
 
-            if '[' in line_transformed:
-                is_vector = True
-                line_transformed = line_transformed.replace('[', '')
-                line_transformed = line_transformed.replace('  ', ' ')
-                modified_line = line_transformed.replace(']', '')
-
-                numbers = self.get_numbers_from_line(modified_line)
-                actual_vector.extend(numbers)
-
-                if ']' in line_transformed:
-                    self.end_block(actual_vector, vectors)
-                    actual_vector = []
-
-                continue
-
-            if ']' in line_transformed:
-                is_vector = False
-                line_transformed = line_transformed.replace(']', '')
-
-                numbers = self.get_numbers_from_line(line_transformed)
-                actual_vector.extend(numbers)
-
-                self.end_block(actual_vector, vectors)
-                actual_vector = []
-
-                continue
-
-            if is_vector:
-                numbers = self.get_numbers_from_line(line_transformed)
-                actual_vector.extend(numbers)
-
-                continue
-
-        file.close()
+            numbers = self.get_numbers_from_line(line)
+            self.end_block(numbers, vectors)
 
         return np.array(vectors)
 
@@ -118,10 +95,8 @@ class DctDtmDecoder:
 
     @staticmethod
     def transform_line(line: str):
-        line_transformed = line.replace('\n', '')
+        line_transformed = line.replace('\n', '').replace('\r', '')
         line_transformed = line_transformed.strip()
-        line_transformed = line_transformed.replace('  ', ' ')
-        line_transformed = line_transformed.replace('   ', ' ')
 
         return line_transformed
 

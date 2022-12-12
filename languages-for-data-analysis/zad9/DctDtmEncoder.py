@@ -12,7 +12,6 @@ IMAGES_FOLDER = './images'
 class DctDtmEncoder:
     def __init__(self, filename_to_save: str = 'compressed_data'):
         self.filename_to_save: str = filename_to_save
-        self.compressed_fully_data_size = 0
 
     def encode(self, data: np.array, block_size: int = 16, compress_error: float = 0.05, zipping: bool = True):
         blocks = self.split_matrix_to_blocks(data, block_size)
@@ -46,11 +45,11 @@ class DctDtmEncoder:
             f.write(f'{data_shape}\n'.replace('(', '').replace(')', ''))
 
             for data in encoded_data:
-                data_str = f'{data}'
-                f.write(f'{data_str}\n')
+                if type(data) == str:
+                    f.write(f'{data}\n')
+                    continue
 
-                if type(data) != str and not np.isnan(data.astype(np.float)).any():
-                    self.compressed_fully_data_size += getsizeof(data_str)
+                f.write(' '.join(np.char.mod('%f', data)) + '\n')
 
     @staticmethod
     def split_matrix_to_blocks(data: np.array, block_size: int):
