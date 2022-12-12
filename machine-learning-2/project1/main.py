@@ -637,23 +637,19 @@ def detect(clf, image: np.array, h_coords, n, feature_indexes=None, preprocess: 
     print(f"RAW LOOPS DONE. [TIME: {t2_raw_loops - t1_raw_loops} s, WINDOWS TO CHECK: {windows_count}.]")
 
     t1_main_loop = time.time()
-    detections = []
-    responses = []
     progress_check = int(np.round(0.1 * windows_count))
 
-    def work(window_index, scale, j, k, h, w):
-        if window_index % progress_check == 0 and verbose:
-            print(f'PROGRESS: {window_index / windows_count:.2}')
-
-        features = haar_features(ii, j, k, h_coords_window_subsets[scale], n, feature_indexes=feature_indexes)
-        response = clf.decision_function(np.array([features]))[0]
-
-        if response > DETECT_THRESHOLD:
-            detections.append(np.array([j, k, h, w]))
-            responses.append(response)
-
-    Parallel(n_jobs=4)(delayed(work)(window_index, scale, j, k, h, w) for window_index, (scale, j, k, h, w) in enumerate(windows))
+    # Parallel(n_jobs=4)(delayed(work)(window_index, scale, j, k, h, w) for window_index, (scale, j, k, h, w) in enumerate(windows))
     # [work(window_index, scale, j, k, h, w) for window_index, (scale, j, k, h, w) in enumerate(windows)]
+
+    detections2, responses2 = zip(*Parallel(n_jobs=4)(
+        delayed(detect_row)(clf, windows[window_index], ii, h_coords_window_subsets, n, feature_indexes) for window_index
+        in range(len(windows))))
+    detections2 = np.array(detections2)
+    responses2 = np.array(responses2)
+    ind = ~np.isnan(responses2)
+    detections2 = detections2[ind, :].astype("int32")
+    responses2 = responses2[ind]
 
     t2_main_loop = time.time()
     print(f"MAIN LOOP DONE. [TIME: {t2_main_loop - t1_main_loop} s.]")
@@ -661,7 +657,7 @@ def detect(clf, image: np.array, h_coords, n, feature_indexes=None, preprocess: 
     t2 = time.time()
     print(f"DETECT DONE. [TIME: {t2 - t1} s, WINDOWS CHECKED: {windows_count}]")
 
-    return detections, responses
+    return detections2, responses2
 
     # for scale in range(DETECT_SCALES):
     #     h = np.int32(np.round(DETECT_WINDOW_HEIGHT_MIN * DETECT_WINDOW_GROWTH ** scale))
@@ -692,6 +688,16 @@ def detect(clf, image: np.array, h_coords, n, feature_indexes=None, preprocess: 
     #                 detections.append(np.array([j, k, h, w]))
     #
     #             windows_count += 1
+
+def detect_row(clf,window,ii,hcoords_window_subsets,n, feature_indexes):
+    scale, j, k, h, w = window
+    features = haar_features(ii, j, k, hcoords_window_subsets[scale], n, feature_indexes=feature_indexes)
+    response = clf.decision_function(np.array([features]))[0]
+    if response > DETECT_THRESHOLD:
+        detections=[j, k, h, w]
+        responses=response
+        return detections,responses
+    return [np.nan, np.nan, np.nan, np.nan], np.nan
 
 
 def get_metrics(classifier, x, y, train: bool = True):
