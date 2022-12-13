@@ -5,20 +5,20 @@ from LinearClassifier import LinearClassifier
 
 
 class MlpExtreme(LinearClassifier):
-    def __init__(self, clf_lin, neurons_hidden_number: int = 100):
+    def __init__(self, clf_lin, neurons_hidden_count: int = 100):
         super().__init__()
 
         self.clf_lin = clf_lin  # można wstawić za klasyfikator liniowy SVM
-        self.neurons_hidden_number = neurons_hidden_number
-        
+        self.neurons_hidden_count = neurons_hidden_count
+
         self.w1 = None
         self.b1 = None
 
     def fit(self, x: np.array, d: np.array):
-        self.w1 = np.zeros((x.shape[1], self.neurons_hidden_number))  # wagi warstry wejściowej, wyznaczyć losując
-        self.b1 = np.zeros(self.neurons_hidden_number)  # wagi warstry wejściowej, wyznaczyć losując
+        self.w1 = np.zeros((x.shape[1], self.neurons_hidden_count))  # wagi warstry wejściowej, wyznaczyć losując
+        self.b1 = np.zeros(self.neurons_hidden_count)  # wagi warstry wejściowej, wyznaczyć losując
 
-        for i in range(self.neurons_hidden_number):
+        for i in range(self.neurons_hidden_count):
             i1, i2 = np.random.choice(x.shape[0], 2)
             xi, xj = x[i1, :], x[i2, :]
 

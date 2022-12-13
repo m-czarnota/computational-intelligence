@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from sklearn.svm import SVC
 
 from AveragedPerceptron import AveragedPerceptron
+from MlpBackPropagation import MlpBackPropagation
 from MlpExtreme import MlpExtreme
 from Svm1 import Svm1
 from Svm2 import Svm2
@@ -146,11 +147,20 @@ def mlp_extreme_test():
     mlp.plot_class(X, y)
 
 
+def mlp_back_prop_test():
+    X, y = MlpTest.generate_chessboard_dataset()
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
+
+    mlp = MlpBackPropagation(3)
+    mlp.fit(X, y)
+
+
 if __name__ == '__main__':
     # svm_test()
     # mlpTest = MlpTest()
     # mlpTest.experiment()
-    mlp_extreme_test()
+    # mlp_extreme_test()
+    mlp_back_prop_test()
 
     # x_data, decisions = linear_separable_dataset()
     # experiment(x_data, decisions)
