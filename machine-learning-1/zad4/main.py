@@ -148,11 +148,17 @@ def mlp_extreme_test():
 
 
 def mlp_back_prop_test():
-    X, y = MlpTest.generate_chessboard_dataset()
+    X, y = MlpTest.generate_spirals_dataset(1000)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
 
-    mlp = MlpBackPropagation(3)
+    mlp = MlpBackPropagation(neurons_hidden_count=250)
+
+    t1 = time.time()
     mlp.fit(X, y)
+    t2 = time.time()
+    print(f'Time of fitting {t2 - t1}s')
+
+    LinearClassifier.plot_class_universal(mlp, X, y)
 
 
 if __name__ == '__main__':
