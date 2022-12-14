@@ -30,7 +30,8 @@ class DctDtmDecoder:
                 return self.read_from_file(file)
 
         with zipfile.ZipFile(filename) as z:
-            inner_filename = filename.replace('zip', 'txt').replace('./', '')
+            inner_filename = filename.replace('./', '')
+            inner_filename = '.'.join(inner_filename.split('.')[:-1]) + '_zip.txt'
 
             with TextIOWrapper(z.open(inner_filename)) as file:
                 return self.read_from_file(file)

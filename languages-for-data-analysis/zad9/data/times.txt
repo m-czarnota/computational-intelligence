@@ -1,0 +1,14 @@
+wraki utm_grid_0.1_circle_1.0_points_2_power_2.0
+    Encoding time: 15.406236171722412s
+    Compression ratio: 7.64:1
+    Decoding time: 0.5019519329071045s
+
+UTM-brama_grid_0.5_circle_1.0_points_2_power_2.0
+    Encoding time: 144.1291060447693s
+    Compression ratio: 10.46:1
+    Decoding time: 8.147326707839966s
+
+UTM-obrotnica_grid_1.0_circle_1.0_points_2_power_2.0
+    Encoding time: 86.80742168426514s
+    Compression ratio: 13.15:1
+    Decoding time: 5.80710506439209s

@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import zipfile
-from sys import getsizeof
 
 import functions
 
@@ -13,7 +12,7 @@ class DctDtmEncoder:
     def __init__(self, filename_to_save: str = 'compressed_data'):
         self.filename_to_save: str = filename_to_save
 
-    def encode(self, data: np.array, block_size: int = 16, compress_error: float = 0.05, zipping: bool = True):
+    def encode(self, data: np.array, block_size: int = 32, compress_error: float = 0.05, zipping: bool = True):
         blocks = self.split_matrix_to_blocks(data, block_size)
         encoded_data = []
 
@@ -34,14 +33,16 @@ class DctDtmEncoder:
         self.save_to_file(encoded_data, data.shape)
 
         if zipping:
-            with zipfile.ZipFile(f'{DATA_FOLDER}/{self.filename_to_save}.zip', 'w', compression=zipfile.ZIP_DEFLATED) as zf:
-                zf.write(f'{DATA_FOLDER}/{self.filename_to_save}.txt')
-            os.remove(f'{DATA_FOLDER}/{self.filename_to_save}.txt')
+            with zipfile.ZipFile(f'{DATA_FOLDER}/{self.filename_to_save}.zip', 'w', compression=zipfile.ZIP_BZIP2, compresslevel=9) as zf:
+                zf.write(f'{DATA_FOLDER}/{self.filename_to_save}_zip.txt')
+            os.remove(f'{DATA_FOLDER}/{self.filename_to_save}_zip.txt')
 
         return encoded_data
 
-    def save_to_file(self, encoded_data: np.array, data_shape: tuple):
-        with open(f'{DATA_FOLDER}/{self.filename_to_save}.txt', 'w') as f:
+    def save_to_file(self, encoded_data: np.array, data_shape: tuple, zipping: bool = True):
+        zip_suffix = '_zip' if zipping else ''
+
+        with open(f'{DATA_FOLDER}/{self.filename_to_save}{zip_suffix}.txt', 'w') as f:
             f.write(f'{data_shape}\n'.replace('(', '').replace(')', ''))
 
             for data in encoded_data:

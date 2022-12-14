@@ -25,6 +25,55 @@ def get_val_from_pd_series(series: pd.Series, str_to_cut: str):
     return series.map(lambda val: float(val.replace(f'{str_to_cut} ', ''))).values[0]
 
 
+def encode():
+    dct_dtm_encoder = DctDtmEncoder(filename)
+
+    t1 = time.time()
+    dct_dtm_encoder.encode(data, block_size=32, zipping=zipping)
+    t2 = time.time()
+    print(f'Encoding time: {t2 - t1}s')
+
+
+def decode():
+    dct_dtm_decoder = DctDtmDecoder()
+
+    t1 = time.time()
+    decoded = dct_dtm_decoder.decode(f'{DATA_FOLDER}/{filename}.{extension}', zipping)
+    t2 = time.time()
+    print(f'Decoding time: {t2 - t1}s')
+
+    return decoded
+
+
+def plot_seabed():
+    x = np.arange(original_x_min, original_x_max, grid_resolution)
+    y = np.arange(original_y_min, original_y_max, grid_resolution)
+    [xx, yy] = np.meshgrid(x, y)
+
+    plt.figure(figsize=(20, 10))
+    plt.contourf(xx, yy, data.T)
+    plt.title('Original seabed')
+    # plt.show()
+    plt.savefig(f'{IMAGES_FOLDER}/{filename}_original.png')
+
+    plt.figure(figsize=(20, 10))
+    plt.contourf(xx, yy, decoded_data.T)
+    plt.title('Reconstructed seabed')
+    # plt.show()
+    plt.savefig(f'{IMAGES_FOLDER}/{filename}_reconstructed.png')
+
+
+def plot_histogram():
+    matrix_error = decoded_data - data
+    hist, bins = np.histogram(matrix_error, range=(np.nanmin(matrix_error), np.nanmax(matrix_error)), density=True)
+
+    plt.figure()
+    plt.hist(hist, bins=bins)
+    plt.title('Error distribution excluding NaN values')
+    # plt.show()
+    plt.savefig(f'{IMAGES_FOLDER}/{filename}_histogram.png')
+
+
 if __name__ == '__main__':
     # zigzag_test()
 
@@ -39,38 +88,17 @@ if __name__ == '__main__':
     original_y_max = get_val_from_pd_series(data_pd.iloc[4], 'yllmax')
     grid_resolution = get_val_from_pd_series(data_pd.iloc[5], 'cellsize')
 
-    dct_dtm_encoder = DctDtmEncoder(filename)
     zipping = True
-
-    # t1 = time.time()
-    # dct_dtm_encoder.encode(data, block_size=32, zipping=zipping)
-    # t2 = time.time()
-    # print(f'Encoding time: {t2 - t1}s')
+    # encode()
 
     extension = "zip" if zipping else "txt"
     original_size = os.path.getsize(f'{DATA_FOLDER}/{filename}.asc')
-    # print(f'Compression ratio: {(original_size / dct_dtm_encoder.compressed_fully_data_size):.2f}:1')
+    compressed_size = os.path.getsize(f'{DATA_FOLDER}/{filename}.{extension}')
+    print(f'Compression ratio: {(original_size / compressed_size):.2f}:1')
 
-    dct_dtm_decoder = DctDtmDecoder()
-
-    t1 = time.time()
-    decoded_data = dct_dtm_decoder.decode(f'{DATA_FOLDER}/{filename}.{extension}', zipping)
-    t2 = time.time()
-    print(f'Decoding time: {t2 - t1}s')
-
-    x = np.arange(original_x_min, original_x_max, grid_resolution)
-    y = np.arange(original_y_min, original_y_max, grid_resolution)
-    [xx, yy] = np.meshgrid(x, y)
-
-    plt.figure(figsize=(20, 10))
-    plt.contourf(xx, yy, data.T)
-    plt.title('Original seabed')
-    plt.show()
-
-    plt.figure(figsize=(20, 10))
-    plt.contourf(xx, yy, decoded_data.T)
-    plt.title('Decoded seabed')
-    plt.show()
+    decoded_data = decode()
+    plot_seabed()
+    plot_histogram()
 
 """
 na potrzeby zajęć wygenerować takie powierzchnie, które mają po 1000 w x i y
