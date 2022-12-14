@@ -4,13 +4,13 @@ from src.Model.IndependentCascadesModel import IndependentCascadesModel
 from src.DTO.NodeDto import NodeDto
 
 
-class IndependentCascadesModel2(IndependentCascadesModel):
+class LinearThresholdModel(IndependentCascadesModel):
     def __init__(self, number_of_nodes: int = 8, pp: float = 0.5,
                  edges_connections: list = ((0, 1), (1, 2), (2, 4), (2, 6), (4, 3), (6, 7), (6, 5)),
                  seed_indexes: list = [1]):
         super().__init__(number_of_nodes, pp, edges_connections, seed_indexes)
 
-        self.default_filename__ = 'independent_cascades_model2'
+        self.default_filename__ = 'linear_threshold_model'
         self.condition_propagation__ = '>'
 
     def propagate__(self):

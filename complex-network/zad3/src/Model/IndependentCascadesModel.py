@@ -10,7 +10,8 @@ from src.Enum.NodeColorEnum import NodeColorEnum
 class IndependentCascadesModel(NxGraphAnimator):
     def __init__(self, number_of_nodes: int = 8, pp: float = 0.5,
                  edges_connections: list = ((0, 1), (1, 2), (2, 4), (2, 6), (4, 3), (6, 7), (6, 5)),
-                 seed_indexes: list = [1]):
+                 seed_indexes: list = [1],
+                 weights: list = None):
         super().__init__()
 
         self.pp = pp
@@ -21,6 +22,7 @@ class IndependentCascadesModel(NxGraphAnimator):
 
         self.seeds = seed_indexes
         self.infected_nodes = seed_indexes
+        self.weights = weights
         self.nodes_visited_by_node__ = {}
 
         self.infected_nodes_views__ = []
@@ -44,14 +46,29 @@ class IndependentCascadesModel(NxGraphAnimator):
 
         super().prepare_to_draw__()
 
-    def simulate_propagation(self):
+    def simulate_propagation(self, verbose: bool = False):
         self.prepare_to_propagate__()
 
+        propagate_iter = 0
         while len(self.infected_nodes_to_visit__) > 0:
-            self.propagate__()
+            self.propagate__(verbose)
+
+            if verbose:
+                print(f'Iteration {propagate_iter}. Infected nodes: {self.infected_nodes}')
+                propagate_iter += 1
+
+    def get_edges_list_for_node__(self, node: int):
+        return list(filter(lambda x: node in x, self.graph.edges))
+
+    def get_weight_edge_for_2_nodes__(self, node1: int, node2: int):
+        node1_edges = self.get_edges_list_for_node__(node1)
+        nodes_edge = list(filter(lambda edge: node2 in edge, node1_edges))[0]
+        nodes_edge_index = self.edges_connections.index(nodes_edge)
+
+        return self.weights[nodes_edge_index]
 
     def get_neighbours_for_node__(self, node: int):
-        edges_list = list(filter(lambda x: node in x, self.graph.edges))
+        edges_list = self.get_edges_list_for_node__(node)
         node_edges = list(map(lambda edges: list(filter(lambda edge_val: edge_val != node, edges))[0], edges_list))
 
         return node_edges
@@ -68,7 +85,7 @@ class IndependentCascadesModel(NxGraphAnimator):
 
         return nodes_to_visit
 
-    def propagate__(self):
+    def propagate__(self, verbose: bool = False):
         infected = self.infected_nodes_to_visit__.pop(0)
         nodes_to_visit = self.get_uninfected_neighbours_for_node__(infected)
 
@@ -80,7 +97,7 @@ class IndependentCascadesModel(NxGraphAnimator):
                 continue
 
             self.nodes_visited_by_node__[infected].add(node)
-            infect_prob = np.random.rand()
+            infect_prob = np.random.rand() if self.weights is None else self.get_weight_edge_for_2_nodes__(node, infected)
             if infect_prob >= self.pp:
                 continue
 
