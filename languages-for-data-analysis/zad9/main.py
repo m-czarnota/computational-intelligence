@@ -46,10 +46,6 @@ def decode():
 
 
 def plot_seabed():
-    x = np.arange(original_x_min, original_x_max, grid_resolution)
-    y = np.arange(original_y_min, original_y_max, grid_resolution)
-    [xx, yy] = np.meshgrid(x, y)
-
     plt.figure(figsize=(20, 10))
     plt.contourf(xx, yy, data.T)
     plt.title('Original seabed')
@@ -65,13 +61,13 @@ def plot_seabed():
 
 def plot_histogram():
     matrix_error = decoded_data - data
-    hist, bins = np.histogram(matrix_error, range=(np.nanmin(matrix_error), np.nanmax(matrix_error)), density=True)
 
-    plt.figure()
-    plt.hist(hist, bins=bins)
-    plt.title('Error distribution excluding NaN values')
+    fig = plt.figure(figsize=(20, 10))
+    cs = plt.contourf(xx, yy, matrix_error.T, cmap=plt.cm.get_cmap('Spectral', 10))
+    fig.colorbar(cs)
+    plt.title('Error distribution')
     # plt.show()
-    plt.savefig(f'{IMAGES_FOLDER}/{filename}_histogram.png')
+    plt.savefig(f'{IMAGES_FOLDER}/{filename}_error_distribution.png')
 
 
 if __name__ == '__main__':
@@ -95,6 +91,10 @@ if __name__ == '__main__':
     original_size = os.path.getsize(f'{DATA_FOLDER}/{filename}.asc')
     compressed_size = os.path.getsize(f'{DATA_FOLDER}/{filename}.{extension}')
     print(f'Compression ratio: {(original_size / compressed_size):.2f}:1')
+
+    x = np.arange(original_x_min, original_x_max, grid_resolution)
+    y = np.arange(original_y_min, original_y_max, grid_resolution)
+    [xx, yy] = np.meshgrid(x, y)
 
     decoded_data = decode()
     plot_seabed()
