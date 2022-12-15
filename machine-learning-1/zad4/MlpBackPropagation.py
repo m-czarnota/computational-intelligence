@@ -18,58 +18,49 @@ class MlpBackPropagation(LinearClassifier):
         self.hidden_biases = None
 
     def fit(self, x: np.array, d: np.array):
-        self.hidden_weights = np.random.randn(self.neurons_hidden_count, x.shape[1]) * self.weights_scale
-        self.hidden_biases = np.zeros((self.neurons_hidden_count, 1))
+        y = self.normalize_decisions(d, x)
 
-        self.coefs_ = np.random.randn(d.shape[0], self.neurons_hidden_count) * self.weights_scale
-        self.intercepts_ = np.zeros((d.shape[0], 1))
+        self.hidden_weights = np.random.normal(size=(x.shape[1], self.neurons_hidden_count)) * self.weights_scale
+        self.hidden_biases = np.random.normal(size=self.neurons_hidden_count)
+
+        self.coefs_ = np.random.normal(size=(self.neurons_hidden_count, y.shape[1])) * self.weights_scale
+        self.intercepts_ = np.random.normal(size=y.shape[1])
 
         for _ in range(self.max_iter):
             if self.shuffle:
-                self.shuffle_weights()
+                np.random.shuffle(x)
 
-            params = self.forward_propagation(x)
-            params_derivatives = self.back_propagation(x, d, params)
-            self.update_weights(params_derivatives)
-
-            # if params['a2'] == d:
-            #     print('dopasowanie')
-            #     break
+            for x_iter, x_val in enumerate(x):
+                params_activations = self.forward_propagation(x_val)
+                params_fixes = self.back_propagation(x_val, y[x_iter], params_activations)
+                self.update_weights(params_fixes)
 
     def forward_propagation(self, x: np.array):
-        z1 = self.hidden_weights.dot(x.T) + self.hidden_biases  # neuron value at hidden layer
+        z1 = x.dot(self.hidden_weights) + self.hidden_biases  # neuron value at hidden layer
         a1 = self.sigmoid(z1)  # activation value at output layer
-        z2 = self.coefs_.dot(a1) + self.intercepts_  # neuron value at output layer
+        z2 = a1.dot(self.coefs_) + self.intercepts_  # neuron value at output layer
         a2 = self.sigmoid(z2)  # activation value at output layer
 
-        return {'z1': z1, 'a1': a1, 'z2': z2, 'a2': a2}
+        return {'a1': a1, 'a2': a2}
 
     def back_propagation(self, x: np.array, d: np.array, params: dict):
-        samples_count = x.shape[0]
+        delta_out = (params['a2'] - d) * (params['a2'] * (1 - params['a2']))
+        gradient_out = np.outer(params['a1'], delta_out)
 
-        dz2 = params['a2'] - d
-        dw2 = (1 / samples_count) * dz2.dot(params['a1'].T)
-        db2 = (1 / samples_count) * np.sum(dz2, axis=1, keepdims=True)
+        delta_hidden = np.dot(delta_out, self.coefs_.T) * (params['a1'] * (1 - params['a1']))
+        gradient_hidden = np.outer(x, delta_hidden)
 
-        dz1 = np.multiply(self.coefs_.T.dot(dz2), 1 - np.power(params['a1'], 2))
-        dw1 = (1 / samples_count) * dz1.dot(x)
-        db1 = (1 / samples_count) * np.sum(dz1, axis=1, keepdims=True)
+        return {'delta_out': delta_out, 'gradient_out': gradient_out, 'delta_hidden': delta_hidden, 'gradient_hidden': gradient_hidden}
 
-        return {'dw1': dw1, 'db1': db1, 'dw2': dw2, 'db2': db2}
-
-    def update_weights(self, params_derivatives: dict):
-        self.hidden_weights -= self.alpha * params_derivatives['dw1']
-        self.hidden_biases -= self.alpha * params_derivatives['db1']
-        self.coefs_ -= self.alpha * params_derivatives['dw2']
-        self.intercepts_ -= self.alpha * params_derivatives['db2']
-
-    def shuffle_weights(self):
-        np.random.shuffle(self.hidden_weights)
-        np.random.shuffle(self.coefs_)
+    def update_weights(self, params: dict):
+        self.hidden_weights -= self.alpha * params['gradient_hidden']
+        self.hidden_biases -= self.alpha * params['delta_hidden']
+        self.coefs_ -= self.alpha * params['gradient_out']
+        self.intercepts_ -= self.alpha * params['delta_out']
 
     def predict(self, x: np.array):
         a2 = self.forward_propagation(x)['a2']
-        return np.round(a2).astype(np.int)
+        return a2
 
     @staticmethod
     def sigmoid(x):
@@ -78,3 +69,13 @@ class MlpBackPropagation(LinearClassifier):
     @staticmethod
     def sigmoid_derivative(x):
         return x * (1 - x)
+
+    @staticmethod
+    def normalize_decisions(d: np.array, x: np.array):
+        classes = np.unique(d)
+        y = np.zeros((x.shape[0], classes.shape[0]))
+
+        for i in range(x.shape[0]):
+            y[i, np.where(classes == d[i])[0]] = 1
+
+        return y

@@ -51,7 +51,7 @@ class LinearClassifier(ABC):
         pass
 
     def __str__(self):
-        return f'{self.__class__.__name__}[w={self.coefs_}, b={self.intercepts_}]'
+        return f'{self.__class__.__name__}'
 
     def plot_class(self, x, y, is_line: bool = False, support_vectors: np.array = None):
         self.plot_class_universal(self, x, y, is_line, support_vectors)
