@@ -12,6 +12,7 @@ if __name__ == '__main__':
     weights = edges_data['weight']
 
     model = IndependentCascadesModel(len(nodes_unique), 0.5, edges, [0], weights)
+    # model = LinearThresholdModel(len(nodes_unique), 0.09749, edges, [0], weights)
     # model.animation_interval__ = 200
 
     model.simulate_propagation(True)
