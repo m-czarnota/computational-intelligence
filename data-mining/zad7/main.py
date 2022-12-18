@@ -1,19 +1,22 @@
 import pandas as pd
 
+from NaiveBayes import NaiveBayes
 
 if __name__ == '__main__':
-    data_train = pd.read_csv('./DataPrepared/train-features-50.txt', names=['document', 'word', 'class'], sep=' ')
+    data_train = pd.read_csv('./DataPrepared/train-features-50.txt', names=['document', 'word', 'count'], sep=' ')
+    data_labels = pd.read_csv('./DataPrepared/train-labels-50.txt', names=['label']).squeeze('columns')
+    data_labels.index += 1
+
     matrix = pd.DataFrame(data=0, index=data_train['document'].unique(), columns=data_train['word'].unique())
-    matrix = matrix.applymap(lambda x: {0: 0, 1: 0})
-    print(matrix)
 
     for row_index, row in data_train.iterrows():
         document = row['document']
         word = row['word']
-        is_spam = row['class'] == 2
 
-        matrix[word][document][1 if is_spam else 0] += 1
+        matrix[word][document] = row['count']
 
+    naive_bayes = NaiveBayes()
+    naive_bayes.fit(matrix, data_labels)
 
 
 """
