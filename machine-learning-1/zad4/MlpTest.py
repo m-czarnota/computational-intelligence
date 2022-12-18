@@ -5,15 +5,17 @@ from sklearn.model_selection import train_test_split
 import time
 
 from LinearClassifier import LinearClassifier
+from MlpBackPropagation import MlpBackPropagation
+from MlpExtreme import MlpExtreme
+from Svm2 import Svm2
 
 
 class MlpTest:
     def __init__(self):
-        self.layers = [1, 2, 3, 4]
-        self.neurons_count_in_one_hidden_layer = [10, 30, 100, 300, 1000]
-        self.train_data_size = [0.5, 0.6]
+        self.layers = [1]
+        self.neurons_count_in_one_hidden_layer = [10, 30, 50, 100, 300, 1000]
+        self.train_data_size = [0.5, 0.6, 0.8]
         self.alpha = [10 ** i for i in range(-5, 3)]
-        self.fit_algorithm = ['lbfgs', 'adam']
 
     def experiment(self):
         datasets_n = [1000, 10000, 100000]
@@ -32,26 +34,36 @@ class MlpTest:
         for layers in self.layers:
             for neurons_count_in_one_hidden_layer in self.neurons_count_in_one_hidden_layer:
                 for train_data_size in self.train_data_size:
-                    for alpha in self.alpha:
-                        for fit_algorithm in self.fit_algorithm:
-                            self.mlp_experiment(layers, neurons_count_in_one_hidden_layer, train_data_size, alpha, fit_algorithm, dataset)
+                    neurons = tuple([neurons_count_in_one_hidden_layer for _ in range(layers)])
 
-    def mlp_experiment(self, layers: int, neurons_count_in_one_hidden_layer: int, train_data_size: float, alpha: float, solver: str, dataset: tuple):
+                    for alpha in self.alpha:
+                        self.mlp_experiment(neurons, train_data_size, alpha, dataset)
+
+    def mlp_experiment(self, neurons_in_hidden_layers: tuple, train_data_size: float, alpha: float, dataset: tuple):
         dataset_title, x, y = dataset
         dataset_title += f'_train_size_{train_data_size}'
         divided_train_test = train_test_split(x, y, train_size=train_data_size)
 
-        self.mlp_sklearn_experiment(layers, neurons_count_in_one_hidden_layer, divided_train_test, alpha, solver, dataset_title)
+        for method in [self.mlp_sklearn_experiment, self.mlp_backprop_experiment, self.mlp_extreme_experiment]:
+            print('')
+            method(neurons_in_hidden_layers, divided_train_test, alpha, dataset_title)
 
-    def mlp_sklearn_experiment(self, layers: int, neurons_count_in_one_hidden_layer: int, divided_train_test: tuple, alpha: float, solver: str, dataset_title: str):
-        mlp = MLPClassifier((neurons_count_in_one_hidden_layer for i in range(layers)), solver=solver, alpha=alpha, max_iter=1000)
+    def mlp_sklearn_experiment(self, neurons_in_hidden_layers, divided_train_test: tuple, alpha: float, dataset_title: str):
+        mlp = MLPClassifier(neurons_in_hidden_layers, alpha=alpha, max_iter=1000)
+        self.experiment_for_specific_mlp(mlp, divided_train_test, dataset_title)
+
+    def mlp_backprop_experiment(self, neurons_in_hidden_layers: tuple, divided_train_test: tuple, alpha: float, dataset_title: str):
+        mlp = MlpBackPropagation(neurons_in_hidden_layers[0], max_iter=1000, alpha=alpha)
+        self.experiment_for_specific_mlp(mlp, divided_train_test, dataset_title)
+
+    def mlp_extreme_experiment(self, neurons_in_hidden_layers: tuple, divided_train_test: tuple, alpha: float, dataset_title: str):
+        mlp = MlpExtreme(Svm2(), neurons_in_hidden_layers[0])
         self.experiment_for_specific_mlp(mlp, divided_train_test, dataset_title)
 
     def experiment_for_specific_mlp(self, mlp, divided_train_test: tuple, dataset_title: str):
         x_train, x_test, y_train, y_test = divided_train_test
 
         t1 = time.time()
-        print(len(x_train), len(y_train))
         mlp.fit(x_train, y_train)
         t2 = time.time()
         print(f'Time of fitting on {dataset_title} for {mlp}: {t2 - t1}s')
@@ -59,7 +71,7 @@ class MlpTest:
         self.classification_quality(mlp, x_train, y_train, 'train')
         self.classification_quality(mlp, x_test, y_test, 'test')
 
-        LinearClassifier.plot_class_universal(mlp, x_test, y_test)
+        LinearClassifier.plot_class_universal(mlp, x_test, y_test, dataset_title=dataset_title)
 
     @staticmethod
     def classification_quality(mlp, x: np.array, y: np.array, classification_type: str = 'test'):
@@ -68,14 +80,15 @@ class MlpTest:
         t2 = time.time()
         print(f'Time of {mlp} prediction for {classification_type} data: {t2 - t1}s')
 
+        print(f'Metrics of {mlp} for {classification_type}:')
         accuracy = metrics.accuracy_score(y, y_pred)
-        print(f'Accuracy of {mlp} for {classification_type} data: {accuracy}')
+        print(f'\tAccuracy: {accuracy}')
 
         f1_score = metrics.f1_score(y, y_pred)
-        print(f'F1 of {mlp} for {classification_type} data: {f1_score}')
+        print(f'\tF1: {f1_score}')
 
         auc_score = metrics.roc_auc_score(y, y_pred)
-        print(f'AUC of {mlp} for {classification_type} data: {auc_score}')
+        print(f'\tAUC: {auc_score}')
 
     @staticmethod
     def generate_chessboard_dataset(n: int = 1000, m: int = 3):

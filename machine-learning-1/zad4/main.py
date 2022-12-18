@@ -13,7 +13,7 @@ from MlpBackPropagation import MlpBackPropagation
 from MlpExtreme import MlpExtreme
 from Svm1 import Svm1
 from Svm2 import Svm2
-from Svm2Sparse import Svm2Sparse
+from SvmTest import SvmTest
 from VotedPerceptron import VotedPerceptron
 from LinearClassifier import LinearClassifier
 from Perceptron import Perceptron
@@ -40,8 +40,6 @@ def non_linear_separable_dataset():
 
 
 def chessboard_dataset(n: int = 1000, m: int = 3):
-    X = np.random.rand(n, 2) * 2 - 1
-    y = np.zeros(n)
     X = np.random.rand(n, 2) * m
     y = np.mod(np.sum(np.floor(X), axis=1), 2) * 2. - 1.
     X = X + np.random.randn(*X.shape) * 0.1
@@ -120,66 +118,55 @@ def svm_test():
 
 def mlp_scikit_learn_test():
     X, y = datasets.make_circles(1000)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
-    mlp = MLPClassifier((50, 40), max_iter=1000, alpha=0.01)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=0)
+    mlp = MLPClassifier(100, max_iter=1000, alpha=0.01)
 
     t1 = time.time()
     mlp.fit(X_train, y_train)
     t2 = time.time()
     print(f'Time of fitting: {t2 - t1}s')
 
-    mlp.predict()
-
-    LinearClassifier.plot_class_universal(mlp, X_test, y_test)
+    # LinearClassifier.plot_class_universal(mlp, X_test, y_test)
 
 
 def mlp_extreme_test():
-    X, y = MlpTest.generate_chessboard_dataset()
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
+    X, y = datasets.make_circles(1000)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=0)
 
     svm2 = Svm2()
     mlp = MlpExtreme(svm2, 100)
 
     t1 = time.time()
-    mlp.fit(X, y)
+    mlp.fit(X_train, y_train)
     t2 = time.time()
     print(f'Time of fitting: {t2 - t1}s')
 
     print()
-    mlp.plot_class(X, y)
+    mlp.plot_class(X_test, y_test)
 
 
 def mlp_back_prop_test():
-    X, y = MlpTest.generate_spirals_dataset(500)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
+    X, y = datasets.make_circles(1000)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=0)
 
-    mlp = MlpBackPropagation(neurons_hidden_count=50)
+    mlp = MlpBackPropagation(neurons_hidden_count=100)
 
     t1 = time.time()
-    mlp.fit(X, y)
+    mlp.fit(X_train, y_train)
     t2 = time.time()
     print(f'Time of fitting {t2 - t1}s')
 
-    LinearClassifier.plot_class_universal(mlp, X, y)
+    LinearClassifier.plot_class_universal(mlp, X_test, y_test)
 
 
 if __name__ == '__main__':
     # svm_test()
-    # mlpTest = MlpTest()
-    # mlpTest.experiment()
-    mlp_scikit_learn_test()
+    # mlp_scikit_learn_test()
     # mlp_extreme_test()
-    mlp_back_prop_test()
+    # mlp_back_prop_test()
 
-    # x_data, decisions = linear_separable_dataset()
-    # experiment(x_data, decisions)
+    # svm_test = SvmTest()
+    # svm_test.experiment()
 
-    # x_data, decisions = non_linear_separable_dataset()
-    # experiment(x_data, decisions)
-    #
-    # sonar_data = pd.read_csv('sonar_csv.csv')
-    # decisions = sonar_data[sonar_data.columns[-1]]
-    # decisions = normalize_decisions(decisions)
-    # x_data = sonar_data.drop(sonar_data.columns[-1], axis=1).to_numpy()
-    #
-    # experiment(x_data, decisions)
+    mlpTest = MlpTest()
+    mlpTest.experiment()

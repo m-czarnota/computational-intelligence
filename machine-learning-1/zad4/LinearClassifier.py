@@ -53,11 +53,11 @@ class LinearClassifier(ABC):
     def __str__(self):
         return f'{self.__class__.__name__}'
 
-    def plot_class(self, x, y, is_line: bool = False, support_vectors: np.array = None):
-        self.plot_class_universal(self, x, y, is_line, support_vectors)
+    def plot_class(self, x, y, is_line: bool = False, support_vectors: np.array = None, dataset_title: str = None):
+        self.plot_class_universal(self, x, y, is_line, support_vectors, dataset_title)
 
     @staticmethod
-    def plot_class_universal(clf, x, y, is_line: bool = False, support_vectors: np.array = None):
+    def plot_class_universal(clf, x, y, is_line: bool = False, support_vectors: np.array = None, dataset_title: str = None):
         x1_min = np.min(x[:, 0]) - 0.5
         x1_max = np.max(x[:, 0]) + 0.5
 
@@ -80,6 +80,8 @@ class LinearClassifier(ABC):
             plt.plot(x[support_vectors, 0], x[support_vectors, 1], 'co', markersize=10, alpha=0.5)
 
         plt.scatter(x[:, 0], x[:, 1], c=y, cmap=ListedColormap(['b', 'g']))
-        plt.title(f'{clf} - Boundary of separation')
+
+        dataset_title = f'for {dataset_title} dataset' if dataset_title else ''
+        plt.title(f'{clf} - Boundary of separation {dataset_title}')
 
         plt.show()

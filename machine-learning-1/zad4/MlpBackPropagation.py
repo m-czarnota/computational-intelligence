@@ -4,7 +4,7 @@ from LinearClassifier import LinearClassifier
 
 
 class MlpBackPropagation(LinearClassifier):
-    def __init__(self, neurons_hidden_count: int = 100, max_iter: int = 1000, alpha: float = 0.01, shuffle: bool = True):
+    def __init__(self, neurons_hidden_count: int = 100, max_iter: int = 1000, alpha: float = 0.01, shuffle: bool = False):
         super().__init__()
 
         self.neurons_hidden_count = neurons_hidden_count
@@ -19,6 +19,7 @@ class MlpBackPropagation(LinearClassifier):
 
     def fit(self, x: np.array, d: np.array):
         y = self.normalize_decisions(d, x)
+        self.class_labels_ = np.unique(y)
 
         self.hidden_weights = np.random.normal(size=(x.shape[1], self.neurons_hidden_count)) * self.weights_scale
         self.hidden_biases = np.random.normal(size=self.neurons_hidden_count)
@@ -60,22 +61,24 @@ class MlpBackPropagation(LinearClassifier):
 
     def predict(self, x: np.array):
         a2 = self.forward_propagation(x)['a2']
-        return a2
+        if len(a2.shape) == 1:
+            return self.class_labels_[np.argmax(a2)]
+
+        return np.array([self.class_labels_[np.argmax(pair)] for pair in a2])
 
     @staticmethod
     def sigmoid(x):
         return 1 / (1 + np.exp(-x))
 
     @staticmethod
-    def sigmoid_derivative(x):
-        return x * (1 - x)
-
-    @staticmethod
     def normalize_decisions(d: np.array, x: np.array):
         classes = np.unique(d)
-        y = np.zeros((x.shape[0], classes.shape[0]))
+        y = np.full((x.shape[0], classes.shape[0]), -1)
 
         for i in range(x.shape[0]):
             y[i, np.where(classes == d[i])[0]] = 1
 
         return y
+
+    def __str__(self):
+        return f'MlpBackPropagation(neurons_hidden_count={self.neurons_hidden_count}, max_iter={self.max_iter}, alpha={self.alpha}, shuffle={self.shuffle})'

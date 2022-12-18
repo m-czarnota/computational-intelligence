@@ -1,4 +1,3 @@
-import itertools
 import numpy as np
 
 from LinearClassifier import LinearClassifier
@@ -16,7 +15,7 @@ class MlpExtreme(LinearClassifier):
 
     def fit(self, x: np.array, d: np.array):
         self.w1 = np.zeros((x.shape[1], self.neurons_hidden_count))  # wagi warstry wejściowej, wyznaczyć losując
-        self.b1 = np.zeros(self.neurons_hidden_count)  # wagi warstry wejściowej, wyznaczyć losując
+        self.b1 = np.zeros(self.neurons_hidden_count)  # wartości odchylenia warstry wejściowej, wyznaczyć losując
 
         for i in range(self.neurons_hidden_count):
             i1, i2 = np.random.choice(x.shape[0], 2)
