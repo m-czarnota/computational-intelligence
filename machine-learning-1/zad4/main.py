@@ -1,5 +1,6 @@
 import time
 from matplotlib.colors import ListedColormap
+from sklearn.linear_model import LinearRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn import datasets
 from sklearn.model_selection import train_test_split

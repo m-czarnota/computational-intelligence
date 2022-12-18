@@ -26,7 +26,6 @@ class Svm1(LinearClassifier):
         # print(g, h, p, q)
         # [print(k, ':', v) for k, v in solution.items()]
 
-        self.coefs_ = solution['x'][:n]
-        self.intercepts_ = solution['x'][n]
+        self.coef_ = solution['x'][:n]
+        self.intercept_ = solution['x'][n]
         self.sv_indexes_ = np.zeros(np.array(solution['z']) > 10e-5)[0]
-

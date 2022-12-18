@@ -44,8 +44,8 @@ class VotedPerceptron(LinearClassifier):
 
                 self.iteration_count += 1
 
-        self.coefs_ = w
-        self.intercepts_ = b
+        self.coef_ = w
+        self.intercept_ = b
 
         return w, b
 

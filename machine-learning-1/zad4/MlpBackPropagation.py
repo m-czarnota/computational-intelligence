@@ -24,8 +24,8 @@ class MlpBackPropagation(LinearClassifier):
         self.hidden_weights = np.random.normal(size=(x.shape[1], self.neurons_hidden_count)) * self.weights_scale
         self.hidden_biases = np.random.normal(size=self.neurons_hidden_count)
 
-        self.coefs_ = np.random.normal(size=(self.neurons_hidden_count, y.shape[1])) * self.weights_scale
-        self.intercepts_ = np.random.normal(size=y.shape[1])
+        self.coef_ = np.random.normal(size=(self.neurons_hidden_count, y.shape[1])) * self.weights_scale
+        self.intercept_ = np.random.normal(size=y.shape[1])
 
         for _ in range(self.max_iter):
             if self.shuffle:
@@ -39,7 +39,7 @@ class MlpBackPropagation(LinearClassifier):
     def forward_propagation(self, x: np.array):
         z1 = x.dot(self.hidden_weights) + self.hidden_biases  # neuron value at hidden layer
         a1 = self.sigmoid(z1)  # activation value at output layer
-        z2 = a1.dot(self.coefs_) + self.intercepts_  # neuron value at output layer
+        z2 = a1.dot(self.coef_) + self.intercept_  # neuron value at output layer
         a2 = self.sigmoid(z2)  # activation value at output layer
 
         return {'a1': a1, 'a2': a2}
@@ -48,7 +48,7 @@ class MlpBackPropagation(LinearClassifier):
         delta_out = (params['a2'] - d) * (params['a2'] * (1 - params['a2']))
         gradient_out = np.outer(params['a1'], delta_out)
 
-        delta_hidden = np.dot(delta_out, self.coefs_.T) * (params['a1'] * (1 - params['a1']))
+        delta_hidden = np.dot(delta_out, self.coef_.T) * (params['a1'] * (1 - params['a1']))
         gradient_hidden = np.outer(x, delta_hidden)
 
         return {'delta_out': delta_out, 'gradient_out': gradient_out, 'delta_hidden': delta_hidden, 'gradient_hidden': gradient_hidden}
@@ -56,8 +56,8 @@ class MlpBackPropagation(LinearClassifier):
     def update_weights(self, params: dict):
         self.hidden_weights -= self.alpha * params['gradient_hidden']
         self.hidden_biases -= self.alpha * params['delta_hidden']
-        self.coefs_ -= self.alpha * params['gradient_out']
-        self.intercepts_ -= self.alpha * params['delta_out']
+        self.coef_ -= self.alpha * params['gradient_out']
+        self.intercept_ -= self.alpha * params['delta_out']
 
     def predict(self, x: np.array):
         a2 = self.forward_propagation(x)['a2']

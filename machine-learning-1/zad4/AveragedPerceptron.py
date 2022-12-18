@@ -61,8 +61,8 @@ class AveragedPerceptron(Perceptron):
 
                 self.iteration_count += 1
 
-        self.coefs_ = averaged_w
-        self.intercepts_ = b
+        self.coef_ = averaged_w
+        self.intercept_ = b
         self.c_ = c
 
-        return self.coefs_, self.intercepts_
+        return self.coef_, self.intercept_

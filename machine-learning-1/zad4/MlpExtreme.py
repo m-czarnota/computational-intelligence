@@ -21,15 +21,15 @@ class MlpExtreme(LinearClassifier):
             i1, i2 = np.random.choice(x.shape[0], 2)
             xi, xj = x[i1, :], x[i2, :]
 
-            self.w1[:, i] = np.transpose(xj - xi)
-            self.b1[i] = -self.w1[:, i].dot(xi)  # chcemy dodać b do każdej kolumny
+            self.w1[:, i] = (xi - xj).T
+            self.b1[i] = -(self.w1[:, i].dot(xi.T))  # chcemy dodać b do każdej kolumny
 
         v = self.sigmoid(x.dot(self.w1) + self.b1)
         # v = self.sigmoid(self.w1.T.dot(x) + self.b1)
         self.clf_lin.fit(v, d)  # dowolny klasyfikator liniowy posiadający fit
 
-        self.coefs_ = self.clf_lin.coefs_
-        self.intercepts_ = self.clf_lin.intercepts_
+        self.coef_ = self.clf_lin.coef_
+        self.intercept_ = self.clf_lin.intercept_
 
     def predict(self, x: np.array):
         v = self.sigmoid(x.dot(self.w1) + self.b1)
@@ -39,6 +39,9 @@ class MlpExtreme(LinearClassifier):
     @staticmethod
     def sigmoid(x):
         return 1 / (1 + np.exp(-x))
+
+    def __str__(self):
+        return f'MlpExtreme(clf_lin={self.clf_lin}, neurons_hidden_count={self.neurons_hidden_count})'
 
 
 """

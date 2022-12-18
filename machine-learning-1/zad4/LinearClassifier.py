@@ -9,8 +9,8 @@ import numpy as np
 
 class LinearClassifier(ABC):
     def __init__(self, coefs=None, intercepts=None, class_labels=None, max_seconds: int = 3600):
-        self.coefs_ = coefs  # w
-        self.intercepts_ = intercepts  # b
+        self.coef_ = coefs  # w
+        self.intercept_ = intercepts  # b
         self.class_labels_ = class_labels
 
         self.max_seconds = max_seconds
@@ -22,9 +22,9 @@ class LinearClassifier(ABC):
 
     def margin(self, x, d, distance: bool = False):
         # margines w danych to jest minimum z wektora. jak margines jest dodatni, to znaczy, że jest separowalne
-        margin = (x.dot(self.coefs_) + self.intercepts_) * d
+        margin = (x.dot(self.coef_) + self.intercept_) * d
         if distance:
-            margin /= np.linalg.norm(self.coefs_)
+            margin /= np.linalg.norm(self.coef_)
 
         return margin
 
@@ -39,7 +39,7 @@ class LinearClassifier(ABC):
         return np.array([i, j]).T
 
     def predict(self, x: np.array):
-        results = np.sign(x.dot(self.coefs_) + self.intercepts_)
+        results = np.sign(x.dot(self.coef_) + self.intercept_)
         results_mapped = self.class_labels_[1 * (results > 0)] if self.class_labels_ is not None else results
 
         return results_mapped
@@ -64,7 +64,7 @@ class LinearClassifier(ABC):
         plt.figure(figsize=(20, 10))
 
         if is_line:
-            points = np.array([[i, -(clf.coefs_[0] * i + clf.intercepts_) / clf.coefs_[1]] for i in np.linspace(x1_min, x1_max)])
+            points = np.array([[i, -(clf.coef_[0] * i + clf.intercept_) / clf.coef_[1]] for i in np.linspace(x1_min, x1_max)])
             plt.plot(points[:, 0], points[:, 1], 'k')
         else:
             x2_min = np.min(x[:, 1]) - 0.5

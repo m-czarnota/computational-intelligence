@@ -33,8 +33,8 @@ class Svm2(LinearClassifier):
         # print(g, h, p, q)
         # [print(k, ':', v) for k, v in solution.items()]
 
-        self.coefs_ = solution['x'][:n]
-        self.intercepts_ = solution['x'][n]
+        self.coef_ = solution['x'][:n]
+        self.intercept_ = solution['x'][n]
         self.sv_indexes_ = np.nonzero(np.array(solution['z'][:n]) > 10e-5)[0]
 
     def __str__(self):
