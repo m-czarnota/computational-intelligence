@@ -13,7 +13,7 @@ from Svm2 import Svm2
 class MlpTest:
     def __init__(self):
         self.layers = [1]
-        self.neurons_count_in_one_hidden_layer = [10, 30, 50, 100, 300, 1000]
+        self.neurons_count_in_one_hidden_layer = [100, 300, 1000]
         self.train_data_size = [0.5, 0.6, 0.8]
         self.alpha = [10 ** i for i in range(-5, 3)]
 

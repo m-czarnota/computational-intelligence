@@ -36,19 +36,21 @@ class MlpBackPropagation(LinearClassifier):
                 params_fixes = self.back_propagation(x_val, y[x_iter], params_activations)
                 self.update_weights(params_fixes)
 
-    def forward_propagation(self, x: np.array):
+    def forward_propagation(self, x: np.array) -> list:
         z1 = x.dot(self.hidden_weights) + self.hidden_biases  # neuron value at hidden layer
         a1 = self.sigmoid(z1)  # activation value at output layer
         z2 = a1.dot(self.coef_) + self.intercept_  # neuron value at output layer
         a2 = self.sigmoid(z2)  # activation value at output layer
 
-        return {'a1': a1, 'a2': a2}
+        return [a1, a2]
 
     def back_propagation(self, x: np.array, d: np.array, params: dict):
-        delta_out = (params['a2'] - d) * (params['a2'] * (1 - params['a2']))
-        gradient_out = np.outer(params['a1'], delta_out)
+        a1, a2 = params
 
-        delta_hidden = np.dot(delta_out, self.coef_.T) * (params['a1'] * (1 - params['a1']))
+        delta_out = (a2 - d) * (a2 * (1 - a2))
+        gradient_out = np.outer(a1, delta_out)
+
+        delta_hidden = np.dot(delta_out, self.coef_.T) * (a1 * (1 - a1))
         gradient_hidden = np.outer(x, delta_hidden)
 
         return {'delta_out': delta_out, 'gradient_out': gradient_out, 'delta_hidden': delta_hidden, 'gradient_hidden': gradient_hidden}

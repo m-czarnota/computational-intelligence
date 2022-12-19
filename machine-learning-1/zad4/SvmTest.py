@@ -2,7 +2,7 @@ import time
 import numpy as np
 import pandas as pd
 from sklearn.svm import SVC
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LogisticRegression
 
 from LinearClassifier import LinearClassifier
 from Svm2 import Svm2
@@ -18,16 +18,16 @@ class SvmTest:
         sonar_x = sonar_data.drop(sonar_data.columns[-1], axis=1).to_numpy()
 
         datasets = {
-            # 'linear_separable': self.generate_linear_separable_dataset(),
+            'linear_separable': self.generate_linear_separable_dataset(),
             'linear_non_separable': self.generate_linear_non_separable_dataset(),
-            # 'sonar': [sonar_x, sonar_y],
+            'sonar': [sonar_x, sonar_y],
         }
 
         for title, dataset in datasets.items():
             print(f'\n------ Dataset {title} ------')
             x, y = dataset
 
-            for method in [self.svm_my_experiment, self.svm_sklearn_experiment, self.linear_regression_sklearn_experiment]:
+            for method in [self.svm_my_experiment, self.svm_sklearn_experiment, self.logistic_regression_sklearn_experiment]:
                 method(x, y, title)
 
     def svm_my_experiment(self, x: np.array, y: np.array, dataset_title: str):
@@ -46,8 +46,8 @@ class SvmTest:
 
         print(f'Support vectors for {svc}\n{svc.support_vectors_}')
 
-    def linear_regression_sklearn_experiment(self, x: np.array, y: np.array, dataset_title: str):
-        linear_regression = LinearRegression()
+    def logistic_regression_sklearn_experiment(self, x: np.array, y: np.array, dataset_title: str):
+        linear_regression = LogisticRegression(C=self.c_)
         self.fit_measure(linear_regression, x, y)
         self.predict_measure_and_visualise(linear_regression, x, y, dataset_title)
 
@@ -60,6 +60,9 @@ class SvmTest:
 
     @staticmethod
     def predict_measure_and_visualise(clf, x, y, dataset_title: str):
+        if dataset_title == 'sonar':
+            return
+
         t1 = time.time()
         LinearClassifier.plot_class_universal(clf, x, y, dataset_title=dataset_title)
         t2 = time.time()
@@ -75,7 +78,7 @@ class SvmTest:
     @staticmethod
     def generate_linear_separable_dataset(n: int = 1000):
         w, b = [1, 1], -1
-        x = np.random.randn(100, 2)
+        x = np.random.randn(n, 2)
         d = np.sign(x.dot(w) + b)
 
         return [x, d]
