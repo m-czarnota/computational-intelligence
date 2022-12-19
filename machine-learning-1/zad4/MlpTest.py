@@ -22,9 +22,9 @@ class MlpTest:
 
         for n in datasets_n:
             experiment_datasets = {
-                'chessboard': self.generate_chessboard_dataset(n),
                 'circles': self.generate_circles_dataset(n),
                 'spirals': self.generate_spirals_dataset(n),
+                'chessboard': self.generate_chessboard_dataset(n),
             }
 
             for title, (x, y) in experiment_datasets.items():
@@ -42,7 +42,7 @@ class MlpTest:
     def mlp_experiment(self, neurons_in_hidden_layers: tuple, train_data_size: float, alpha: float, dataset: tuple):
         dataset_title, x, y = dataset
         dataset_title += f'_train_size_{train_data_size}'
-        divided_train_test = train_test_split(x, y, train_size=train_data_size)
+        divided_train_test = train_test_split(x, y, train_size=train_data_size, random_state=0)
 
         for method in [self.mlp_sklearn_experiment, self.mlp_backprop_experiment, self.mlp_extreme_experiment]:
             print('')

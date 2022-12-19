@@ -17,14 +17,14 @@ class MlpBackPropagation(LinearClassifier):
         self.hidden_weights = None
         self.hidden_biases = None
 
-    def fit(self, x: np.array, d: np.array):
+    def fit(self, x: np.array, d: np.array) -> None:
         y = self.normalize_decisions(d, x)
         self.class_labels_ = np.unique(y)
 
-        self.hidden_weights = np.random.normal(size=(x.shape[1], self.neurons_hidden_count)) * self.weights_scale
+        self.hidden_weights = np.random.normal(size=(x.shape[1], self.neurons_hidden_count))
         self.hidden_biases = np.random.normal(size=self.neurons_hidden_count)
 
-        self.coef_ = np.random.normal(size=(self.neurons_hidden_count, y.shape[1])) * self.weights_scale
+        self.coef_ = np.random.normal(size=(self.neurons_hidden_count, y.shape[1]))
         self.intercept_ = np.random.normal(size=y.shape[1])
 
         for _ in range(self.max_iter):
@@ -44,7 +44,7 @@ class MlpBackPropagation(LinearClassifier):
 
         return [a1, a2]
 
-    def back_propagation(self, x: np.array, d: np.array, params: dict):
+    def back_propagation(self, x: np.array, d: np.array, params: list) -> dict:
         a1, a2 = params
 
         delta_out = (a2 - d) * (a2 * (1 - a2))
@@ -55,32 +55,32 @@ class MlpBackPropagation(LinearClassifier):
 
         return {'delta_out': delta_out, 'gradient_out': gradient_out, 'delta_hidden': delta_hidden, 'gradient_hidden': gradient_hidden}
 
-    def update_weights(self, params: dict):
+    def update_weights(self, params: dict) -> None:
         self.hidden_weights -= self.alpha * params['gradient_hidden']
         self.hidden_biases -= self.alpha * params['delta_hidden']
         self.coef_ -= self.alpha * params['gradient_out']
         self.intercept_ -= self.alpha * params['delta_out']
 
-    def predict(self, x: np.array):
-        a2 = self.forward_propagation(x)['a2']
+    def predict(self, x: np.array) -> np.array:
+        a2 = self.forward_propagation(x)[-1]
         if len(a2.shape) == 1:
             return self.class_labels_[np.argmax(a2)]
 
         return np.array([self.class_labels_[np.argmax(pair)] for pair in a2])
 
     @staticmethod
-    def sigmoid(x):
+    def sigmoid(x) -> np.array:
         return 1 / (1 + np.exp(-x))
 
     @staticmethod
-    def normalize_decisions(d: np.array, x: np.array):
+    def normalize_decisions(d: np.array, x: np.array) -> np.array:
         classes = np.unique(d)
-        y = np.full((x.shape[0], classes.shape[0]), -1)
+        y = np.full((x.shape[0], classes.shape[0]), 0)
 
         for i in range(x.shape[0]):
             y[i, np.where(classes == d[i])[0]] = 1
 
         return y
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'MlpBackPropagation(neurons_hidden_count={self.neurons_hidden_count}, max_iter={self.max_iter}, alpha={self.alpha}, shuffle={self.shuffle})'

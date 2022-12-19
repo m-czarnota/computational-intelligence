@@ -118,16 +118,16 @@ def svm_test():
 
 
 def mlp_scikit_learn_test():
-    X, y = datasets.make_circles(1000)
+    X, y = datasets.make_circles(500)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=0)
-    mlp = MLPClassifier(100, max_iter=1000, alpha=0.01)
+    mlp = MLPClassifier(250, max_iter=1000, alpha=0.01)
 
     t1 = time.time()
     mlp.fit(X_train, y_train)
     t2 = time.time()
     print(f'Time of fitting: {t2 - t1}s')
 
-    # LinearClassifier.plot_class_universal(mlp, X_test, y_test)
+    LinearClassifier.plot_class_universal(mlp, X_test, y_test)
 
 
 def mlp_extreme_test():
@@ -147,10 +147,10 @@ def mlp_extreme_test():
 
 
 def mlp_back_prop_test():
-    X, y = datasets.make_circles(1000)
+    X, y = datasets.make_circles(500)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=0)
 
-    mlp = MlpBackPropagation(neurons_hidden_count=100)
+    mlp = MlpBackPropagation(neurons_hidden_count=250)
 
     t1 = time.time()
     mlp.fit(X_train, y_train)
