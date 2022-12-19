@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn import datasets, metrics
+from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import train_test_split
 import time
@@ -7,7 +8,6 @@ import time
 from LinearClassifier import LinearClassifier
 from MlpBackPropagation import MlpBackPropagation
 from MlpExtreme import MlpExtreme
-from Svm2 import Svm2
 
 
 class MlpTest:
@@ -57,7 +57,7 @@ class MlpTest:
         self.experiment_for_specific_mlp(mlp, divided_train_test, dataset_title)
 
     def mlp_extreme_experiment(self, neurons_in_hidden_layers: tuple, divided_train_test: tuple, alpha: float, dataset_title: str):
-        mlp = MlpExtreme(Svm2(), neurons_in_hidden_layers[0])
+        mlp = MlpExtreme(LogisticRegression(max_iter=1000), neurons_in_hidden_layers[0])
         self.experiment_for_specific_mlp(mlp, divided_train_test, dataset_title)
 
     def experiment_for_specific_mlp(self, mlp, divided_train_test: tuple, dataset_title: str):

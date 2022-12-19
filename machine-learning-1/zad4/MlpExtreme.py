@@ -22,7 +22,7 @@ class MlpExtreme(LinearClassifier):
             xi, xj = x[i1, :], x[i2, :]
 
             self.w1[:, i] = (xi - xj).T
-            self.b1[i] = -(self.w1[:, i].dot(xi.T))  # chcemy dodać b do każdej kolumny
+            self.b1[i] = (-self.w1[:, i].dot(xi.T))  # chcemy dodać b do każdej kolumny
 
         v = self.sigmoid(x.dot(self.w1) + self.b1)
         # v = self.sigmoid(self.w1.T.dot(x) + self.b1)

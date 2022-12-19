@@ -1,6 +1,6 @@
 import time
 from matplotlib.colors import ListedColormap
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn import datasets
 from sklearn.model_selection import train_test_split
@@ -131,11 +131,11 @@ def mlp_scikit_learn_test():
 
 
 def mlp_extreme_test():
-    X, y = datasets.make_circles(1000)
+    X, y = datasets.make_circles(500)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=0)
 
-    svm2 = Svm2()
-    mlp = MlpExtreme(svm2, 100)
+    svm2 = LogisticRegression()
+    mlp = MlpExtreme(svm2, 250)
 
     t1 = time.time()
     mlp.fit(X_train, y_train)
@@ -143,7 +143,7 @@ def mlp_extreme_test():
     print(f'Time of fitting: {t2 - t1}s')
 
     print()
-    mlp.plot_class(X_test, y_test)
+    LinearClassifier.plot_class_universal(mlp, X_test, y_test)
 
 
 def mlp_back_prop_test():
@@ -166,8 +166,8 @@ if __name__ == '__main__':
     # mlp_extreme_test()
     # mlp_back_prop_test()
 
-    # svm_test = SvmTest()
-    # svm_test.experiment()
+    svm_test = SvmTest()
+    svm_test.experiment()
 
     mlpTest = MlpTest()
     mlpTest.experiment()

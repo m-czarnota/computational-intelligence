@@ -28,4 +28,4 @@ class Svm1(LinearClassifier):
 
         self.coef_ = solution['x'][:n]
         self.intercept_ = solution['x'][n]
-        self.sv_indexes_ = np.zeros(np.array(solution['z']) > 10e-5)[0]
+        self.sv_indexes_ = np.nonzero(np.array(solution['z']) > 10e-5)[0]

@@ -18,8 +18,7 @@ class SvmTest:
         sonar_x = sonar_data.drop(sonar_data.columns[-1], axis=1).to_numpy()
 
         datasets = {
-            'linear_separable': self.generate_linear_separable_dataset(),
-            'linear_non_separable': self.generate_linear_non_separable_dataset(),
+            # 'linear_non_separable': self.generate_linear_non_separable_dataset(),
             'sonar': [sonar_x, sonar_y],
         }
 
@@ -60,11 +59,8 @@ class SvmTest:
 
     @staticmethod
     def predict_measure_and_visualise(clf, x, y, dataset_title: str):
-        if dataset_title == 'sonar':
-            return
-
         t1 = time.time()
-        LinearClassifier.plot_class_universal(clf, x, y, dataset_title=dataset_title)
+        clf.predict(x) if dataset_title == 'sonar' else LinearClassifier.plot_class_universal(clf, x, y, dataset_title=dataset_title)
         t2 = time.time()
         print(f'Time of plotting with predicting for {clf}: {t2 - t1}s')
 
