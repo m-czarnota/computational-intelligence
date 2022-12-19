@@ -23,7 +23,7 @@ if __name__ == '__main__':
         for filename in filenames:
             image = cv2.imread(f'{black_and_white_dir}/{filename}')
             image_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-            thresh, image_black_and_white = cv2.threshold(image_gray, 254, 255, cv2.THRESH_BINARY)
+            thresh, image_black_and_white = cv2.threshold(image_gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
             image_contour = image_black_and_white.copy()
             image_contour[:] = 255
