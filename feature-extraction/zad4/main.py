@@ -1,3 +1,4 @@
+
 import os
 import cv2
 
@@ -29,7 +30,7 @@ if __name__ == '__main__':
             image_contour[:] = 255
 
             contours, hierarchy = cv2.findContours(image_black_and_white, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-            cv2.drawContours(image=image_contour, contours=contours, contourIdx=-1, color=(0, 0, 0), thickness=2, lineType=cv2.LINE_AA)
+            cv2.drawContours(image=image_contour, contours=contours, contourIdx=-1, color=(0, 0, 0), thickness=1)
 
             cv2.imwrite(f'{contour_dirs[dir_index]}/{filename}', image_contour)
 
