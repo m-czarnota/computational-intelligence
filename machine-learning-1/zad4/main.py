@@ -1,13 +1,11 @@
 import time
-from matplotlib.colors import ListedColormap
-from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn import datasets
 from sklearn.model_selection import train_test_split
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.svm import SVC
 
 from AveragedPerceptron import AveragedPerceptron
 from MlpBackPropagation import MlpBackPropagation
@@ -147,7 +145,7 @@ def mlp_extreme_test():
 
 
 def mlp_back_prop_test():
-    X, y = datasets.make_circles(500)
+    X, y = MlpTest.generate_spirals_dataset(1000)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=0)
 
     mlp = MlpBackPropagation(neurons_hidden_count=250)
@@ -166,8 +164,11 @@ if __name__ == '__main__':
     # mlp_extreme_test()
     # mlp_back_prop_test()
 
-    svm_test = SvmTest()
-    svm_test.experiment()
+    # svm_test = SvmTest()
+    # svm_test.experiment()
 
     mlpTest = MlpTest()
     mlpTest.experiment()
+
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        print(mlpTest.data_table.to_markdown())

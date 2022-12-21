@@ -4,7 +4,7 @@ from LinearClassifier import LinearClassifier
 
 
 class MlpBackPropagation(LinearClassifier):
-    def __init__(self, neurons_hidden_count: int = 100, max_iter: int = 1000, alpha: float = 0.01, shuffle: bool = False):
+    def __init__(self, neurons_hidden_count: int = 100, max_iter: int = 1000, alpha: float = 0.01, shuffle: bool = True):
         super().__init__()
 
         self.neurons_hidden_count = neurons_hidden_count
@@ -19,21 +19,25 @@ class MlpBackPropagation(LinearClassifier):
 
     def fit(self, x: np.array, d: np.array) -> None:
         y = self.normalize_decisions(d, x)
-        self.class_labels_ = np.unique(y)
 
         self.hidden_weights = np.random.normal(size=(x.shape[1], self.neurons_hidden_count))
         self.hidden_biases = np.random.normal(size=self.neurons_hidden_count)
 
-        self.coef_ = np.random.normal(size=(self.neurons_hidden_count, y.shape[1]))
-        self.intercept_ = np.random.normal(size=y.shape[1])
+        self.coef_ = np.random.normal(size=(self.neurons_hidden_count, self.class_labels_.size))
+        self.intercept_ = np.random.normal(size=self.class_labels_.size)
+
+        indexes = np.arange(x.shape[0])
 
         for _ in range(self.max_iter):
             if self.shuffle:
-                np.random.shuffle(x)
+                np.random.shuffle(indexes)
 
-            for x_iter, x_val in enumerate(x):
+            for index in indexes:
+                x_val = x[index]
+                y_val = y[index]
+
                 params_activations = self.forward_propagation(x_val)
-                params_fixes = self.back_propagation(x_val, y[x_iter], params_activations)
+                params_fixes = self.back_propagation(x_val, y_val, params_activations)
                 self.update_weights(params_fixes)
 
     def forward_propagation(self, x: np.array) -> list:
@@ -70,15 +74,14 @@ class MlpBackPropagation(LinearClassifier):
 
     @staticmethod
     def sigmoid(x) -> np.array:
-        return 1 / (1 + np.exp(-x))
+        return 1.0 / (1.0 + np.exp(-x))
 
-    @staticmethod
-    def normalize_decisions(d: np.array, x: np.array) -> np.array:
-        classes = np.unique(d)
-        y = np.full((x.shape[0], classes.shape[0]), 0)
+    def normalize_decisions(self, d: np.array, x: np.array) -> np.array:
+        self.class_labels_ = np.unique(d)
+        y = np.full((x.shape[0], self.class_labels_.size), 0)
 
         for i in range(x.shape[0]):
-            y[i, np.where(classes == d[i])[0]] = 1
+            y[i, np.where(self.class_labels_ == d[i])[0]] = 1
 
         return y
 
