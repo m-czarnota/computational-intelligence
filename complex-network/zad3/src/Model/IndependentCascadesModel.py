@@ -33,6 +33,10 @@ class IndependentCascadesModel(NxGraphAnimator):
 
         self.initialise_new_random_graph__()
 
+    @property
+    def infected_percentage(self):
+        return len(self.infected_nodes) / self.number_of_node * 100
+
     def initialise_new_random_graph__(self):
         self.graph = nx.Graph()
         [self.graph.add_node(i) for i in np.arange(self.number_of_node)]
@@ -54,7 +58,7 @@ class IndependentCascadesModel(NxGraphAnimator):
             self.propagate__()
 
             if verbose:
-                print(f'Iteration {propagate_iter}. Infected nodes: {list(map(lambda node: f"{node.infected_by} -> {node.index}", self.infected_nodes_views__))}')
+                print(f'Iteration {propagate_iter + 1}. Nodes count: {self.number_of_node}. Infected count: {len(self.infected_nodes)}. Infected %: {self.infected_percentage}%. Infected nodes: {list(map(lambda node: f"{node.infected_by} -> {node.index}", self.infected_nodes_views__))}')
                 propagate_iter += 1
 
     def get_edges_list_for_node__(self, node: int):
