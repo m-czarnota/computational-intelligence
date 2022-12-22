@@ -1,0 +1,1 @@
+Znaleizona strategia zachłanna jest lepsza od strategii π2(x), ponieważ szybciej osiąga ona stan absorbujący. Przy współczynniku dyskontowania γ = 1 strategia zachłanna nie miałaby znaczenia, natomiast gdy ten współczynnik jest γ < 1, wtedy strategia zachłanna pozwala szybciej zdobyć wzmocnienie.
