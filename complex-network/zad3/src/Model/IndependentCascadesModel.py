@@ -91,32 +91,38 @@ class IndependentCascadesModel(NxGraphAnimator):
         return nodes_to_visit
 
     def propagate__(self):
-        infected = self.infected_nodes_to_visit__.pop(0)
-        nodes_to_visit = self.get_uninfected_neighbours_for_node__(infected)
+        recently_infected = self.infected_nodes_to_visit__.pop(0)
+        newly_infected = []
 
-        if infected not in self.nodes_visited_by_node__:
-            self.nodes_visited_by_node__[infected] = set()
+        for infected in recently_infected:
+            nodes_to_visit = self.get_uninfected_neighbours_for_node__(infected)
 
-        for node in nodes_to_visit:
-            if node in self.nodes_visited_by_node__[infected]:
-                continue
+            if infected not in self.nodes_visited_by_node__:
+                self.nodes_visited_by_node__[infected] = set()
 
-            self.nodes_visited_by_node__[infected].add(node)
-            infect_prob = np.random.rand() if self.weights is None else self.get_weight_edge_for_2_nodes__(node, infected)
-            if infect_prob >= self.pp:
-                continue
+            for node in nodes_to_visit:
+                if node in self.nodes_visited_by_node__[infected]:
+                    continue
 
-            self.infected_nodes.append(node)
-            self.infected_nodes_views__.append(
-                NodeDto(node, is_infected=True, infected_by=infected, infect_prob=infect_prob))
-            self.infected_nodes_to_visit__.append(node)
+                self.nodes_visited_by_node__[infected].add(node)
+                infect_prob = np.random.rand() if self.weights is None else self.get_weight_edge_for_2_nodes__(node, infected)
+                if infect_prob >= self.pp:
+                    continue
+
+                self.infected_nodes.append(node)
+                self.infected_nodes_views__.append(
+                    NodeDto(node, is_infected=True, infected_by=infected, infect_prob=infect_prob))
+                newly_infected.append(node)
+
+        if len(newly_infected):
+            self.infected_nodes_to_visit__.append(newly_infected)
 
     def prepare_to_propagate__(self):
         self.infected_nodes = self.seeds.copy()
         self.nodes_visited_by_node__ = {}
 
         self.infected_nodes_views__ = []
-        self.infected_nodes_to_visit__ = self.seeds.copy()
+        self.infected_nodes_to_visit__ = [self.seeds.copy()]
 
     def update_animation__(self, frame):
         if len(self.infected_nodes_to_visit__) == 0:

@@ -17,21 +17,27 @@ class LinearThresholdModel(IndependentCascadesModel):
         self.condition_propagation__ = '>'
 
     def propagate__(self):
-        infected = self.infected_nodes_to_visit__.pop(0)
-        uninfected_neighbours = self.get_uninfected_neighbours_for_node__(infected)
+        recently_infected = self.infected_nodes_to_visit__.pop(0)
+        newly_infected = []
 
-        for node in uninfected_neighbours:
-            infected_neighbours_for_node = self.get_infected_neighbours_for_node__(node)
-            infect_probs_by_infected_node = np.random.rand(len(infected_neighbours_for_node)) if self.weights is None else self.get_weights_edges_for_node_and_nodes__(node, infected_neighbours_for_node)
-            infect_prob_for_node = np.sum(infect_probs_by_infected_node) / len(self.get_neighbours_for_node__(node))
+        for infected in recently_infected:
+            uninfected_neighbours = self.get_uninfected_neighbours_for_node__(infected)
 
-            if infect_prob_for_node <= self.pp:
-                continue
+            for node in uninfected_neighbours:
+                infected_neighbours_for_node = self.get_infected_neighbours_for_node__(node)
+                infect_probs_by_infected_node = np.random.rand(len(infected_neighbours_for_node)) if self.weights is None else self.get_weights_edges_for_node_and_nodes__(node, infected_neighbours_for_node)
+                infect_prob_for_node = np.sum(infect_probs_by_infected_node) / len(self.get_neighbours_for_node__(node))
 
-            self.infected_nodes.append(node)
-            self.infected_nodes_views__.append(
-                NodeDto(node, is_infected=True, infected_by=infected, infect_prob=infect_prob_for_node))
-            self.infected_nodes_to_visit__.append(node)
+                if infect_prob_for_node <= self.pp:
+                    continue
+
+                self.infected_nodes.append(node)
+                self.infected_nodes_views__.append(
+                    NodeDto(node, is_infected=True, infected_by=infected, infect_prob=infect_prob_for_node))
+                newly_infected.append(node)
+
+        if len(newly_infected):
+            self.infected_nodes_to_visit__.append(newly_infected)
 
     def get_weights_edges_for_node_and_nodes__(self, node: int, nodes: list):
         return list(map(lambda x: self.get_weight_edge_for_2_nodes__(x, node), nodes))
