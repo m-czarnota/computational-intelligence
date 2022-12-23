@@ -86,7 +86,9 @@ def zad3():
     gamma = 1
     epsilon = 10e-6
     state_count = 11
-    action_prob = 1 / 3
+
+    action_count = 3
+    action_prob = 1 / action_count
 
     v = np.zeros(state_count)
     vv = np.zeros(state_count)
@@ -121,7 +123,7 @@ def zad3():
             index = np.argmax(values[k])
             value = values[k][index]
 
-            actions[k] = -index - 1 if np.where(values[k] == value)[0].size != 2 else '*'
+            actions[k] = -index - 1 if np.where(values[k] == value)[0].size != action_count else '*'
             vv[k] = value
 
         if np.max(np.abs(v - vv)) < epsilon:
