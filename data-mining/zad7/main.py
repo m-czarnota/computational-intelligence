@@ -15,6 +15,10 @@ if __name__ == '__main__':
 
         matrix[word][document] = row['count']
 
+    matrix_copy = matrix.copy()
+    matrix_copy['y'] = data_labels
+    print(matrix_copy)
+
     naive_bayes = NaiveBayes()
     naive_bayes.fit(matrix, data_labels)
 
