@@ -22,6 +22,9 @@ if __name__ == '__main__':
     naive_bayes = NaiveBayes()
     naive_bayes.fit(matrix, data_labels)
 
+    predicted = naive_bayes.predict(matrix)
+    print(predicted)
+
 
 """
 nltk library
