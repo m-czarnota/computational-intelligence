@@ -2,9 +2,12 @@ import pandas as pd
 
 from NaiveBayes import NaiveBayes
 
-if __name__ == '__main__':
-    data_train = pd.read_csv('./DataPrepared/train-features-50.txt', names=['document', 'word', 'count'], sep=' ')
-    data_labels = pd.read_csv('./DataPrepared/train-labels-50.txt', names=['label']).squeeze('columns')
+
+def read_data(size: int = None, data_type: str = 'train'):
+    data_size = '' if size is None else f'-{size}'
+
+    data_train = pd.read_csv(f'./DataPrepared/{data_type}-features{data_size}.txt', names=['document', 'word', 'count'], sep=' ')
+    data_labels = pd.read_csv(f'./DataPrepared/{data_type}-labels{data_size}.txt', names=['label']).squeeze('columns')
     data_labels.index += 1
 
     matrix = pd.DataFrame(data=0, index=data_train['document'].unique(), columns=data_train['word'].unique())
@@ -15,15 +18,22 @@ if __name__ == '__main__':
 
         matrix[word][document] = row['count']
 
-    matrix_copy = matrix.copy()
-    matrix_copy['y'] = data_labels
-    print(matrix_copy)
+    return matrix, data_labels
+
+
+if __name__ == '__main__':
+    matrix_train, data_labels_train = read_data()
 
     naive_bayes = NaiveBayes()
-    naive_bayes.fit(matrix, data_labels)
+    naive_bayes.fit(matrix_train, data_labels_train)
 
-    predicted = naive_bayes.predict(matrix)
-    print(predicted)
+    matrix_test, data_labels_test = read_data(data_type='test')
+    print(matrix_train.shape, matrix_test.shape)
+
+    # predicted = naive_bayes.predict(matrix_test)
+    # print(predicted)
+
+    print(f'Accuracy: {naive_bayes.score(matrix_test, data_labels_test)}')
 
 
 """

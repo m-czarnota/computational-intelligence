@@ -1,31 +1,21 @@
 import numpy as np
 import pandas as pd
+from sklearn.base import BaseEstimator, ClassifierMixin
 
 
-class NaiveBayes:
+class NaiveBayes(BaseEstimator, ClassifierMixin):
     def __init__(self):
         self.class_labels = None
-        self.probs_email_distribution = None
-        self.condition_probs = None
+        self.apriori_labels = None
+        self.condition_probs_distributions = None
 
     def fit(self, x: pd.DataFrame, y: pd.Series):
         self.class_labels = y.unique()
-        self.probs_email_distribution = np.zeros((self.class_labels.size, y.size))
-        self.condition_probs = np.zeros((self.class_labels.size, x.shape[1]))  # φk|y[0] = p(xj=k | y=0), φk|y[1] = p(xj=k | y=1)
 
-        self.probs_email_distribution = self.get_email_probs_distribution(x, y)
-        documents_by_labels = self.split_documents_by_label(x, y)
+        self.apriori_labels = self.get_apriori_labels(y)
+        self.condition_probs_distributions = self.get_condition_probs_distributions(x, y)
 
-        for document_iter, document in x.iterrows():
-            label = y[document_iter]
-
-            for count_iter, (count_index, count) in enumerate(document.items()):
-                self.condition_probs[label, count_iter] += 1 if count > 0 else 0
-
-            for count_iter, _ in enumerate(document.items()):
-                self.condition_probs[label, count_iter] /= documents_by_labels[label, count_iter]
-
-        print(self.condition_probs)
+        print(self.condition_probs_distributions)
 
     def predict(self, x: pd.DataFrame):
         return self.class_labels[np.argmax(self.predict_proba(x), axis=1)]
@@ -33,46 +23,51 @@ class NaiveBayes:
     def predict_proba(self, x: pd.DataFrame):
         scores = np.ones((x.shape[0], self.class_labels.size))
 
-        for document_iter, document in x.iterrows():
+        for document_iter, (document_index, document) in enumerate(x.iterrows()):
             for label in self.class_labels:
-                for count_iter, (count_index, count) in enumerate(document.items()):
-                    value = self.probs_email_distribution[label, count_iter]
-                    value = 10e-16 if value == 0 else value
+                for word_iter, _ in enumerate(document.items()):
+                    value = self.condition_probs_distributions[label, word_iter]
+                    value = 1e-16 if value == 0 else value
 
-                    scores[document_iter, label] += np.log2(value)
+                    scores[document_iter, label] += np.log(value)
 
-                scores[document_iter, label] += np.log2(self.condition_probs[label])
+                scores[document_iter, label] += np.log(self.apriori_labels[label])
 
         return scores
 
-    def get_email_probs_distribution(self, x: pd.DataFrame, y: pd.Series):
+    def get_apriori_labels(self, y: pd.Series):
         """
-        :return: φy = [0: p(y=0), 1: p(y=1)]
+        Calculates how often class occurs in decisions vector (in our default case 1/2 and 1/2).
         """
-        self.class_labels = y.unique() if self.class_labels is None else self.class_labels
-        probs = np.zeros((self.class_labels.size, y.size))
+        apriori_labels = np.zeros(self.class_labels.size)
 
-        for class_label in self.class_labels:
-            for label_iter, label in enumerate(y.items()):
-                document = x.iloc[label_iter]
-                probs[class_label, label_iter] = document.where(y == class_label).sum() / x.shape[0]
+        for label_iter, label in enumerate(self.class_labels):
+            apriori_labels[label_iter] = np.sum(y == label) / y.size
 
-        return probs
+        return apriori_labels
 
-    def split_documents_by_label(self, x: pd.DataFrame, y: pd.Series):
+    def get_condition_probs_distributions(self, x: pd.DataFrame, y: pd.Series):
         """
-        words count in each document by label [0, 1]:
-            0: ...
-            1: ...
+        Calculates condition probabilities distributions.
+        Frequency calc explanation example:
+            * when label == 1 and word == 543 then +1 in [label, word]
+        Probs calc explanation example:
+            * divide each counts in specific label by sum of words count from all documents
+            * before dividing add +1 to counts as laplace fix
         """
-        self.class_labels = y.unique() if self.class_labels is None else self.class_labels
-        separated_documents = np.zeros((self.class_labels.size, x.shape[1]))
+        condition_distributions = np.zeros((self.class_labels.size, x.shape[1]))
+
+        for document_index, document in x.iterrows():
+            label = y[document_index]
+
+            for word_iter, (word, count) in enumerate(document.items()):
+                condition_distributions[label, word_iter] += 1 if count > 0 else 0
 
         for label in self.class_labels:
-            documents_by_label = x[y == label]
-            documents_by_label = documents_by_label[documents_by_label > 0]
-            documents_by_label = documents_by_label.apply(lambda val: pd.isna(val).sum(), axis=0)
+            label_count = self.apriori_labels[label] * x.shape[0]
+            word_count = x[y == label].sum(axis=0).to_numpy()
+            # word_count = x[y == label].applymap(lambda val: 1 if val > 0 else val).sum(axis=0).sum()
 
-            separated_documents[label, :] = documents_by_label[:]
+            condition_distributions[label] = (condition_distributions[label] + 1) / (word_count + x.shape[1])
 
-        return separated_documents
+        return condition_distributions
