@@ -8,6 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from AveragedPerceptron import AveragedPerceptron
+from LinearClassifierTest import LinearClassifierTest
 from MlpBackPropagation import MlpBackPropagation
 from MlpExtreme import MlpExtreme
 from Svm1 import Svm1
@@ -28,7 +29,6 @@ def linear_separable_dataset():
 
 
 def non_linear_separable_dataset():
-    w, b = [1, 1], -1
     x = np.random.randn(100, 2)
 
     d = np.random.rand(x.shape[0])
@@ -46,20 +46,6 @@ def chessboard_dataset(n: int = 1000, m: int = 3):
     return X, y
 
 
-def plot_class(x: np.array, y: np.array, clf: LinearClassifier):
-    n, m = x.shape
-
-    [x1, x2] = np.meshgrid(x[:, 0], x[:, 1])
-    x_1_2_flatten = np.array([x1.flatten(), x2.flatten()]).T
-    print(x_1_2_flatten)
-
-    z = clf.predict(x_1_2_flatten)
-    z = z.reshape((n, n))
-
-    plt.contourf(x1, x2, z)
-    plt.show()
-
-
 def normalize_decisions(d):
     d_normalized = np.ones(d.shape[0]).astype("int8")
     d_normalized[d == np.unique(d)[0]] = -1
@@ -71,7 +57,7 @@ def experiment(x, d):
     perceptron = VotedPerceptron()
 
     t1 = time.time()
-    w, b = perceptron.fit(x, d)
+    perceptron.fit(x, d)
     t2 = time.time()
     print(f'Time of fitting: {t2 - t1}s.\nNumber of iterations: {perceptron.iteration_count}')
 
@@ -167,11 +153,15 @@ if __name__ == '__main__':
     # svm_test = SvmTest()
     # svm_test.experiment()
 
-    mlpTest = MlpTest()
-    mlpTest.experiment()
+    # mlpTest = MlpTest()
+    # mlpTest.experiment()
+    #
+    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+    #     print(mlpTest.data_table.to_markdown())
 
-    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-        print(mlpTest.data_table.to_markdown())
+    linear_classifier_test = LinearClassifierTest()
+    linear_classifier_test.experiment()
+    print(linear_classifier_test.data_table)
 
 
 """
