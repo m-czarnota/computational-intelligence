@@ -1,3 +1,4 @@
+import time
 from typing import Tuple
 import numpy as np
 import pandas as pd
@@ -7,41 +8,106 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 from sklearn.datasets import fetch_rcv1, fetch_openml
 from sklearn.model_selection import GridSearchCV
+from sklearn import metrics
+from scipy.sparse import csr_matrix
 
 from Svm2 import Svm2
 
 
 class LinearClassifierTest:
     def __init__(self):
-        self.test_sizes = np.logspace(-3, -0.5)
+        self.max_iter = 1000
+        self.test_sizes = np.logspace(-1, -0.5, num=2)
         self.regularization_params = [10 ** i for i in range(-3, 2)]
-        self.results_count_per_test_size = 100
+        self.results_count_per_test_size = 3
 
+        penalties = [
+            'l1',
+            'l2',
+            # 'elasticnet'  # only solver saga can handle with it, but it throws error on calc
+        ]
         self.classifiers = {
-            'svc': GridSearchCV(SVC(kernel='linear'), param_grid={'C': self.regularization_params}),
-            'svm2': GridSearchCV(Svm2(), param_grid={'c': self.regularization_params}),
-            'mlp': GridSearchCV(MLPClassifier(hidden_layer_sizes=()), param_grid={'alpha': self.regularization_params}),
-            **{f'logistic_regression_{penalty}': GridSearchCV(LogisticRegression(penalty=penalty), param_grid={'C': self.regularization_params}) for penalty in ['l1', 'l2', 'elasticnet']}
+            # 'svc': GridSearchCV(SVC(kernel='linear', max_iter=self.max_iter), param_grid={'C': self.regularization_params}),
+            # 'svm2': GridSearchCV(Svm2(), param_grid={'c': self.regularization_params}),
+            # 'mlp': GridSearchCV(MLPClassifier(hidden_layer_sizes=(), max_iter=self.max_iter), param_grid={'alpha': self.regularization_params}),
+            **{f'logistic_regression_{penalty}': GridSearchCV(LogisticRegression(penalty=penalty, max_iter=self.max_iter, solver='saga'), param_grid={'C': self.regularization_params}) for penalty in penalties}
         }
 
-        self.data_table = []
+        self.data_table = None
 
     def experiment(self):
-        for method in [self.get_sonar_data, self.get_reuters_data, self.get_mnist_data]:
-            self.experiment_for_dataset(*method())
+        dataset_method_generators = {
+            'sonar': self.get_sonar_data,
+            # 'reuters': self.get_reuters_data,
+            # 'mnist': self.get_mnist_data,
+        }
 
-    def experiment_for_dataset(self, x, y):
+        for dataset_name, method in dataset_method_generators.items():
+            x, y = method()
+
+            results = self.experiment_for_dataset(x, y)
+            results['dataset'] = dataset_name
+
+            self.data_table = results if self.data_table is None else pd.concat([self.data_table, results], ignore_index=True)
+
+    def experiment_for_dataset(self, x: np.array, y: np.array) -> pd.DataFrame:
+        mean_results_storage = [0 for _ in self.classifiers.keys()]
+
         for test_size in self.test_sizes:
-            results_storage = {clf_name: np.zeros(self.results_count_per_test_size, dtype='object') for clf_name in self.classifiers.keys()}
+            results_storage = {clf_name: [0] * self.results_count_per_test_size for clf_name in self.classifiers.keys()}
 
-            for results_iter in range(results_storage.size):
+            for results_iter in range(self.results_count_per_test_size):
                 separated_data = train_test_split(x, y, test_size=test_size)
 
                 for clf_name, clf in self.classifiers.items():
-                    results_storage[clf_name][results_iter] = self.clf_experiment(clf, separated_data)
+                    experiment_results = self.clf_experiment(clf, separated_data)
+                    experiment_results['clf'] = clf_name
 
-    def clf_experiment(self, clf, separated_data: tuple) -> dict:
-        pass
+                    results_storage[clf_name][results_iter] = experiment_results
+
+            for results_iter, (clf_name, results_for_clf) in enumerate(results_storage.items()):
+                results = pd.DataFrame(results_for_clf)
+                mean_results = results.mean()
+
+                mean_results['clf'] = clf_name
+                mean_results_storage[results_iter] = mean_results
+
+        return pd.DataFrame(mean_results_storage)
+
+    def clf_experiment(self, clf, separated_data: tuple) -> pd.Series:
+        x_train, x_test, y_train, y_test = separated_data
+
+        t1_fit = time.time()
+        clf.fit(x_train, y_train)
+        t2_fit = time.time()
+        time_fit = t2_fit - t1_fit
+
+        classification_quality_train = self.calc_classification_quality(clf, x_train, y_train, 'train')
+        classification_quality_test = self.calc_classification_quality(clf, x_test, y_test, 'test')
+
+        return pd.Series({
+            'fit_time': time_fit,
+            **classification_quality_train,
+            **classification_quality_test
+        })
+
+    @staticmethod
+    def calc_classification_quality(clf, x: np.array, y: np.array, data_type_label: str = 'train'):
+        t1_predict = time.time()
+        y_predicted = clf.predict(x)
+        t2_predict = time.time()
+        time_predict = t2_predict - t1_predict
+
+        accuracy = metrics.accuracy_score(y, y_predicted)
+        f1_score = metrics.f1_score(y, y_predicted)
+        auc_score = metrics.roc_auc_score(y, y_predicted)
+
+        return {
+            f'predict_time_{data_type_label}': time_predict,
+            f'accuracy_{data_type_label}': accuracy,
+            f'f1_{data_type_label}': f1_score,
+            f'auc_{data_type_label}': auc_score,
+        }
 
     def get_sonar_data(self) -> Tuple:
         sonar_data = pd.read_csv('sonar_csv.csv')
@@ -57,13 +123,13 @@ class LinearClassifierTest:
         xr = x[:, 2]
         y = rcv1['target'][:, 5]
 
-        return xr, y
+        return xr, y.toarray().ravel()
 
     @staticmethod
     def get_mnist_data() -> Tuple:
         x, y = fetch_openml("mnist_784", version=1, return_X_y=True, as_frame=False, parser="pandas")
 
-        return x, y
+        return csr_matrix(x), y
 
     @staticmethod
     def normalize_decisions(d) -> np.array:
