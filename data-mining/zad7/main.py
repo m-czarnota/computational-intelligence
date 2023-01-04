@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 from NaiveBayes import NaiveBayes
 
@@ -21,19 +22,46 @@ def read_data(size: int = None, data_type: str = 'train'):
     return matrix, data_labels
 
 
-if __name__ == '__main__':
-    matrix_train, data_labels_train = read_data()
+def experiment_for_size(size: int = None, train_data: tuple = None, test_data: tuple = None):
+    matrix_train, data_labels_train = read_data(size) if train_data is None else train_data
 
     naive_bayes = NaiveBayes()
     naive_bayes.fit(matrix_train, data_labels_train)
 
-    matrix_test, data_labels_test = read_data(data_type='test')
-    print(matrix_train.shape, matrix_test.shape)
+    matrix_test, data_labels_test = read_data(data_type='test') if test_data is None else test_data
+    # print(matrix_train.shape, matrix_test.shape)
 
     # predicted = naive_bayes.predict(matrix_test)
     # print(predicted)
 
-    print(f'Accuracy: {naive_bayes.score(matrix_test, data_labels_test)}')
+    return naive_bayes.score(matrix_test, data_labels_test)
+
+
+def experiment_random():
+    matrix_train, data_labels_train = read_data()
+    rng = np.random.default_rng()
+    random_indexes_to_remove = rng.choice(data_labels_train.size, size=np.random.randint(50), replace=False)
+
+    for random_index in random_indexes_to_remove:
+        matrix_train = matrix_train.drop(random_index)
+        data_labels_train.drop(random_index)
+
+    score = experiment_for_size(train_data=(matrix_train, data_labels_train))
+    print(f'Accuracy for random train size {data_labels_train.size}: {score}')
+
+
+def experiment_with_size():
+    sizes = [50, 100, 400, None]
+    matrix_test, data_labels_test = read_data(data_type='test')
+
+    for size in sizes:
+        score = experiment_for_size(size, test_data=(matrix_test, data_labels_test))
+        print(f'Accuracy for train size {size if size is not None else "all"}: {score}')
+
+
+if __name__ == '__main__':
+    experiment_with_size()
+    experiment_random()
 
 
 """
