@@ -9,7 +9,7 @@ from sklearn.svm import SVC
 from sklearn.datasets import fetch_rcv1, fetch_openml
 from sklearn.model_selection import GridSearchCV
 from sklearn import metrics
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, csc_matrix
 
 from Svm2 import Svm2
 
@@ -27,19 +27,19 @@ class LinearClassifierTest:
             # 'elasticnet'  # only solver saga can handle with it, but it throws error on calc
         ]
         self.classifiers = {
-            # 'svc': GridSearchCV(SVC(kernel='linear', max_iter=self.max_iter), param_grid={'C': self.regularization_params}),
+            'svc': SVC(kernel='linear', max_iter=self.max_iter),
             # 'svm2': GridSearchCV(Svm2(), param_grid={'c': self.regularization_params}),
-            # 'mlp': GridSearchCV(MLPClassifier(hidden_layer_sizes=(), max_iter=self.max_iter), param_grid={'alpha': self.regularization_params}),
-            **{f'logistic_regression_{penalty}': GridSearchCV(LogisticRegression(penalty=penalty, max_iter=self.max_iter, solver='saga'), param_grid={'C': self.regularization_params}) for penalty in penalties}
+            'mlp': MLPClassifier(hidden_layer_sizes=(), max_iter=self.max_iter),
+            **{f'logistic_regression_{penalty}': LogisticRegression(penalty=penalty, max_iter=self.max_iter, solver='saga') for penalty in penalties}
         }
 
         self.data_table = None
 
     def experiment(self):
         dataset_method_generators = {
-            'sonar': self.get_sonar_data,
+            # 'sonar': self.get_sonar_data,
             # 'reuters': self.get_reuters_data,
-            # 'mnist': self.get_mnist_data,
+            'mnist': self.get_mnist_data,
         }
 
         for dataset_name, method in dataset_method_generators.items():
@@ -129,7 +129,7 @@ class LinearClassifierTest:
     def get_mnist_data() -> Tuple:
         x, y = fetch_openml("mnist_784", version=1, return_X_y=True, as_frame=False, parser="pandas")
 
-        return csr_matrix(x), y
+        return csc_matrix(x)[:, 407], y
 
     @staticmethod
     def normalize_decisions(d) -> np.array:
