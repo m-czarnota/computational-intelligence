@@ -33,31 +33,46 @@ class LinearClassifierTest:
             **{f'logistic_regression_{penalty}': LogisticRegression(penalty=penalty, max_iter=self.max_iter, solver='saga') for penalty in penalties}
         }
 
+        # uncomment to run with GridSearch. Warning!! Calculating time will drastically increase, especially for sparse data.
+        # self.classifiers = {
+        #     'svc': GridSearchCV(SVC(kernel='linear', max_iter=self.max_iter), param_grid={'C': self.regularization_params}),
+        #     # 'svm2': GridSearchCV(Svm2(), param_grid={'c': self.regularization_params}),
+        #     'mlp': GridSearchCV(MLPClassifier(hidden_layer_sizes=(), max_iter=self.max_iter), param_grid={'alpha': self.regularization_params}),
+        #     **{f'logistic_regression_{penalty}': GridSearchCV(LogisticRegression(penalty=penalty, max_iter=self.max_iter, solver='saga'), param_grid={'C': self.regularization_params}) for penalty in penalties}
+        # }
+
         self.data_table = None
 
-    def experiment(self):
+    def experiment(self, verbose: bool = False):
         dataset_method_generators = {
-            # 'sonar': self.get_sonar_data,
+            'sonar': self.get_sonar_data,
             # 'reuters': self.get_reuters_data,
-            'mnist': self.get_mnist_data,
+            # 'mnist': self.get_mnist_data,
         }
 
         for dataset_name, method in dataset_method_generators.items():
+            if verbose:
+                print(f'\n--------------- {dataset_name} ---------------')
+
             x, y = method()
 
-            results = self.experiment_for_dataset(x, y)
+            results = self.experiment_for_dataset(x, y, verbose)
             results['dataset'] = dataset_name
 
             self.data_table = results if self.data_table is None else pd.concat([self.data_table, results], ignore_index=True)
 
-    def experiment_for_dataset(self, x: np.array, y: np.array) -> pd.DataFrame:
-        mean_results_storage = [0 for _ in self.classifiers.keys()]
+    def experiment_for_dataset(self, x: np.array, y: np.array, verbose: bool = False) -> pd.DataFrame:
+        mean_results_count = len(self.classifiers.keys()) * self.test_sizes.size
+        mean_results_storage = [0 for _ in range(mean_results_count)]
+        mean_results_iter = 0
 
-        for test_size in self.test_sizes:
+        for test_size_iter, test_size in enumerate(self.test_sizes):
             results_storage = {clf_name: [0] * self.results_count_per_test_size for clf_name in self.classifiers.keys()}
+            t1_test_size = time.time()
 
             for results_iter in range(self.results_count_per_test_size):
                 separated_data = train_test_split(x, y, test_size=test_size)
+                t1_inner_loop = time.time()
 
                 for clf_name, clf in self.classifiers.items():
                     experiment_results = self.clf_experiment(clf, separated_data)
@@ -65,12 +80,29 @@ class LinearClassifierTest:
 
                     results_storage[clf_name][results_iter] = experiment_results
 
+                if verbose:
+                    t2_inner_loop = time.time()
+                    time_inner_loop = t2_inner_loop - t1_inner_loop
+                    progress_percent = (results_iter + 1) / self.results_count_per_test_size * 100
+
+                    print(f'\t\tProgress inner loop: {progress_percent:.2f}% - {time_inner_loop:.4f}s')
+
             for results_iter, (clf_name, results_for_clf) in enumerate(results_storage.items()):
                 results = pd.DataFrame(results_for_clf)
                 mean_results = results.mean()
 
                 mean_results['clf'] = clf_name
-                mean_results_storage[results_iter] = mean_results
+                mean_results['test_size'] = test_size
+                mean_results_storage[mean_results_iter] = mean_results
+
+                mean_results_iter += 1
+
+            if verbose:
+                t2_test_size = time.time()
+                time_test_size = t2_test_size - t1_test_size
+                progress_percent = (test_size_iter + 1) / self.test_sizes.size * 100
+
+                print(f'\tProgress test size: {progress_percent:.2f}% - {time_test_size:.4f}s')
 
         return pd.DataFrame(mean_results_storage)
 
@@ -129,7 +161,7 @@ class LinearClassifierTest:
     def get_mnist_data() -> Tuple:
         x, y = fetch_openml("mnist_784", version=1, return_X_y=True, as_frame=False, parser="pandas")
 
-        return csc_matrix(x)[:, 407], y
+        return csc_matrix(x)[:, 400], y  # 407 column for minimalize sparse
 
     @staticmethod
     def normalize_decisions(d) -> np.array:

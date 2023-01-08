@@ -4,6 +4,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn import datasets
 from sklearn.model_selection import train_test_split
 import numpy as np
+import warnings
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -159,9 +160,17 @@ if __name__ == '__main__':
     # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
     #     print(mlpTest.data_table.to_markdown())
 
-    linear_classifier_test = LinearClassifierTest()
-    linear_classifier_test.experiment()
-    print(linear_classifier_test.data_table)
+    with warnings.catch_warnings() and pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        warnings.simplefilter("ignore")
+
+        linear_classifier_test = LinearClassifierTest()
+        linear_classifier_test.experiment(True)
+
+        print(linear_classifier_test.data_table.to_markdown())
+        print(linear_classifier_test.data_table.agg(['mean', 'min', 'max']).to_markdown())
+
+        pivot_table = pd.pivot_table(linear_classifier_test.data_table, values=['accuracy_test', 'f1_test', 'auc_test'], index=['clf', 'dataset', 'test_size'], aggfunc=np.mean)
+        print(pivot_table)
 
 
 """
