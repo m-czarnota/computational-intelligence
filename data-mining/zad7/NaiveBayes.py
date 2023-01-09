@@ -14,6 +14,7 @@ class NaiveBayes(BaseEstimator, ClassifierMixin):
 
         self.apriori_labels = self.get_apriori_labels(y)
         self.condition_probs_distributions = self.get_condition_probs_distributions(x, y)
+        cos = 2
 
     def predict(self, x: pd.DataFrame):
         return self.class_labels[np.argmax(self.predict_proba(x), axis=1)]
@@ -28,8 +29,6 @@ class NaiveBayes(BaseEstimator, ClassifierMixin):
                         continue
 
                     value = self.condition_probs_distributions.at[label, word]
-                    value = 1e-16 if value == 0 else value
-
                     scores[document_iter, label] += np.log(value)
 
                 # scores[document_iter, label] += np.log(self.condition_probs_distributions.loc[label].sum())

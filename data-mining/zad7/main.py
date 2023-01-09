@@ -60,8 +60,15 @@ def experiment_with_size():
 
 
 if __name__ == '__main__':
-    experiment_with_size()
-    experiment_random()
+    matrix_train, data_labels_train = read_data(50)
+    matrix_test, data_labels_test = read_data(50)
+
+    clf = NaiveBayes()
+    clf.fit(matrix_train, data_labels_train)
+    print(clf.score(matrix_test, data_labels_test))
+
+    # experiment_with_size()
+    # experiment_random()
 
 
 """
