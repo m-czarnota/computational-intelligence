@@ -1,10 +1,12 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from shapely import wkt, geometry
+from shapely import wkt
 from shapely.geometry import Point
 import pyproj
 from shapely.ops import transform, unary_union
+
+IMAGES_DIR = './images'
 
 
 def load_data() -> pd.DataFrame:
@@ -39,14 +41,14 @@ def visualize_buildings(data: pd.DataFrame):
     labels = data['typ_budynku'].unique()
     label_colors = {label: np.random.rand(3,) for label in labels}
 
-    min_max_polygon_values = pd.DataFrame([polygon.bounds for polygon in polygons], columns=['min_x', 'min_y', 'max_x', 'max_y'])
-    random_points_x = np.random.randint(min_max_polygon_values['min_x'].min(), min_max_polygon_values['max_x'].max(), 100)
-    random_points_y = np.random.randint(min_max_polygon_values['min_y'].min(), min_max_polygon_values['max_y'].max(), 100)
-    points = [Point(random_points_x[iteration], random_points_y[iteration]) for iteration in range(random_points_x.size)]
+    polygons_bounds = pd.DataFrame([polygon.bounds for polygon in polygons], columns=['min_x', 'min_y', 'max_x', 'max_y'])
+    random_points_x = np.random.randint(polygons_bounds['min_x'].min(), polygons_bounds['max_x'].max(), 100)
+    random_points_y = np.random.randint(polygons_bounds['min_y'].min(), polygons_bounds['max_y'].max(), 100)
+    points = [Point(rand_x, rand_y) for rand_x, rand_y in zip(random_points_x, random_points_y)]
 
     shape = unary_union(polygons)
 
-    points_are_in_polygons = pd.DataFrame({f'polygon{polygon_iter + 1}': {f'point{point_iter}': polygon.within(point) for point_iter, point in enumerate(points)} for polygon_iter, polygon in enumerate(polygons)})
+    points_are_in_polygons = pd.DataFrame({f'polygon{polygon_iter + 1}': {f'point{point_iter}': point.within(polygon) for point_iter, point in enumerate(points)} for polygon_iter, polygon in enumerate(polygons)})
     print(points_are_in_polygons)
 
     fig, axs = plt.subplots()
@@ -57,8 +59,12 @@ def visualize_buildings(data: pd.DataFrame):
         label = data['typ_budynku'][geom_iter]
         axs.fill(xs, ys, fc=label_colors[label], ec='none', alpha=0.5)
 
+    for point_iter, point in enumerate(points):
+        plt.scatter(point.x, point.y, c='g' if points_are_in_polygons.loc[f'point{point_iter}'].any() else 'r')
+
     plt.legend(label_colors)
-    plt.show()
+    # plt.show()
+    plt.savefig(f'{IMAGES_DIR}/grunwald_square_and_points_within_buildings.png')
 
 
 if __name__ == '__main__':
