@@ -145,6 +145,44 @@ def mlp_back_prop_test():
     LinearClassifier.plot_class_universal(mlp, X_test, y_test)
 
 
+def display_linear_classifiers_experiment_results(results: pd.DataFrame):
+    print('\nWhole table from experiment:')
+    print(results.to_markdown())
+
+    columns = ['fit_time', 'predict_time_train', 'accuracy_train', 'f1_train', 'auc_train', 'predict_time_test', 'accuracy_test', 'f1_test', 'auc_test', 'test_size']
+    print('\nTable with aggregation by: mean, min, max')
+    print(results.agg({column: ['mean', 'min', 'max'] for column in columns}).to_markdown())
+
+    pivot_table = pd.pivot_table(results, values=['accuracy_test', 'f1_test', 'auc_test'], index=['clf', 'test_size'], aggfunc=np.mean)
+    print('\nPivot table by classifier and test size')
+    print(pivot_table)
+
+
+def linear_classifiers_experiment():
+    linear_classifier_test = LinearClassifierTest()
+
+    print('\n--------------- sonar ---------------')
+    linear_classifier_test.test_sizes = np.logspace(-1, -0.5, num=30)
+    linear_classifier_test.results_count_per_test_size = 100
+
+    results = linear_classifier_test.experiment_for_dataset(*linear_classifier_test.get_sonar_data(), verbose=True, verbose_level=1)
+    display_linear_classifiers_experiment_results(results)
+
+    print('\n\n--------------- mnist ---------------')
+    linear_classifier_test.test_sizes = np.logspace(-1, -0.5, num=5)
+    linear_classifier_test.results_count_per_test_size = 5
+
+    results = linear_classifier_test.experiment_for_dataset(*LinearClassifierTest.get_mnist_data(), verbose=True)
+    display_linear_classifiers_experiment_results(results)
+
+    print('\n\n--------------- reuters ---------------')
+    linear_classifier_test.test_sizes = np.array([np.logspace(-1, -0.5, num=50)[-20]])
+    linear_classifier_test.results_count_per_test_size = 1
+
+    results = linear_classifier_test.experiment_for_dataset(*LinearClassifierTest.get_reuters_data(), verbose=True, verbose_level=3)
+    display_linear_classifiers_experiment_results(results)
+
+
 if __name__ == '__main__':
     # svm_test()
     # mlp_scikit_learn_test()
@@ -164,13 +202,11 @@ if __name__ == '__main__':
         warnings.simplefilter("ignore")
 
         linear_classifier_test = LinearClassifierTest()
-        linear_classifier_test.experiment(True)
 
-        print(linear_classifier_test.data_table.to_markdown())
-        print(linear_classifier_test.data_table.agg(['mean', 'min', 'max']).to_markdown())
+        results = linear_classifier_test.experiment_for_dataset(*linear_classifier_test.get_sonar_data(), verbose=True)
+        display_linear_classifiers_experiment_results(results)
 
-        pivot_table = pd.pivot_table(linear_classifier_test.data_table, values=['accuracy_test', 'f1_test', 'auc_test'], index=['clf', 'dataset', 'test_size'], aggfunc=np.mean)
-        print(pivot_table)
+        linear_classifiers_experiment()
 
 
 """

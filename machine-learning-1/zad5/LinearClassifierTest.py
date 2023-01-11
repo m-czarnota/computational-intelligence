@@ -15,11 +15,11 @@ from Svm2 import Svm2
 
 
 class LinearClassifierTest:
-    def __init__(self):
+    def __init__(self, test_sizes: np.array = np.logspace(-1, -0.5, num=2), regularization_params: list = None, results_count_per_test_size: int = 3):
         self.max_iter = 1000
-        self.test_sizes = np.logspace(-1, -0.5, num=2)
-        self.regularization_params = [10 ** i for i in range(-3, 2)]
-        self.results_count_per_test_size = 3
+        self.test_sizes = test_sizes
+        self.regularization_params = regularization_params if not None else [10 ** i for i in range(-3, 2)]
+        self.results_count_per_test_size = results_count_per_test_size
 
         penalties = [
             'l1',
@@ -28,7 +28,7 @@ class LinearClassifierTest:
         ]
         self.classifiers = {
             'svc': SVC(kernel='linear', max_iter=self.max_iter),
-            # 'svm2': GridSearchCV(Svm2(), param_grid={'c': self.regularization_params}),
+            # 'svm2': Svm2(),
             'mlp': MLPClassifier(hidden_layer_sizes=(), max_iter=self.max_iter),
             **{f'logistic_regression_{penalty}': LogisticRegression(penalty=penalty, max_iter=self.max_iter, solver='saga') for penalty in penalties}
         }
@@ -46,8 +46,8 @@ class LinearClassifierTest:
     def experiment(self, verbose: bool = False):
         dataset_method_generators = {
             'sonar': self.get_sonar_data,
-            # 'reuters': self.get_reuters_data,
-            # 'mnist': self.get_mnist_data,
+            'reuters': self.get_reuters_data,
+            'mnist': self.get_mnist_data,
         }
 
         for dataset_name, method in dataset_method_generators.items():
@@ -61,7 +61,7 @@ class LinearClassifierTest:
 
             self.data_table = results if self.data_table is None else pd.concat([self.data_table, results], ignore_index=True)
 
-    def experiment_for_dataset(self, x: np.array, y: np.array, verbose: bool = False) -> pd.DataFrame:
+    def experiment_for_dataset(self, x: np.array, y: np.array, verbose: bool = False, verbose_level: int = 2) -> pd.DataFrame:
         mean_results_count = len(self.classifiers.keys()) * self.test_sizes.size
         mean_results_storage = [0 for _ in range(mean_results_count)]
         mean_results_iter = 0
@@ -74,13 +74,21 @@ class LinearClassifierTest:
                 separated_data = train_test_split(x, y, test_size=test_size)
                 t1_inner_loop = time.time()
 
-                for clf_name, clf in self.classifiers.items():
+                for clf_iter, (clf_name, clf) in enumerate(self.classifiers.items()):
+                    t1_clf_loop = time.time()
                     experiment_results = self.clf_experiment(clf, separated_data)
                     experiment_results['clf'] = clf_name
 
                     results_storage[clf_name][results_iter] = experiment_results
 
-                if verbose:
+                    if verbose and verbose_level > 2:
+                        t2_clf_loop = time.time()
+                        time_clf_loop = t2_clf_loop - t1_clf_loop
+                        progress_percent = (clf_iter + 1) / len(self.classifiers.keys()) * 100
+
+                        print(f'\t\t\tProgress clf loop: {progress_percent:.2f}% - {time_clf_loop:.4f}s')
+
+                if verbose and verbose_level > 1:
                     t2_inner_loop = time.time()
                     time_inner_loop = t2_inner_loop - t1_inner_loop
                     progress_percent = (results_iter + 1) / self.results_count_per_test_size * 100
@@ -155,13 +163,15 @@ class LinearClassifierTest:
         xr = x[:, 2]
         y = rcv1['target'][:, 5]
 
-        return xr, y.toarray().ravel()
+        # return xr, y.toarray().ravel()
+        return x, y.toarray().ravel()
 
     @staticmethod
-    def get_mnist_data() -> Tuple:
+    def get_mnist_data(class_digit: int = 5) -> Tuple:
         x, y = fetch_openml("mnist_784", version=1, return_X_y=True, as_frame=False, parser="pandas")
 
-        return csc_matrix(x)[:, 400], y  # 407 column for minimalize sparse
+        # return csc_matrix(x)[:, 400], y == str(class_digit)  # 407 column for minimalize sparse
+        return csc_matrix(x), y == str(class_digit)
 
     @staticmethod
     def normalize_decisions(d) -> np.array:
