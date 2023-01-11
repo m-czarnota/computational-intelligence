@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import os
 import cv2
 from sklearn.neural_network import MLPClassifier
@@ -64,9 +65,33 @@ def eccentricity_descriptor(image: np.array):
     return np.max(rectangle_boundary) / np.min(rectangle_boundary)
 
 
+def convert_image_to_black(image: np.array):
+    image_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    image_gray_inv = 255 - image_gray
+    tresh, image_black_and_white = cv2.threshold(image_gray_inv, 0, 255, cv2.THRESH_BINARY_INV)
+
+    return image_black_and_white
+
+
+def convert_image_to_contour(image: np.array):
+    image_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    thresh, image_black_and_white = cv2.threshold(image_gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    image_contour = image_black_and_white.copy()
+    image_contour[:] = 255
+
+    contours, hierarchy = cv2.findContours(image_black_and_white, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(image=image_contour, contours=contours, contourIdx=-1, color=(0, 0, 0), thickness=1)
+
+    return image_contour
+
+
 if __name__ == '__main__':
     descriptors = [area_descriptor, perimeter_descriptor, roundness_descriptor, compactness_descriptor, eccentricity_descriptor]
     descriptor_results = {descriptor.__name__: {'results': np.empty((10, 10)), 'class': np.arange(10) + 1} for descriptor in descriptors}
+
+    images = {'black': [], 'contour': []}
+    representative_images_number = []
 
     dirs = [x[0] for x in os.walk(IMAGES_DIR)]
     black_and_white_dirs = get_list_of_dirs(dirs, 'black_and_white')
@@ -76,9 +101,8 @@ if __name__ == '__main__':
 
         for filename_iter, filename in enumerate(filenames):
             image = cv2.imread(f'{black_and_white_dir}/{filename}')
-            image_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-            image_gray_inv = 255 - image_gray
-            thresh, image_black_and_white = tresh, image_black_and_white = cv2.threshold(image_gray_inv, 0, 255, cv2.THRESH_BINARY_INV)
+            images['black'].append(convert_image_to_black(image))
+            images['contour'].append(convert_image_to_contour(image))
 
             for descriptor in descriptors:
                 descriptor_results[descriptor.__name__]['results'][dir_index, filename_iter] = descriptor(image_black_and_white)
@@ -98,3 +122,13 @@ if __name__ == '__main__':
         scores[descriptor_name] = clf.score(results['results'], results['class'])
 
     print(scores)
+
+    scores = {descriptor.__name__: np.zeros(10) for descriptor in descriptors}
+    for descriptor_name, results_for_descriptor in scores.items():
+        for label in range(results_for_descriptor.size):
+            clf = MLPClassifier(max_iter=1000)
+            clf.fit(descriptor_results[descriptor_name]['results'], descriptor_results[descriptor_name]['class'])
+            scores[descriptor_name][label] = clf.score(descriptor_results[descriptor_name]['results'], descriptor_results[descriptor_name]['class'])
+
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        print(pd.DataFrame(scores).to_markdown())
