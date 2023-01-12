@@ -1,0 +1,7 @@
+{'area_descriptor': 0.4, 'perimeter_descriptor': 0.1, 'roundness_descriptor': 1.0, 'compactness_descriptor': 1.0, 'eccentricity_descriptor': 1.0}
+{'area_descriptor': 0.4, 'perimeter_descriptor': 1.0, 'roundness_descriptor': 1.0, 'compactness_descriptor': 1.0, 'eccentricity_descriptor': 1.0}
+{'area_descriptor': 0.0, 'perimeter_descriptor': 0.2, 'roundness_descriptor': 1.0, 'compactness_descriptor': 1.0, 'eccentricity_descriptor': 1.0}
+{'area_descriptor': 0.9, 'perimeter_descriptor': 0.2, 'roundness_descriptor': 1.0, 'compactness_descriptor': 1.0, 'eccentricity_descriptor': 1.0}
+{'area_descriptor': 0.2, 'perimeter_descriptor': 1.0, 'roundness_descriptor': 1.0, 'compactness_descriptor': 1.0, 'eccentricity_descriptor': 1.0}
+{'area_descriptor': 0.2, 'perimeter_descriptor': 0.1, 'roundness_descriptor': 1.0, 'compactness_descriptor': 1.0, 'eccentricity_descriptor': 1.0}
+{'area_descriptor': 0.7, 'perimeter_descriptor': 1.0, 'roundness_descriptor': 1.0, 'compactness_descriptor': 1.0, 'eccentricity_descriptor': 1.0}

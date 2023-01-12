@@ -101,11 +101,13 @@ if __name__ == '__main__':
 
         for filename_iter, filename in enumerate(filenames):
             image = cv2.imread(f'{black_and_white_dir}/{filename}')
-            images['black'].append(convert_image_to_black(image))
-            images['contour'].append(convert_image_to_contour(image))
+            image_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+            image_gray_inv = 255 - image_gray
+            thresh, image_black_and_white = tresh, image_black_and_white = cv2.threshold(image_gray_inv, 0, 255, cv2.THRESH_BINARY_INV)
 
             for descriptor in descriptors:
-                descriptor_results[descriptor.__name__]['results'][dir_index, filename_iter] = descriptor(image_black_and_white)
+                descriptor_results[descriptor.__name__]['results'][dir_index, filename_iter] = descriptor(
+                    image_black_and_white)
 
             # cv2.imwrite(f'{contour_dirs[dir_index]}/{filename}', image_contour)
 
