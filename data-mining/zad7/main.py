@@ -47,6 +47,7 @@ def experiment_random():
         data_labels_train.drop(random_index)
 
     score = experiment_for_size(train_data=(matrix_train, data_labels_train))
+    print(f'Removed samples (removed documents) from train part:\n{random_indexes_to_remove}')
     print(f'Accuracy for random train size {data_labels_train.size}: {score}')
 
 
@@ -59,7 +60,7 @@ def experiment_with_size():
         print(f'Accuracy for train size {size if size is not None else "all"}: {score}')
 
 
-if __name__ == '__main__':
+def test_bayes():
     matrix_train, data_labels_train = read_data(50)
     matrix_test, data_labels_test = read_data(data_type='test')
 
@@ -67,8 +68,12 @@ if __name__ == '__main__':
     clf.fit(matrix_train, data_labels_train)
     print(clf.score(matrix_test, data_labels_test))
 
-    # experiment_with_size()
-    # experiment_random()
+
+if __name__ == '__main__':
+    # test_bayes()
+
+    experiment_with_size()
+    experiment_random()
 
 
 """

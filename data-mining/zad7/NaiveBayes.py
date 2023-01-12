@@ -30,7 +30,6 @@ class NaiveBayes(BaseEstimator, ClassifierMixin):
                     value = self.condition_probs_distributions.at[label, word]
                     scores[document_iter, label] += np.log(value) * count
 
-                # scores[document_iter, label] += np.log(self.condition_probs_distributions.loc[label].sum())
                 scores[document_iter, label] += np.log(self.apriori_labels[label])
 
         return scores
@@ -65,10 +64,8 @@ class NaiveBayes(BaseEstimator, ClassifierMixin):
 
         for label in self.class_labels:
             label_count = self.apriori_labels[label] * x.shape[0]
-            # word_count = x[y == label].sum(axis=0).to_numpy()
             word_count = x[y == label].applymap(lambda val: 1 if val > 0 else val).sum(axis=0).sum()
 
             condition_distributions.loc[label] = (condition_distributions.loc[label] + 1) / (word_count + x.shape[1])
-            # jeszcze suma wiersza i dzielenie
 
         return condition_distributions
