@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import warnings
 
 
 def zad1():
@@ -30,38 +31,50 @@ def zad1():
     """
     gamma = 1
     eta = 0.2  # współczynnik szybkości uczenia
-    epsilon = 0.04
+    epsilon = 0.5
 
     matches_count = 10
     q = pd.DataFrame(0, index=range(matches_count + 1), columns=[-1, -2])
 
     t = q.shape[0] - 1
-    max_iter = 1000
+    max_iter = 100000
     actual_iter = 0
 
     while True:
+        # observe actual state t
         actual_q = q.loc[t]
-        actual_action_my = -(np.random.randint(1) if np.random.random() <= epsilon else np.argmax(actual_q)) - 1
-        actual_action_opponent = -np.random.randint(1) - 1
 
+        # select action
+        actual_action_my = -(np.random.randint(2) if np.random.random() <= epsilon else np.argmax(actual_q)) - 1
+        actual_action_opponent = -np.random.randint(2) - 1
+
+        # do action
         next_state_after_my_turn = t + actual_action_my
         next_state_number = next_state_after_my_turn + actual_action_opponent
         if next_state_number < 0:
             next_state_number = 0
+        actual_q = q.loc[next_state_number]
 
-        next_q_after_actions = q.loc[next_state_number]
+        # next state t + 1
+        algorithm_next_state_number = next_state_number - 1
+        if algorithm_next_state_number < 0:
+            algorithm_next_state_number = np.random.randint(1, q.shape[0])
+        next_q_after_actions = q.loc[algorithm_next_state_number]
 
+        # r for t state
         r = 1 if next_state_number == 0 and next_state_after_my_turn > 0 else 0
-        delta = r + gamma * np.max(next_q_after_actions) - actual_q.at[actual_action_my]
-        q.at[t - 1, actual_action_my] = q.at[t, actual_action_my] + eta * delta
 
-        t = np.random.randint(1, q.shape[0] - 1) if t <= 0 else t - 1  # if t is 1 then -1 will give you 0
+        delta = r + gamma * next_q_after_actions.max() - actual_q.at[actual_action_my]
+        q.at[algorithm_next_state_number, actual_action_my] = q.at[t, actual_action_my] + eta * delta
+
+        t = algorithm_next_state_number
 
         actual_iter += 1
         if actual_iter >= max_iter:
             break
 
     print(q)
+    print(q.idxmin(axis=1))
 
 
 def zad3():
@@ -81,7 +94,121 @@ def zad3():
     uczenie przerwać można po narzuconej liczbie iteracji, np. 1000
     im więcej episodów uczenia będzie, tym trasa powinna być lepsza
     """
+    def select_action() -> str:
+        state_actual = q.loc[t].copy()
+        available_moves = []
+
+        if t[0] > 0 and environment[t[0] - 1, t[1]] != -1:
+            available_moves.append('up')
+        if t[0] < environment_size - 1 and environment[t[0] + 1, t[1]] != -1:
+            available_moves.append('down')
+        if t[1] > 0 and environment[t[0], t[1] - 1] != -1:
+            available_moves.append('left')
+        if t[1] < environment_size - 1 and environment[t[0], t[1] + 1] != -1:
+            available_moves.append('right')
+
+        if np.random.random() <= epsilon:
+            random_move = np.random.randint(len(available_moves))
+            move = available_moves[random_move]
+        else:
+            moves_to_drop = set(state_actual.index).difference(set(available_moves))
+            state_actual = state_actual.drop(moves_to_drop)
+            move = state_actual.idxmax()
+
+        return move
+
+    def do_action(new_action: str) -> tuple:
+        new_cords = np.copy(t)
+
+        if new_action == 'up':
+            new_cords[0] -= 1
+        elif new_action == 'down':
+            new_cords[0] += 1
+        elif new_action == 'left':
+            new_cords[1] -= 1
+        elif new_action == 'right':
+            new_cords[1] += 1
+
+        return tuple(new_cords)
+
+    def draw_new_cords() -> tuple:
+        while True:
+            cords = np.random.randint(0, environment_size, size=2)
+
+            if environment[tuple(cords)] == 0:
+                return tuple(cords)
+
+    environment_size = 10
+    environment = np.full((environment_size, environment_size), 0, dtype='float')
+
+    # set reinforcements
+    environment[0, 0] = 0.5
+    environment[0, environment_size - 1] = 1
+
+    # set obstacles
+    environment[2:6, 1] = -1
+    environment[5, 2] = -1
+
+    environment[6, 4:7] = -1
+    environment[7, 6] = -1
+
+    environment[2:4, 7:9] = -1
+    environment[4, 5] = -1
+    environment[5:8, 8] = -1
+
+    environment[0:2, 4] = -1
+    environment[1, 4:6] = -1
+    environment[2, 5] = -1
+
+    print(environment)
+    print(f'obstacle size: {np.where(environment == -1)[0].size}')
+
+    # learning params
+    gamma = 1
+    eta = 0.2  # współczynnik szybkości uczenia
+    epsilon = 0.5
+
+    indexes = [(i, j) for i in range(environment_size) for j in range(environment_size)]
+    q = pd.DataFrame(0, columns=['up', 'down', 'left', 'right'], index=pd.MultiIndex.from_tuples(indexes))
+    t = (5, 3)
+
+    traces = []
+    actual_trace = [str(t)]
+
+    max_iter = 100000
+    actual_iter = 0
+
+    while True:
+        actual_state = q.loc[t]
+        selected_action = select_action()
+        new_cords = do_action(selected_action)
+
+        r = environment[new_cords]
+        next_state = q.loc[new_cords]
+
+        delta = r + gamma * next_state.max() - actual_state[selected_action]
+        q.at[new_cords, selected_action] = actual_state[selected_action] + eta * delta
+
+        actual_trace.append(str(new_cords))
+
+        if r == 0:
+            t = new_cords
+        else:
+            t = draw_new_cords()
+            traces.append(np.copy(actual_trace))
+            actual_trace = [t]
+
+        actual_iter += 1
+        if actual_iter >= max_iter:
+            break
+
+    # I don't know how can I implement optimal trace for Q-learning, but we can look on traces from learning
+    optimal_traces = list(filter(lambda algo_trace: 4 < len(algo_trace) < 8, traces))
+    print(optimal_traces)
 
 
 if __name__ == '__main__':
-    zad1()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+
+        zad3()

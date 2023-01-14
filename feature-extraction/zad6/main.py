@@ -170,13 +170,14 @@ if __name__ == '__main__':
     results = {}
 
     for descriptor_name, descriptor_train_class_results in train_results.items():
-        descriptor_results = []
+        indexes = np.arange(len(descriptor_train_class_results))
+        descriptor_results = np.empty((indexes.size - 1, indexes.size))
 
         for class_iter, train_class_result in enumerate(descriptor_train_class_results):
-            descriptor_class_results = [calc_distance(train_class_result, test_class_result) for test_class_result in test_results[descriptor_name][class_iter]]
-            descriptor_results.append(descriptor_class_results)
+            for test_class_result_iter, test_class_result in enumerate(test_results[descriptor_name][class_iter]):
+                descriptor_results[test_class_result_iter, class_iter] = calc_distance(train_class_result, test_class_result)
 
-        results[descriptor_name] = descriptor_results
+        results[descriptor_name] = np.argmin(descriptor_results, axis=1)
 
     test = 2
 
