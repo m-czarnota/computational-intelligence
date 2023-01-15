@@ -138,6 +138,16 @@ def zad3():
             if environment[tuple(cords)] == 0:
                 return tuple(cords)
 
+    def map_direction_to_arrow(direction: str) -> str:
+        if direction == 'up':
+            return '↑'
+        if direction == 'down':
+            return '↓'
+        if direction == 'left':
+            return '←'
+        if direction == 'right':
+            return '→'
+
     environment_size = 10
     environment = np.full((environment_size, environment_size), 0, dtype='float')
 
@@ -168,12 +178,10 @@ def zad3():
     eta = 0.2  # współczynnik szybkości uczenia
     epsilon = 0.5
 
-    indexes = [(i, j) for i in range(environment_size) for j in range(environment_size)]
+    indexes_without_obstacles = np.where(environment != -1)
+    indexes = [(i, j) for i, j in zip(indexes_without_obstacles[0], indexes_without_obstacles[1])]
     q = pd.DataFrame(0, columns=['up', 'down', 'left', 'right'], index=pd.MultiIndex.from_tuples(indexes))
-    t = (5, 3)
-
-    traces = []
-    actual_trace = [str(t)]
+    t = (9, 5)
 
     max_iter = 100000
     actual_iter = 0
@@ -184,27 +192,27 @@ def zad3():
         new_cords = do_action(selected_action)
 
         r = environment[new_cords]
-        next_state = q.loc[new_cords]
+        if r == 0:
+            next_state = q.loc[new_cords]
+        else:
+            new_cords = draw_new_cords()
+            next_state = q.loc[new_cords]
 
         delta = r + gamma * next_state.max() - actual_state[selected_action]
         q.at[new_cords, selected_action] = actual_state[selected_action] + eta * delta
 
-        actual_trace.append(str(new_cords))
-
-        if r == 0:
-            t = new_cords
-        else:
-            t = draw_new_cords()
-            traces.append(np.copy(actual_trace))
-            actual_trace = [t]
+        t = new_cords
 
         actual_iter += 1
         if actual_iter >= max_iter:
             break
 
-    # I don't know how can I implement optimal trace for Q-learning, but we can look on traces from learning
-    optimal_traces = list(filter(lambda algo_trace: 4 < len(algo_trace) < 8, traces))
-    print(optimal_traces)
+    environment = environment.astype('str')
+    for multi_index, direction in q.idxmax(axis=1).items():
+        environment[multi_index] = map_direction_to_arrow(direction)
+
+    print(q)
+    print(pd.DataFrame(environment))
 
 
 if __name__ == '__main__':
