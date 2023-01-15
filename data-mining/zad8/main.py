@@ -1,3 +1,6 @@
+import copy
+
+
 def get_unique_items_from_dataset(dataset, with_counts: bool = True):
     uniques = {}
 
@@ -34,46 +37,78 @@ def calc_min_supp_and_min_conf(dataset):
                 ...
 
 
-def generate_candidate_for_one_element(frequences):
-    candidates = []
+def generate_candidates(frequencies: dict, dataset) -> dict:
+    candidates = {}
 
-    for frequence1 in frequences:
-        for frequence2 in frequences:
-            if frequence1 != frequence2:
-                candidates.append([frequence1, frequence2])
+    for frequency_item1, frequency_vals1 in frequencies.items():
+        for frequency_item2, frequency_vals2 in frequencies.items():
+            frequency_item1_set = set(frequency_item1)
+            frequency_item2_set = set(frequency_item2)
+
+            # for one element item set
+            if len(frequency_item1_set) == 1:
+                if frequency_item1_set.issubset(frequency_item2_set) is True:
+                    continue
+
+                key = tuple(sorted({*frequency_item1_set, *frequency_item2_set}))
+                candidates[key] = 0
+
+                continue
+
+            # for multi element item set
+            if len(frequency_item1_set.intersection(frequency_item2_set)) == 0 or frequency_item1_set == frequency_item2_set:
+                continue
+
+            key = tuple(sorted({*frequency_item1_set, *frequency_item2_set}))
+            candidates[key] = 0
+
+    for keys in candidates.keys():
+        keys_set = set(keys)
+
+        for transaction_items in dataset.values():
+            items_set = set(transaction_items)
+
+            if keys_set.issubset(items_set):
+                candidates[keys] += 1
 
     return candidates
 
 
-def generate_candidate_for_one_more_element(frequences):
-    candidates = []
+def prune_candidates(candidates: dict, min_supp: float) -> dict:
+    pruned_candidates = {}
 
-    for frequences_vals1 in frequences:
-        for frequences_vals2 in frequences:
-            is_shared_element = set(frequences_vals1).issubset(set(frequences_vals2))
+    for key, count in candidates.items():
+        if count >= min_supp:
+            pruned_candidates[key] = count
 
-            if is_shared_element:
-                new_candidates = [*frequences_vals1, *frequences_vals2]
-                candidates.append(new_candidates)
-
-    return candidates
+    return pruned_candidates
 
 
 def frequent_itemset_generation_apriori(dataset):
     k = 0
-    min_supp = 0.2
-    f = [get_unique_items_from_dataset(dataset)]
+    min_supp = 2
+    f = get_unique_items_from_dataset(dataset)
 
     while True:
-        k += 1
+        support_count = 0
 
-        c = generate_candidate(f[k - 1])
-        c = c
+        c = generate_candidates(f, dataset)
+        c = prune_candidates(c, min_supp)
 
-        for transaction in dataset.values():
-            ct =
+        for transaction_items in dataset.values():
+            items_set = set(transaction_items)
+            ct = []
 
-        if len(f) != 0:
+            for candidates in c.keys():
+                candidates_set = set(candidates)
+                candidates_in_transaction = sorted(candidates_set.intersection(items_set))
+                ct = [*ct, *candidates_in_transaction]
+
+            support_count += len(ct)
+
+        f = copy.deepcopy(c)
+
+        if len(f) == 0:
             break
 
     return f
@@ -93,6 +128,7 @@ if __name__ == '__main__':
         't10': {'b', 'd'},
     }
 
+    frequent_itemset_generation_apriori(dataset)
 
 
     """
