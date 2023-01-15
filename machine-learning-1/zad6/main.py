@@ -9,7 +9,7 @@ if __name__ == '__main__':
     # plt.scatter(x[:, 0], x[:, 1])
     # plt.show()
 
-    regressionClassifierTest.experiment_for_liner_dataset()
+    regressionClassifierTest.experiment()
 
 """
 regresja liniowa - zwykły model. jest to optymalizowane mse
