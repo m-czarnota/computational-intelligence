@@ -1,10 +1,8 @@
 from typing import Tuple
-
 import numpy as np
 import pandas as pd
 import os
 import cv2
-from sklearn.neural_network import MLPClassifier
 
 IMAGES_DIR = './images'
 
@@ -31,15 +29,15 @@ def read_images() -> dict:
 def select_representatives_numbers(images: dict) -> list:
     representative_images_number: dict = {
         'gambles-quail': 6,
-        'glossy-ibis': 5,
-        'greator-sage-grous': 3,
-        'hooded-merganser': 5,
+        'glossy-ibis': 10,
+        'greator-sage-grous': 5,
+        'hooded-merganser': 1,
         'indian-vulture': 4,
         'jabiru': 1,
-        'king-eider': 2,
+        'king-eider': 8,
         'long-eared-owl': 4,
-        'tit-mouse': 4,
-        'touchan': 3}  # from 1
+        'tit-mouse': 8,
+        'touchan': 6}  # from 1
 
     return list(map(lambda number: number - 1, representative_images_number.values()))
 
@@ -158,6 +156,12 @@ def calc_descriptors_for_images(train_images: dict, test_images: dict) -> Tuple:
     return train_results, test_results
 
 
+def predict_based_on_distance(test_descriptor_result: float, train_descriptor_results: list):
+    results = np.array([calc_distance(train_descriptor_result, test_descriptor_result) for train_descriptor_result in train_descriptor_results])
+
+    return np.argmin(results)
+
+
 if __name__ == '__main__':
     descriptors = [area_descriptor, perimeter_descriptor, roundness_descriptor, compactness_descriptor, eccentricity_descriptor]
 
@@ -166,36 +170,41 @@ if __name__ == '__main__':
     train_images, test_images = train_test_split(images, representatives_numbers)
 
     train_results, test_results = calc_descriptors_for_images(train_images, test_images)
-
     results = {}
 
-    for descriptor_name, descriptor_train_class_results in train_results.items():
-        indexes = np.arange(len(descriptor_train_class_results))
-        descriptor_results = np.empty((indexes.size - 1, indexes.size))
+    for descriptor_name, train_descriptor_results in train_results.items():
+        descriptor_results = pd.DataFrame(columns=['predicted', 'real', 'score'])
 
-        for class_iter, train_class_result in enumerate(descriptor_train_class_results):
-            for test_class_result_iter, test_class_result in enumerate(test_results[descriptor_name][class_iter]):
-                descriptor_results[test_class_result_iter, class_iter] = calc_distance(train_class_result, test_class_result)
+        for class_iter, test_descriptor_results in enumerate(test_results[descriptor_name]):
+            for test_descriptor_result in test_descriptor_results:
+                predicted_class = predict_based_on_distance(test_descriptor_result, train_descriptor_results)
 
-        results[descriptor_name] = np.argmin(descriptor_results, axis=1)
+                row = pd.Series({'predicted': predicted_class, 'real': class_iter, 'score': int(predicted_class == class_iter)})
+                descriptor_results = pd.concat([descriptor_results, row.to_frame().T], ignore_index=True)
 
-    test = 2
+        results[descriptor_name] = descriptor_results
 
+    for descriptor_name, descriptor_results in results.items():
+        print(f'Descriptor: {descriptor_name}')
+        # print(descriptor_results.to_markdown())
 
-    # classifiers_by_descriptor = [MLPClassifier(max_iter=1000) for _ in descriptors]
-    # scores = {descriptor.__name__: 0 for descriptor in descriptors}
-    # for clf, (descriptor_name, results) in zip(classifiers_by_descriptor, descriptor_results.items()):
-    #     clf.fit(results['results'], results['class'])
-    #     scores[descriptor_name] = clf.score(results['results'], results['class'])
-    #
-    # print(scores)
-    #
-    # scores = {descriptor.__name__: np.zeros(10) for descriptor in descriptors}
-    # for descriptor_name, results_for_descriptor in scores.items():
-    #     for label in range(results_for_descriptor.size):
-    #         clf = MLPClassifier(max_iter=1000)
-    #         clf.fit(descriptor_results[descriptor_name]['results'], descriptor_results[descriptor_name]['class'])
-    #         scores[descriptor_name][label] = clf.score(descriptor_results[descriptor_name]['results'], descriptor_results[descriptor_name]['class'])
-    #
-    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-    #     print(pd.DataFrame(scores).to_markdown())
+        try:
+            class_labels = descriptor_results['real'].unique()
+            score_by_class = {}
+
+            for class_label in class_labels:
+                class_data = descriptor_results[descriptor_results['real'] == class_label]
+                class_data_count = class_data['score'].count()
+                score_by_class[class_label] = class_data['score'].sum() / class_data_count
+
+            scores_df = pd.DataFrame(np.array([[*score_by_class.keys()], [*score_by_class.values()]]).T, columns=['class', 'score'])
+            scores_df['class'] = scores_df['class'].map(lambda x: x + 1)
+            scores_df['score'] = scores_df['score'].map(lambda x: f'{(x * 100):0.4f}%')
+            print(scores_df.to_markdown())
+        finally:
+            pass
+
+        dataset_score = descriptor_results["score"].sum() / descriptor_results.shape[0] * 100
+        print(f'Score for whole dataset: {dataset_score:0.4f}%')
+
+        print()
