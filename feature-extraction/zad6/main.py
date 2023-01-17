@@ -171,6 +171,7 @@ if __name__ == '__main__':
 
     train_results, test_results = calc_descriptors_for_images(train_images, test_images)
     results = {}
+    results_view = pd.DataFrame()
 
     for descriptor_name, train_descriptor_results in train_results.items():
         descriptor_results = pd.DataFrame(columns=['predicted', 'real', 'score'])
@@ -201,6 +202,9 @@ if __name__ == '__main__':
             scores_df['class'] = scores_df['class'].map(lambda x: x + 1)
             scores_df['score'] = scores_df['score'].map(lambda x: f'{(x * 100):0.4f}%')
             print(scores_df.to_markdown())
+
+            results_view['class'] = scores_df['class']
+            results_view[descriptor_name] = scores_df['score']
         finally:
             pass
 
@@ -208,3 +212,11 @@ if __name__ == '__main__':
         print(f'Score for whole dataset: {dataset_score:0.4f}%')
 
         print()
+
+    descriptor_values = results_view[list(map(lambda desc: desc.__name__, descriptors))].applymap(lambda val: float(val.replace('%', '')))
+    results_view['score'] = descriptor_values.sum(axis=1) / len(descriptors)
+    print(results_view.to_markdown())
+
+    print('Scores for all classes by descriptor')
+    print(descriptor_values.sum() / results_view.shape[0])
+
