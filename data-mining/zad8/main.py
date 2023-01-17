@@ -1,7 +1,8 @@
+from __future__ import annotations
 import copy
 
 
-def get_unique_items_from_dataset(dataset, with_counts: bool = True):
+def get_unique_items_from_dataset(dataset, with_counts: bool = True) -> dict | list:
     uniques = {}
 
     for values in dataset.values():
@@ -12,7 +13,7 @@ def get_unique_items_from_dataset(dataset, with_counts: bool = True):
                 uniques[value] = 1
 
     if not with_counts:
-        return uniques.keys()
+        return list(uniques.keys())
 
     return uniques
 
@@ -56,7 +57,8 @@ def generate_candidates(frequencies: dict, dataset) -> dict:
                 continue
 
             # for multi element item set
-            if len(frequency_item1_set.intersection(frequency_item2_set)) == 0 or frequency_item1_set == frequency_item2_set:
+            if len(frequency_item1_set.intersection(
+                    frequency_item2_set)) == 0 or frequency_item1_set == frequency_item2_set:
                 continue
 
             key = tuple(sorted({*frequency_item1_set, *frequency_item2_set}))
@@ -85,33 +87,29 @@ def prune_candidates(candidates: dict, min_supp: float) -> dict:
 
 
 def frequent_itemset_generation_apriori(dataset):
-    k = 0
     min_supp = 2
+    frequents = []
     f = get_unique_items_from_dataset(dataset)
 
-    while True:
-        support_count = 0
+    while len(f) != 0:
+        frequents.append(copy.deepcopy(f))
 
         c = generate_candidates(f, dataset)
         c = prune_candidates(c, min_supp)
 
-        for transaction_items in dataset.values():
-            items_set = set(transaction_items)
-            ct = []
-
-            for candidates in c.keys():
-                candidates_set = set(candidates)
-                candidates_in_transaction = sorted(candidates_set.intersection(items_set))
-                ct = [*ct, *candidates_in_transaction]
-
-            support_count += len(ct)
-
         f = copy.deepcopy(c)
 
-        if len(f) == 0:
-            break
+    return frequents
 
-    return f
+
+def generate_rules(dataset) -> dict:
+    uniques = get_unique_items_from_dataset(dataset, with_counts=False)
+    rules = {}
+
+    for item in uniques:
+        ...
+
+    return rules
 
 
 if __name__ == '__main__':
@@ -128,8 +126,10 @@ if __name__ == '__main__':
         't10': {'b', 'd'},
     }
 
-    frequent_itemset_generation_apriori(dataset)
+    frequents = frequent_itemset_generation_apriori(dataset)
+    print(frequents)
 
+    rules = generate_rules(dataset)
 
     """
     support:
