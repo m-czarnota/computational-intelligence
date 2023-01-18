@@ -26,7 +26,7 @@ def read_images() -> dict:
     return images
 
 
-def select_representatives_numbers(images: dict) -> list:
+def select_representatives_numbers() -> list:
     representative_images_number: dict = {
         'gambles-quail': 6,
         'glossy-ibis': 10,
@@ -37,7 +37,8 @@ def select_representatives_numbers(images: dict) -> list:
         'king-eider': 8,
         'long-eared-owl': 4,
         'tit-mouse': 8,
-        'touchan': 6}  # from 1
+        'touchan': 6
+    }  # from 1
 
     return list(map(lambda number: number - 1, representative_images_number.values()))
 
@@ -112,7 +113,7 @@ def eccentricity_descriptor(image: np.array) -> float:
 
 
 def calc_distance(i, j):
-    return np.sqrt(np.abs(i ** 2 - j ** 2))
+    return np.sqrt((i - j) ** 2)
 
 
 def convert_image_to_black(image: np.array):
@@ -166,7 +167,7 @@ if __name__ == '__main__':
     descriptors = [area_descriptor, perimeter_descriptor, roundness_descriptor, compactness_descriptor, eccentricity_descriptor]
 
     images = read_images()
-    representatives_numbers = select_representatives_numbers(images)
+    representatives_numbers = select_representatives_numbers()
     train_images, test_images = train_test_split(images, representatives_numbers)
 
     train_results, test_results = calc_descriptors_for_images(train_images, test_images)
@@ -215,8 +216,10 @@ if __name__ == '__main__':
 
     descriptor_values = results_view[list(map(lambda desc: desc.__name__, descriptors))].applymap(lambda val: float(val.replace('%', '')))
     results_view['score'] = descriptor_values.sum(axis=1) / len(descriptors)
+    results_view['score'] = results_view['score'].map(lambda x: f'{x:0.4f}%')
     print(results_view.to_markdown())
 
     print('Scores for all classes by descriptor')
-    print(descriptor_values.sum() / results_view.shape[0])
+    descriptor_scores_summed = descriptor_values.sum() / results_view.shape[0]
+    print(descriptor_scores_summed.map(lambda x: f'{x:0.4f}%'))
 
