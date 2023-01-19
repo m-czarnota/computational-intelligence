@@ -102,14 +102,40 @@ def frequent_itemset_generation_apriori(dataset):
     return frequents
 
 
-def generate_rules(dataset) -> dict:
-    uniques = get_unique_items_from_dataset(dataset, with_counts=False)
-    rules = {}
+def generate_rules_helper(keys: list, local_rules: dict = {}, local_word: list = []) -> dict:
+    if len(keys) == 1:
+        return local_rules
 
-    for item in uniques:
-        ...
+    for key_iter, key in enumerate(keys):
+        keys_copy = copy.deepcopy(list(keys))
 
-    return rules
+        removed = keys_copy.pop(key_iter)
+        keys_copy_tuple = tuple(keys_copy)
+
+        word = copy.deepcopy(local_word)
+        word.append(removed)
+        word = list(sorted(word))
+
+        if keys_copy_tuple in local_rules.keys():
+            local_rules[keys_copy_tuple].append(word)
+            # local_rules[keys_copy_tuple] = list(sorted(local_rules[keys_copy_tuple]))
+        else:
+            local_rules[keys_copy_tuple] = [word]
+
+        local_rules = {**local_rules, **generate_rules_helper(keys_copy, local_rules, word)}
+
+    return local_rules
+
+
+def generate_rules(frequents: list) -> dict:
+    frequents_mapped = list(reversed([{key: list() for key in frequencies} for frequencies in frequents[1:]]))
+    generated_rules = {}
+
+    for frequencies in frequents_mapped:
+        for keys in frequencies.keys():
+            generated_rules = {**generated_rules, **generate_rules_helper(keys)}
+
+    return generated_rules
 
 
 if __name__ == '__main__':
@@ -129,7 +155,8 @@ if __name__ == '__main__':
     frequents = frequent_itemset_generation_apriori(dataset)
     print(frequents)
 
-    rules = generate_rules(dataset)
+    rules = generate_rules(frequents)
+    print(rules)
 
     """
     support:
