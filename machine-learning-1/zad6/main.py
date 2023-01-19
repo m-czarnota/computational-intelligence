@@ -1,5 +1,5 @@
 from RegressionClassifierTest import RegressionClassifierTest
-from matplotlib import pyplot as plt
+
 
 if __name__ == '__main__':
     regressionClassifierTest = RegressionClassifierTest()
@@ -9,7 +9,8 @@ if __name__ == '__main__':
     # plt.scatter(x[:, 0], x[:, 1])
     # plt.show()
 
-    regressionClassifierTest.experiment()
+    # regressionClassifierTest.experiment(dataset_type='linear', strong_noise=True)
+    regressionClassifierTest.experiment(dataset_type='nonlinear', polynomial_degree=5)
 
 """
 regresja liniowa - zwykły model. jest to optymalizowane mse
@@ -60,4 +61,8 @@ szum może wychylać w dwie strony próbki. może też w dwie, ale nie może by�
 jest taki rozkład kochego albo mediego
 
 pipeline
+
+w tabelce MSE i MAE
+można obniżyć próbki i zobaczyć jak się to zachowuje
+
 """
