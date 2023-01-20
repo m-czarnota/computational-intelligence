@@ -1,5 +1,6 @@
 from __future__ import annotations
 import copy
+import pandas as pd
 
 
 def get_unique_items_from_dataset(dataset, with_counts: bool = True) -> dict | list:
@@ -18,27 +19,13 @@ def get_unique_items_from_dataset(dataset, with_counts: bool = True) -> dict | l
     return uniques
 
 
-def calc_min_supp_and_min_conf(dataset):
-    uniques = get_unique_items_from_dataset(dataset)
-
-    supports = []
-    origin_vals = []
-
-    for unique1 in uniques:
-        origin_vals.append(unique1)
-        resulting_vals = []
-
-        for unique2 in uniques:
-            if unique1 == unique2:
-                continue
-
-            resulting_vals.append(unique2)
-
-            for dataset_values in dataset.values():
-                ...
-
-
 def generate_candidates(frequencies: dict, dataset) -> dict:
+    """
+    Generates all combinations of items in transactions dataset and count them.
+
+    Example:
+         {'a': 5, 'b': 7, 'c': 7}, {('a', 'b'): 3, ('b', 'c'): 5}, {('a', 'b', 'c'): 2}
+    """
     candidates = {}
 
     for frequency_item1, frequency_vals1 in frequencies.items():
@@ -57,8 +44,8 @@ def generate_candidates(frequencies: dict, dataset) -> dict:
                 continue
 
             # for multi element item set
-            if len(frequency_item1_set.intersection(
-                    frequency_item2_set)) == 0 or frequency_item1_set == frequency_item2_set:
+            if len(frequency_item1_set.intersection(frequency_item2_set)) == 0 \
+                    or frequency_item1_set == frequency_item2_set:
                 continue
 
             key = tuple(sorted({*frequency_item1_set, *frequency_item2_set}))
@@ -76,18 +63,17 @@ def generate_candidates(frequencies: dict, dataset) -> dict:
     return candidates
 
 
-def prune_candidates(candidates: dict, min_supp: float) -> dict:
+def prune_candidates(candidates: dict) -> dict:
     pruned_candidates = {}
 
     for key, count in candidates.items():
-        if count >= min_supp:
+        if count / len(dataset) >= min_supp:
             pruned_candidates[key] = count
 
     return pruned_candidates
 
 
 def frequent_itemset_generation_apriori(dataset):
-    min_supp = 2
     frequents = []
     f = get_unique_items_from_dataset(dataset)
 
@@ -95,47 +81,97 @@ def frequent_itemset_generation_apriori(dataset):
         frequents.append(copy.deepcopy(f))
 
         c = generate_candidates(f, dataset)
-        c = prune_candidates(c, min_supp)
+        c = prune_candidates(c)
 
         f = copy.deepcopy(c)
 
     return frequents
 
 
-def generate_rules_helper(keys: list, local_rules: dict = {}, local_word: list = []) -> dict:
+def find_expression_count_in_frequents(expression: tuple, frequents: dict):
+    expression = tuple(sorted(expression))
+    expression = expression[0] if len(expression) == 1 else expression
+    index_to_search = len(expression) - 1
+
+    return frequents[index_to_search][expression]
+
+
+def calc_lift_for_rules(local_rules: pd.DataFrame) -> list:
+    lifts = []
+
+    for rule_iter, rule in local_rules.iterrows():
+        supp = rule['supp']
+
+        lift = supp['expr'] / (supp['factors'] * supp['resulting'])
+        lifts.append(lift)
+
+    return lifts
+
+
+def generate_rules_helper(frequents: dict, keys: list, local_rules: pd.DataFrame, local_word: list = []) -> pd.DataFrame:
     if len(keys) == 1:
         return local_rules
 
     for key_iter, key in enumerate(keys):
-        keys_copy = copy.deepcopy(list(keys))
+        keys_copy = copy.deepcopy(list(keys))  # copy to prevent modify original looped keys
 
         removed = keys_copy.pop(key_iter)
-        keys_copy_tuple = tuple(keys_copy)
+        keys_copy_tuple = tuple(keys_copy)  # tuple, because list is unhashable type
 
+        # resulting element: from {} => {} the word is the second pair of brackets
         word = copy.deepcopy(local_word)
         word.append(removed)
         word = list(sorted(word))
+        word_tuple = tuple(word)  # tuple, because list is unhashable type
 
-        if keys_copy_tuple in local_rules.keys():
-            local_rules[keys_copy_tuple].append(word)
-            # local_rules[keys_copy_tuple] = list(sorted(local_rules[keys_copy_tuple]))
-        else:
-            local_rules[keys_copy_tuple] = [word]
+        # calculating conf for pruning
+        supp_expression = find_expression_count_in_frequents(tuple(keys), frequents) / len(dataset)
+        supp_resulting = find_expression_count_in_frequents(tuple([*word]), frequents) / len(dataset)
+        conf = supp_expression / supp_resulting
 
-        local_rules = {**local_rules, **generate_rules_helper(keys_copy, local_rules, word)}
+        # reverse pruning - add only when condition is meet
+        if conf >= min_conf:
+            supp_factors = find_expression_count_in_frequents(keys_copy_tuple, frequents) / len(dataset)
+
+            local_rule = pd.Series({
+                'rule': f'{keys_copy_tuple} => {word_tuple}',
+                'supp': {'expr': supp_expression, 'factors': supp_factors, 'resulting': supp_resulting},
+                'conf': conf})
+            local_rules = pd.concat([local_rules, local_rule.to_frame().T], ignore_index=True)
+
+        generated_rules = generate_rules_helper(frequents, keys_copy, local_rules, word)
+        generated_rules = generated_rules.sort_values(by=['conf'], ascending=False).drop_duplicates(subset=['rule'])
+        local_rules = pd.concat([local_rules, generated_rules], ignore_index=True)
+
+    # sorted_rules = pd.DataFrame(columns=['rule', 'lift'])
+    #
+    # for rule_x, rules_y in local_rules.items():
+    #     lifts_for_rule = list(sorted([calc_lift_for_rule(rule_x, rule_y, frequents) for rule_y in rules_y]))
+
+    local_rules = local_rules.sort_values(by=['conf'], ascending=False).drop_duplicates(subset=['rule'])
+    local_rules['lift'] = calc_lift_for_rules(local_rules)
 
     return local_rules
 
 
-def generate_rules(frequents: list) -> dict:
-    frequents_mapped = list(reversed([{key: list() for key in frequencies} for frequencies in frequents[1:]]))
-    generated_rules = {}
+def generate_rules(frequents: list) -> pd.DataFrame:
+    frequents_mapped = list(reversed([{key: set() for key in frequencies} for frequencies in frequents[1:]]))
+    generated_rules = pd.DataFrame(columns=['rule', 'supp', 'conf'])
 
     for frequencies in frequents_mapped:
         for keys in frequencies.keys():
-            generated_rules = {**generated_rules, **generate_rules_helper(keys)}
+            df = pd.DataFrame(columns=['rule', 'supp', 'conf'])
+            generated_rules = pd.concat([generated_rules, generate_rules_helper(frequents, keys, df)], ignore_index=True)
 
-    return generated_rules
+    return generated_rules.sort_values(by=['lift'], ascending=False)
+
+
+def apriori_algorithm(dataset, min_supp: float = 0.3, min_conf: float = 0.7):
+    freqs = frequent_itemset_generation_apriori(dataset)
+    print(freqs)
+
+    rules = generate_rules(freqs)
+    print(rules.to_markdown())
 
 
 if __name__ == '__main__':
@@ -152,20 +188,24 @@ if __name__ == '__main__':
         't10': {'b', 'd'},
     }
 
-    frequents = frequent_itemset_generation_apriori(dataset)
-    print(frequents)
+    min_supp = 0.3
+    min_conf = 0.7
 
-    rules = generate_rules(frequents)
-    print(rules)
+    apriori_algorithm(dataset)
+
 
     """
     support:
     supp({'a'} => {'c'}) = 3/10
     supp({'a', 'b'} => {'c'}) = 2/10
     
-    conf - czyli support wewnątrz conf przez wszystkie możliwości przed strzałką
+    conf - czyli support całości przez support tegp przed strzałką
     conf({'a'} => {'c'}) = (3/10) / (5/10)
     conf({'a', 'b'} => {'c'}) = (2/10) / (3/10)
+    
+    lift - czyli support całości przez iloczyn supportu pojedynczych osobno rzeczy
+    lift({'a'} => {'c'}) = ((3/10)) / ((5/10) * (7/10))
+    lift({'a', 'b'} => {'c'}) = ((2/10)) / ((3/10) * (7/10))
     
     wygenerowanie zbioru o różnych częstościach
     znaleźć wszystkie unikalne elmenty w transakcjach i policzyć wszystkie częstości dla nich
