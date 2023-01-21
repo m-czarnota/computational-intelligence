@@ -2,7 +2,7 @@ from src.Service.ModelNetworkTester import ModelNetworkTester
 
 
 if __name__ == '__main__':
-    model_network_tester = ModelNetworkTester()
+    model_network_tester = ModelNetworkTester(verbosity_level=2)
 
     networks = ['./data/networks/4_1.txt']
     model_network_tester.test_for_networks(networks)

@@ -2,13 +2,20 @@ import time
 
 
 class VerbosityHelper:
-    @staticmethod
-    def measure_time(callback: callable, message: str):
-        t1 = time.time()
-        result = callback()
-        t2 = time.time()
-        calc_time = t2 - t1
+    def __init__(self, is_enabled: bool = True, verbosity_level: int = 1):
+        self.is_enabled: bool = is_enabled
+        self.verbosity_level: int = verbosity_level
 
-        print(f'{message} - {calc_time:.2f}')
+    def verbose(self, callback: callable, params: list = [], required_level: int = 1, message: str = 'Time of execution'):
+        if self.is_enabled is False or self.verbosity_level < required_level:
+            return callback(*params)
+
+        t1 = time.time()
+        result = callback(*params)
+        t2 = time.time()
+
+        time_result = t2 - t1
+        indents = ''.join(['\t' for _ in range(required_level)])
+        print(f'{indents}{message} - {time_result:.4f}s')
 
         return result
