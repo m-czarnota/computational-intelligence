@@ -16,10 +16,19 @@ if __name__ == '__main__':
         't9': {'a', 'd', 'e'},
         't10': {'b', 'd'},
     }, orient='index')
+    dataset2 = pd.DataFrame.from_dict({
+        "t1": {'bułka', 'parówka', 'ketchup'},
+        "t2": {'bułka', 'parówka'},
+        't3': {'parówka', 'pepsi', 'chipsy'},
+        't4': {'pepsi', 'chipsy'},
+        't5': {'chipsy', 'ketchup'},
+        't6': {'parówka', 'pepsi', 'chipsy'},
+    }, orient='index')
+
     store = pd.read_csv('Store_data.csv')
 
-    min_supp = 0.3
-    min_conf = 0.7
+    min_supp = 0.005
+    min_conf = 1.5
 
     apriori = Apriori(min_supp, min_conf, verbose=True, verbosity_level=2)
     print(apriori.generate_rules(store).to_markdown())

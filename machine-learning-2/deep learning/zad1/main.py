@@ -47,6 +47,18 @@ def zad1(data: tuple):
     x_train, y_train, x_test, y_test = data
     activation_functions = ['sigmoid', 'hard_sigmoid', 'tanh', 'linear', 'relu', 'softmax']
 
+    model = Sequential()
+    model.add(Flatten())
+
+    opt = SGD(lr=0.01, momentum=0.9)
+
+    for activation_function in activation_functions:
+        model.add(Dense(10, activation=activation_function, input_shape=(28 * 28, 1)))
+        model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
+
+        res = model.evaluate(x_test, y_test)
+        print(f'res = {res}')
+
 
 
 if __name__ == '__main__':

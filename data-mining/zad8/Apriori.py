@@ -1,6 +1,7 @@
 from __future__ import annotations
 import pandas as pd
 import copy
+from itertools import combinations_with_replacement
 
 from VerbosityHelper import VerbosityHelper
 
@@ -40,11 +41,11 @@ class Apriori:
 
     def _create_rules(self) -> pd.DataFrame:
         frequents_mapped = list(reversed([{key: set() for key in frequencies} for frequencies in self.frequents[1:]]))
-        generated_rules = pd.DataFrame(columns=['rule', 'supp', 'conf'])
+        generated_rules = pd.DataFrame(columns=['rule', 'supp', 'conf', 'lift'])
 
         for frequencies in frequents_mapped:
             for keys in frequencies.keys():
-                df = pd.DataFrame(columns=['rule', 'supp', 'conf'])
+                df = pd.DataFrame(columns=['rule', 'supp', 'conf', 'lift'])
                 generated_rules = pd.concat([generated_rules, self.__generate_rules_helper(keys, df)],
                                             ignore_index=True)
 
@@ -78,38 +79,26 @@ class Apriori:
              {'a': 5, 'b': 7, 'c': 7}, {('a', 'b'): 3, ('b', 'c'): 5}, {('a', 'b', 'c'): 2}
         """
         candidates = {}
+        first_item = list(frequencies.keys())[0]
 
-        for frequency_item1, frequency_vals1 in frequencies.items():
-            for frequency_item2, frequency_vals2 in frequencies.items():
-                frequency_item1_set = {frequency_item1} if type(frequency_item1) == str else set(frequency_item1)
-                frequency_item2_set = {frequency_item2} if type(frequency_item2) == str else set(frequency_item2)
+        if type(first_item) == str:  # for one element item set
+            candidates = {tuple(sorted([a, b])): 0 for (a, b) in combinations_with_replacement(list(frequencies.keys()), 2) if a != b}
+        else:  # for multi element item set
+            for frequency_item1 in frequencies.keys():
+                frequency_item1_set = set(frequency_item1)
 
-                # for one element item set
-                if len(frequency_item1_set) == 1:
-                    if frequency_item1_set.issubset(frequency_item2_set) is True:
+                for frequency_item2 in frequencies.keys():
+                    frequency_item2_set = set(frequency_item2)
+
+                    if len(frequency_item1_set.intersection(frequency_item2_set)) == 0 or frequency_item1_set == frequency_item2_set:
                         continue
 
                     key = tuple(sorted({*frequency_item1_set, *frequency_item2_set}))
                     candidates[key] = 0
 
-                    continue
-
-                # for multi element item set
-                if len(frequency_item1_set.intersection(frequency_item2_set)) == 0 \
-                        or frequency_item1_set == frequency_item2_set:
-                    continue
-
-                key = tuple(sorted({*frequency_item1_set, *frequency_item2_set}))
-                candidates[key] = 0
-
         for keys in candidates.keys():
-            keys_set = set(keys)
-
-            for transaction_iter, transaction_items in dataset.iterrows():
-                items_set = set(transaction_items)
-
-                if keys_set.issubset(items_set):
-                    candidates[keys] += 1
+            where_is_keys = dataset.isin(keys).sum(axis=1) >= len(keys)
+            candidates[keys] = where_is_keys.sum()
 
         return candidates
 
@@ -163,10 +152,10 @@ class Apriori:
 
         return local_rules
 
-    def __find_expression_count_in_frequents(self, expression: tuple):
+    def __find_expression_count_in_frequents(self, expression: tuple) -> int:
         expression = tuple(sorted(expression))
         expression = expression[0] if len(expression) == 1 else expression
-        index_to_search = len(expression) - 1
+        index_to_search = len(expression) - 1 if type(expression) != str else 0
 
         return self.frequents[index_to_search][expression]
 
