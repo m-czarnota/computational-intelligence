@@ -1,119 +1,10 @@
-from __future__ import annotations
-import copy
+import pandas as pd
 
-
-def get_unique_items_from_dataset(dataset, with_counts: bool = True) -> dict | list:
-    uniques = {}
-
-    for values in dataset.values():
-        for value in values:
-            if value in uniques.keys():
-                uniques[value] += 1
-            else:
-                uniques[value] = 1
-
-    if not with_counts:
-        return list(uniques.keys())
-
-    return uniques
-
-
-def calc_min_supp_and_min_conf(dataset):
-    uniques = get_unique_items_from_dataset(dataset)
-
-    supports = []
-    origin_vals = []
-
-    for unique1 in uniques:
-        origin_vals.append(unique1)
-        resulting_vals = []
-
-        for unique2 in uniques:
-            if unique1 == unique2:
-                continue
-
-            resulting_vals.append(unique2)
-
-            for dataset_values in dataset.values():
-                ...
-
-
-def generate_candidates(frequencies: dict, dataset) -> dict:
-    candidates = {}
-
-    for frequency_item1, frequency_vals1 in frequencies.items():
-        for frequency_item2, frequency_vals2 in frequencies.items():
-            frequency_item1_set = set(frequency_item1)
-            frequency_item2_set = set(frequency_item2)
-
-            # for one element item set
-            if len(frequency_item1_set) == 1:
-                if frequency_item1_set.issubset(frequency_item2_set) is True:
-                    continue
-
-                key = tuple(sorted({*frequency_item1_set, *frequency_item2_set}))
-                candidates[key] = 0
-
-                continue
-
-            # for multi element item set
-            if len(frequency_item1_set.intersection(
-                    frequency_item2_set)) == 0 or frequency_item1_set == frequency_item2_set:
-                continue
-
-            key = tuple(sorted({*frequency_item1_set, *frequency_item2_set}))
-            candidates[key] = 0
-
-    for keys in candidates.keys():
-        keys_set = set(keys)
-
-        for transaction_items in dataset.values():
-            items_set = set(transaction_items)
-
-            if keys_set.issubset(items_set):
-                candidates[keys] += 1
-
-    return candidates
-
-
-def prune_candidates(candidates: dict, min_supp: float) -> dict:
-    pruned_candidates = {}
-
-    for key, count in candidates.items():
-        if count >= min_supp:
-            pruned_candidates[key] = count
-
-    return pruned_candidates
-
-
-def frequent_itemset_generation_apriori(dataset):
-    min_supp = 2
-    frequents = []
-    f = get_unique_items_from_dataset(dataset)
-
-    while len(f) != 0:
-        frequents.append(copy.deepcopy(f))
-
-        c = generate_candidates(f, dataset)
-        c = prune_candidates(c, min_supp)
-
-        f = copy.deepcopy(c)
-
-    return frequents
-
-
-def generate_rules(dataset) -> dict:
-    uniques = get_unique_items_from_dataset(dataset, with_counts=False)
-    rules = {}
-
-    for item in uniques:
-        ...
-
-    return rules
+from Apriori import Apriori
 
 
 if __name__ == '__main__':
-    dataset = {
+    dataset = pd.DataFrame.from_dict({
         "t1": {'a', 'b', 'c'},
         "t2": {'b', 'c', 'd'},
         't3': {'a', 'b', 'd', 'e'},
@@ -124,21 +15,37 @@ if __name__ == '__main__':
         't8': {'a', 'b', 'c'},
         't9': {'a', 'd', 'e'},
         't10': {'b', 'd'},
-    }
+    }, orient='index')
+    dataset2 = pd.DataFrame.from_dict({
+        "t1": {'bułka', 'parówka', 'ketchup'},
+        "t2": {'bułka', 'parówka'},
+        't3': {'parówka', 'pepsi', 'chipsy'},
+        't4': {'pepsi', 'chipsy'},
+        't5': {'chipsy', 'ketchup'},
+        't6': {'parówka', 'pepsi', 'chipsy'},
+    }, orient='index')
 
-    frequents = frequent_itemset_generation_apriori(dataset)
-    print(frequents)
+    store = pd.read_csv('Store_data.csv')
 
-    rules = generate_rules(dataset)
+    min_supp = 0.005
+    min_conf = 1.5
+
+    apriori = Apriori(min_supp, min_conf, verbose=True, verbosity_level=2)
+    print(apriori.generate_rules(store).to_markdown())
+
 
     """
     support:
     supp({'a'} => {'c'}) = 3/10
     supp({'a', 'b'} => {'c'}) = 2/10
     
-    conf - czyli support wewnątrz conf przez wszystkie możliwości przed strzałką
+    conf - czyli support całości przez support tegp przed strzałką
     conf({'a'} => {'c'}) = (3/10) / (5/10)
     conf({'a', 'b'} => {'c'}) = (2/10) / (3/10)
+    
+    lift - czyli support całości przez iloczyn supportu pojedynczych osobno rzeczy
+    lift({'a'} => {'c'}) = ((3/10)) / ((5/10) * (7/10))
+    lift({'a', 'b'} => {'c'}) = ((2/10)) / ((3/10) * (7/10))
     
     wygenerowanie zbioru o różnych częstościach
     znaleźć wszystkie unikalne elmenty w transakcjach i policzyć wszystkie częstości dla nich
