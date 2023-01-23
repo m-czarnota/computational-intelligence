@@ -3,6 +3,7 @@ from typing import Tuple
 import cv2
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
 
 from src.descriptor.CDP import CDP
 from src.descriptor.CentroidPDH import CentroidPDH
@@ -30,19 +31,19 @@ def read_images() -> list:
 
 def select_representatives_numbers() -> list:
     representative_images_number: dict = {
-        'gambles-quail': 6,
-        'glossy-ibis': 10,
-        'greator-sage-grous': 5,
-        'hooded-merganser': 1,
-        'indian-vulture': 4,
-        'jabiru': 1,
-        'king-eider': 8,
-        'long-eared-owl': 4,
-        'tit-mouse': 8,
-        'touchan': 6
+        'gambles-quail': [6],
+        'glossy-ibis': [10],
+        'greator-sage-grous': [5],
+        'hooded-merganser': [1],
+        'indian-vulture': [4],
+        'jabiru': [1],
+        'king-eider': [8],
+        'long-eared-owl': [4],
+        'tit-mouse': [8],
+        'touchan': [6],
     }  # from 1
 
-    return list(map(lambda number: number - 1, representative_images_number.values()))
+    return [[number - 1 for number in numbers] for numbers in representative_images_number.values()]
 
 
 def train_test_split(images: list, representative_numbers: list) -> Tuple:
@@ -122,6 +123,22 @@ if __name__ == '__main__':
     train_results, test_results = calc_descriptors_for_images(train_images, test_images)
     results = {}
     results_view = pd.DataFrame()
+
+    cdp = CDP()
+    cdp.descript_image(test_images[0][4])
+    print(cdp.distances)
+
+    plt.figure()
+    plt.plot(cdp.distances)
+    plt.show()
+
+    # log_pol = LogPol()
+    # log_pol.descript_image(test_images[0][4])
+    # print(log_pol.p.shape, log_pol.w.shape)
+
+    # pdh = CentroidPDH(points_count=200)
+    # pdh.descript_image(test_images[0][4])
+    # print(pdh.h.shape)
 
     # for descriptor_name, train_descriptor_results in train_results.items():
     #     descriptor_results = pd.DataFrame(columns=['predicted', 'real', 'score'])

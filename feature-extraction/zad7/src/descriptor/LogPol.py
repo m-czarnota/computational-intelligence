@@ -1,6 +1,5 @@
 from typing import Tuple
 import numpy as np
-import cv2
 
 from src.descriptor.AbstractDescriptor import AbstractDescriptor
 
@@ -11,10 +10,10 @@ class LogPol(AbstractDescriptor):
     axis and the logarithm of the radius coordinates are placed on the horizontal one (furthermore a normalization has
     to be carried out in order to implement the transformation).
     """
-    def __init__(self):
+    def __init__(self, points_count: int = 200):
         super().__init__()
 
-        self._folder_name = 'log_pol'
+        self.points_count: int = points_count
 
         self.centroid = None
         self.p = None  # logarytm współrzędnych promienia
@@ -25,9 +24,8 @@ class LogPol(AbstractDescriptor):
         self.centroid = self._calc_centroid(points)
         self.p, self.w = self.__calc_distances_to_centroid(points)
 
-    def save_image(self, main_folder: str, filename: str):
-        super().save_image(main_folder, filename)
-        cv2.imwrite(f'{self._folder_path}/{filename}', self.distances)
+        self.p = self._select_points_from_array(self.p)
+        self.w = self._select_points_from_array(self.w)
 
     def _calc_centroid(self, points: np.array):
         y_sum = np.sum(points[:, 0])
