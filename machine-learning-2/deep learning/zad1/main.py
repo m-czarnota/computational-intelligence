@@ -112,18 +112,33 @@ def zad4():
         print(f'res = {res}')
 
 
+def predict_on_image():
+    model = Sequential()
+    model.add(Flatten(input_shape=(28, 28)))
+    model.add(Dropout(0.2))
+    model.add(Dense(128, activation='sigmoid'))
+
+    model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+    model.fit(x_train, y_train)
+    res = model.predict(image.reshape(1, 28, 28, 1))
+    print(f'res = {res}')
+
+
 if __name__ == '__main__':
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
-    x_train, x_test = x_train / 255.0, x_test / 255.0
+    x_train, x_test = x_train.astype('float32') / 255.0, x_test.astype('float32') / 255.0
 
     image = cv2.imread(f'{IMAGES_DIR}/sample_image.png', cv2.IMREAD_GRAYSCALE)
     image = add_noise_to_image(image, 54)
     image = rotate_image_by_90_degree(image)
     image = move_image_axes(image)
 
+    # image.reshape(1, 28, 28, 1)
     image = cv2.resize(image, dsize=(28, 28), interpolation=cv2.INTER_CUBIC)
 
-    zad1()
+    # zad1()
     # zad2()
     # zad3()
     # zad4()
+    predict_on_image()
