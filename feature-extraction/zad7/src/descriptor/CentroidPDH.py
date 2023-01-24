@@ -1,3 +1,4 @@
+from __future__ import annotations
 import numpy as np
 
 from src.descriptor.AbstractDescriptor import AbstractDescriptor
@@ -12,7 +13,7 @@ class CentroidPDH(AbstractDescriptor):
         self.centroid = None
         self.h = None
 
-    def descript_image(self, image: np.array):
+    def descript_image(self, image: np.array) -> CentroidPDH:
         points = self._find_contour_points(image)
         self.centroid = self._calc_centroid(points)
 
@@ -31,6 +32,17 @@ class CentroidPDH(AbstractDescriptor):
         lk = self.__normalize_vector(lk)
 
         self.h = self.__calc_h(lk)
+
+        return self
+
+    def calc_distance_to_other_descriptor(self, descriptor: CentroidPDH) -> float:
+        if self.h.size < descriptor.h.size:
+            return np.mean(self.h)
+
+        distances = self.h[:descriptor.h.shape[0]] - descriptor.h
+        distances = np.sqrt(distances ** 2)
+
+        return np.mean(distances)
 
     def _calc_centroid(self, points: np.array):
         y_sum = np.sum(points[:, 0])

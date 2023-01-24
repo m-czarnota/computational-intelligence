@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Tuple
 import numpy as np
 
@@ -19,13 +20,21 @@ class LogPol(AbstractDescriptor):
         self.p = None  # logarytm współrzędnych promienia
         self.w = None  # współrzędne kątowe
 
-    def descript_image(self, image: np.array):
+    def descript_image(self, image: np.array) -> LogPol:
         points = self._find_contour_points(image)
         self.centroid = self._calc_centroid(points)
         self.p, self.w = self.__calc_distances_to_centroid(points)
 
         self.p = self._select_points_from_array(self.p)
         self.w = self._select_points_from_array(self.w)
+
+        return self
+
+    def calc_distance_to_other_descriptor(self, descriptor: LogPol) -> float:
+        distances_p = np.sqrt((self.p - descriptor.p) ** 2)
+        distances_w = np.sqrt((self.p - descriptor.w) ** 2)
+
+        return np.sqrt((np.mean(distances_p) - np.mean(distances_w)) ** 2)
 
     def _calc_centroid(self, points: np.array):
         y_sum = np.sum(points[:, 0])

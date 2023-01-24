@@ -1,3 +1,4 @@
+from __future__ import annotations
 import numpy as np
 from abc import ABC, abstractmethod
 
@@ -7,7 +8,11 @@ class AbstractDescriptor(ABC):
         self.points_count: int = ...
 
     @abstractmethod
-    def descript_image(self, image: np.array):
+    def descript_image(self, image: np.array) -> AbstractDescriptor:
+        ...
+
+    @abstractmethod
+    def calc_distance_to_other_descriptor(self, descriptor: AbstractDescriptor) -> float:
         ...
 
     @abstractmethod
@@ -22,7 +27,7 @@ class AbstractDescriptor(ABC):
         indexes_distribution = np.linspace(0, array.shape[0] - 1, self.points_count).astype(int)
         distances = [array[0]]
 
-        if indexes_distribution[1] - indexes_distribution[0] <= 1:
+        if indexes_distribution[2] - indexes_distribution[1] <= 1:
             return array
 
         index_iter = 1

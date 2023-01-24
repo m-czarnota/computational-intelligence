@@ -1,3 +1,6 @@
+import os
+
+import imageio
 import laspy as lp
 import lasio
 import numpy as np
@@ -5,11 +8,12 @@ import rasterio
 import pandas as pd
 from matplotlib import pyplot as plt
 from whitebox import WhiteboxTools
-from rasterio.warp import calculate_default_transform
+from rasterio.plot import show
 
 
 IMAGES_DIR = './images'
 DATA_DIR = './data'
+WORK_DIR = r'D:\Programming\Python\computational-intelligence\languages-for-data-analysis\zad12\\'
 
 
 def zad1():
@@ -21,7 +25,7 @@ def zad1():
     out_interpolation = f'swidwie_budynek_interpolation.tif'
 
     wbt = WhiteboxTools()
-    wbt.work_dir = r'C:\Users\michal.czarnota\Documents\computational-intelligence\languages-for-data-analysis\zad12\\'
+    wbt.work_dir = WORK_DIR
     wbt.lidar_nearest_neighbour_gridding(in_interpolation, out_interpolation, resolution=0.1)
 
 
@@ -74,18 +78,32 @@ def zad2():
 
 
 def zad3():
-    cloud_filename = f'4720_275414_N-33-90-C-a-3-4-1-4'
+    las = lp.read('szczecin.laz')
 
-    in_interpolation = f'{cloud_filename}.laz'
-    out_interpolation = f'{cloud_filename}.las'
+    plt.figure()
+    plt.scatter(las.xyz[:, 0], las.xyz[:, 1], s=0.1, c=las.classification, cmap="Spectral_r")
+    plt.legend(np.unique(las.classification))
 
-    wbt = WhiteboxTools()
-    wbt.work_dir = r'C:\Users\michal.czarnota\Documents\computational-intelligence\languages-for-data-analysis\zad12\\'
-    wbt.lidar_nearest_neighbour_gridding(in_interpolation, out_interpolation, resolution=0.1)
+    plt.show()
+    # plt.savefig('zad3.jpg')
 
-    las = lp.read(out_interpolation)
-    print(las)
-    cos2 = 2
+
+    # wbt = WhiteboxTools()
+    # wbt.work_dir = WORK_DIR
+    #
+    # wbt.lidar_thin("szczecin.laz", "szczecin_red.las", resolution=0.1, method="lowest", save_filtered=1)
+    # wbt.lidar_ground_point_filter("swidwie_red.las", "szczecin_red.las", radius=1, min_neighbours=2, slope_threshold=10,
+    #                               height_threshold=1, classify=2, slope_norm=0, height_above_ground=0)
+    # wbt.filter_lidar_classes('szczecin_red.las', 'szczecin_red.las', exclude_cls='1')
+    # wbt.lidar_remove_outliers('szczecin_red.las', 'szczecin_red_filter.las', radius=1, elev_diff=1, use_median=1,
+    #                           classify=1)
+    # wbt.lidar_nearest_neighbour_gridding("szczecin_red_filter.las", "szczecin.tif", parameter="elevation",
+    #                                      returns="all", resolution=0.1, radius=0.1)
+    #
+    # raster = imageio.imread('szczecin.tif')
+    # fig = plt.figure(figsize=(16, 11))
+    # plt.imshow(raster)
+    # plt.show()
 
 
 if __name__ == '__main__':

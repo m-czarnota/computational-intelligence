@@ -1,3 +1,4 @@
+from __future__ import annotations
 import numpy as np
 
 from src.descriptor.AbstractDescriptor import AbstractDescriptor
@@ -12,13 +13,19 @@ class CDP(AbstractDescriptor):
         self.centroid = None
         self.distances = None
 
-    def descript_image(self, image: np.array) -> np.array:
+    def descript_image(self, image: np.array) -> CDP:
         points = self._find_contour_points(image)
         self.centroid = self._calc_centroid(points)
         self.distances = self.__calc_distances_to_centroid(points)
         self.distances = self._select_points_from_array(self.distances)
 
-        return self.distances
+        return self
+
+    def calc_distance_to_other_descriptor(self, descriptor: CDP) -> float:
+        distances = self.distances - descriptor.distances
+        distances = np.sqrt(distances ** 2)
+
+        return np.mean(distances)
 
     def _calc_centroid(self, points: np.array) -> np.array:
         y_sum = np.sum(points[:, 0])

@@ -1,3 +1,4 @@
+import copy
 import os
 from typing import Tuple
 import cv2
@@ -31,16 +32,16 @@ def read_images() -> list:
 
 def select_representatives_numbers() -> list:
     representative_images_number: dict = {
-        'gambles-quail': [6],
-        'glossy-ibis': [10],
-        'greator-sage-grous': [5],
-        'hooded-merganser': [1],
-        'indian-vulture': [4],
-        'jabiru': [1],
-        'king-eider': [8],
-        'long-eared-owl': [4],
-        'tit-mouse': [8],
-        'touchan': [6],
+        'gambles-quail': [6, 9, 10, 2, 1],
+        'glossy-ibis': [10, 9, 8, 2, 3],
+        'greator-sage-grous': [5, 6, 9, 10, 8],
+        'hooded-merganser': [1, 2, 5, 9, 4],
+        'indian-vulture': [4, 2, 6, 8, 9],
+        'jabiru': [1, 6, 7, 10, 5],
+        'king-eider': [8, 2, 5, 7, 6],
+        'long-eared-owl': [4, 3, 1, 8, 9],
+        'tit-mouse': [8, 5, 6, 10, 1],
+        'touchan': [6, 2, 1, 10, 9],
     }  # from 1
 
     return [[number - 1 for number in numbers] for numbers in representative_images_number.values()]
@@ -93,28 +94,86 @@ def convert_image_to_contour(image: np.array):
     return image_contour
 
 
-def calc_descriptors_for_images(train_images: dict, test_images: dict) -> Tuple:
-    train_results = {descriptor.__name__: [] for descriptor in descriptors}
-    test_results = {descriptor.__name__: [] for descriptor in descriptors}
+def calc_descriptors_for_images(train_images: list, test_images: list) -> Tuple:
+    train_results = {descriptor.__class__.__name__: [] for descriptor in descriptors}
+    test_results = {descriptor.__class__.__name__: [] for descriptor in descriptors}
 
     for descriptor in descriptors:
         descriptor_train_result = []
         for train_class_images in train_images:
-            train_result_class = [descriptor.descript_image(train_image) for train_image in train_class_images]
+            train_result_class = [copy.deepcopy(descriptor).descript_image(train_image) for train_image in train_class_images]
             descriptor_train_result.append(train_result_class)
-        train_results[descriptor.__name__] = descriptor_train_result
+        train_results[descriptor.__class__.__name__] = descriptor_train_result
 
         descriptor_test_result = []
         for test_class_images in test_images:
-            test_result_class = [descriptor.descript_image(test_image) for test_image in test_class_images]
+            test_result_class = [copy.deepcopy(descriptor).descript_image(test_image) for test_image in test_class_images]
             descriptor_test_result.append(test_result_class)
-        test_results[descriptor.__name__] = descriptor_test_result
+        test_results[descriptor.__class__.__name__] = descriptor_test_result
 
     return train_results, test_results
 
 
+def test_descriptors():
+    test_image = test_images[0][4]
+
+    cdp = CDP()
+    cdp.descript_image(test_image)
+    print(cdp.distances)
+
+    plt.figure()
+    plt.plot(cdp.distances)
+    plt.show()
+
+    log_pol = LogPol()
+    log_pol.descript_image(test_image)
+    print(log_pol.p.shape, log_pol.w.shape)
+
+    pdh = CentroidPDH(points_count=200)
+    pdh.descript_image(test_image)
+    print(pdh.h.shape)
+
+
+def display_results(results: dict):
+    results_view = pd.DataFrame()
+    scores_by_descriptor = {}
+
+    labels = range(10)
+    score_by_class = {label: 0 for label in labels}
+
+    for descriptor_name, descriptor_results in results.items():
+        # print(f'------------ {descriptor_name} ------------')
+        # print(descriptor_results.to_markdown())
+
+        score = descriptor_results['score'].sum() / descriptor_results.shape[0] * 100
+        scores_by_descriptor[descriptor_name] = f'{score:.4f}%'
+
+        for label in labels:
+            class_data = descriptor_results[descriptor_results['real'] == label]
+            class_data_count = class_data['score'].count()
+            score_by_class[label] = class_data['score'].sum() / class_data_count
+
+        scores_df = pd.DataFrame(np.array([[*score_by_class.keys()], [*score_by_class.values()]]).T,
+                                 columns=['class', 'score'])
+        scores_df['class'] = scores_df['class'].map(lambda x: x + 1)
+        scores_df['score'] = scores_df['score'].map(lambda x: f'{(x * 100):0.4f}%')
+
+        results_view['class'] = scores_df['class']
+        results_view[descriptor_name] = scores_df['score']
+
+    scores_by_descriptor = pd.DataFrame(pd.Series(scores_by_descriptor), columns=['score'])
+    print(scores_by_descriptor.to_markdown())
+
+    descriptor_values = results_view[list(map(lambda desc: desc.__class__.__name__, descriptors))].applymap(
+        lambda val: float(val.replace('%', '')))
+    results_view['score'] = descriptor_values.sum(axis=1) / len(descriptors)
+    results_view['score'] = results_view['score'].map(lambda x: f'{x:0.4f}%')
+    print(results_view.to_markdown())
+
+
 if __name__ == '__main__':
-    descriptors = []
+    descriptors = [CDP(200), LogPol(200), CentroidPDH(5)]
+    descriptor_names = [descriptor.__class__.__name__ for descriptor in descriptors]
 
     images = read_images()
     representatives_numbers = select_representatives_numbers()
@@ -124,31 +183,27 @@ if __name__ == '__main__':
     results = {}
     results_view = pd.DataFrame()
 
-    cdp = CDP()
-    cdp.descript_image(test_images[0][4])
-    print(cdp.distances)
+    # test_descriptors()
 
-    plt.figure()
-    plt.plot(cdp.distances)
-    plt.show()
+    for descriptor_name in descriptor_names:
+        train_descriptors = train_results[descriptor_name]
+        test_descriptors = test_results[descriptor_name]
+        descriptor_results = pd.DataFrame(columns=['predicted', 'real', 'score'])
 
-    # log_pol = LogPol()
-    # log_pol.descript_image(test_images[0][4])
-    # print(log_pol.p.shape, log_pol.w.shape)
+        for class_iter, test_class_descriptors in enumerate(test_descriptors):
+            for test_descriptor in test_class_descriptors:
+                train_descriptor_classes_distances_to_test = []
+                for train_class_descriptors in train_descriptors:
+                    train_descriptor_classes_distances_to_test.append(np.min([train_descriptor.calc_distance_to_other_descriptor(test_descriptor) for train_descriptor in train_class_descriptors]))
 
-    # pdh = CentroidPDH(points_count=200)
-    # pdh.descript_image(test_images[0][4])
-    # print(pdh.h.shape)
+                predicted_class = np.argmin(train_descriptor_classes_distances_to_test)
+                row = pd.Series({
+                    'predicted': predicted_class,
+                    'real': class_iter,
+                    'score': int(predicted_class == class_iter),
+                })
+                descriptor_results = pd.concat([descriptor_results, row.to_frame().T], ignore_index=True)
 
-    # for descriptor_name, train_descriptor_results in train_results.items():
-    #     descriptor_results = pd.DataFrame(columns=['predicted', 'real', 'score'])
-    #
-    #     for class_iter, test_descriptor_results in enumerate(test_results[descriptor_name]):
-    #         for test_descriptor_result in test_descriptor_results:
-    #             predicted_class = predict_based_on_distance(test_descriptor_result, train_descriptor_results)
-    #
-    #             row = pd.Series(
-    #                 {'predicted': predicted_class, 'real': class_iter, 'score': int(predicted_class == class_iter)})
-    #             descriptor_results = pd.concat([descriptor_results, row.to_frame().T], ignore_index=True)
-    #
-    #     results[descriptor_name] = descriptor_results
+        results[descriptor_name] = pd.DataFrame(descriptor_results)
+
+    display_results(results)
