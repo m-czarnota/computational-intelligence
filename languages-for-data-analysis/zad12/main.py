@@ -81,11 +81,18 @@ def zad3():
     las = lp.read('szczecin.laz')
 
     plt.figure()
-    plt.scatter(las.xyz[:, 0], las.xyz[:, 1], s=0.1, c=las.classification, cmap="Spectral_r")
-    plt.legend(np.unique(las.classification))
 
-    plt.show()
-    # plt.savefig('zad3.jpg')
+    plt.scatter(las.xyz[:, 0], las.xyz[:, 1], c=las.raw_classification == 2, s=0.1, label='ground')
+    plt.scatter(las.xyz[:, 0], las.xyz[:, 1], c=las.raw_classification == 7, s=0.1, label='water')
+    plt.scatter(las.xyz[:, 0], las.xyz[:, 1], c=las.raw_classification == 6, s=0.1, label='buildings')
+
+    plt.scatter(las.xyz[:, 0], las.xyz[:, 1], c=las.raw_classification == 3, s=0.1, label='vegetation')
+    plt.scatter(las.xyz[:, 0], las.xyz[:, 1], c=las.raw_classification == 4, s=0.1, label='vegetation')
+    plt.scatter(las.xyz[:, 0], las.xyz[:, 1], c=las.raw_classification == 5, s=0.1, label='vegetation')
+
+    plt.legend()
+    # plt.show()
+    plt.savefig('zad3.jpg')
 
 
     # wbt = WhiteboxTools()
