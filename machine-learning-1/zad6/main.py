@@ -1,3 +1,5 @@
+import pandas as pd
+
 from RegressionClassifierTest import RegressionClassifierTest
 
 
@@ -10,7 +12,9 @@ if __name__ == '__main__':
     # plt.show()
 
     # regressionClassifierTest.experiment(dataset_type='linear', strong_noise=True)
-    regressionClassifierTest.experiment(dataset_type='nonlinear', polynomial_degree=5)
+    regressionClassifierTest.experiment(dataset_type='nonlinear', polynomial_degree=2, strong_noise=True)
+    print(regressionClassifierTest.results)
+    print(pd.DataFrame(regressionClassifierTest.results).to_markdown())
 
 """
 regresja liniowa - zwykły model. jest to optymalizowane mse
