@@ -11,8 +11,8 @@ if __name__ == '__main__':
     # plt.scatter(x[:, 0], x[:, 1])
     # plt.show()
 
-    # regressionClassifierTest.experiment(dataset_type='linear', strong_noise=True)
-    regressionClassifierTest.experiment(dataset_type='nonlinear', polynomial_degree=2, strong_noise=True)
+    regressionClassifierTest.experiment(dataset_type='linear', strong_noise=True)
+    # regressionClassifierTest.experiment(dataset_type='nonlinear', polynomial_degree=2, strong_noise=True)
     print(regressionClassifierTest.results)
     print(pd.DataFrame(regressionClassifierTest.results).to_markdown())
 

@@ -18,4 +18,10 @@ if __name__ == '__main__':
     SM to metoda do wybierania seedów: CC, DG, Random
     SF (seed fraction) to liczba seedów
     można zapisać to w csv
+    
+    sieci do liczenia: 4, 12, 
+    _[1...5]
+    pp = [0.1, ..., 0.9]
+    sf = [5, 10, 25]
+    ss = [cc, dg, random]
     """

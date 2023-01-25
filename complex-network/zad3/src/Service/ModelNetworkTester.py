@@ -25,10 +25,8 @@ class ModelNetworkTester:
         self._path_to_pickled_centrality_measures = f'{self.results_filepath}/pickled/{centrality_measures_pickle_name}'
         self._centrality_measures: dict = pickle.load(open(self._path_to_pickled_centrality_measures, 'rb')) if exists(self._path_to_pickled_centrality_measures) else {}
 
-        # self._propagation_probabilities = np.arange(20, 100, 20) / 100
-        self._propagation_probabilities = [0.2]
-        # self._seed_fraction = np.arange(5, 20, 5) / 100
-        self._seed_fraction = [0.05]
+        self._propagation_probabilities = np.linspace(0, 0.9, 10)
+        self._seed_fraction = np.array([5, 10, 25])
 
     def test_for_networks(self, filenames: list):
         results = pd.DataFrame()

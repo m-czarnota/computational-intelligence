@@ -58,7 +58,7 @@ class IndependentCascadesModel(NxGraphAnimator):
         while len(self.infected_nodes_to_visit__) > 0:
             self.propagate__()
 
-            history_iter = f'Iteration {propagate_iter + 1}. Nodes count: {self.number_of_node}. Infected count: {len(self.infected_nodes)}. Infected %: {self.infected_percentage:.4f}%. Infected nodes: {list(map(lambda node: f"{node.infected_by} -> {node.index}", self.infected_nodes_views__))}'
+            history_iter = f'Iteration {propagate_iter + 1}. Nodes count: {self.number_of_node}. Infected count: {len(self.infected_nodes)}. Infected %: {self.infected_percentage:.4f}%. Infected nodes: {list(map(lambda node: f"{node.infected_by if node.infected_by not in self.seeds else -1} -> {node.index}", self.infected_nodes_views__))}'
             propagate_iter += 1
 
             self.propagate_history.append(history_iter)
