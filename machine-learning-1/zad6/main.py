@@ -1,20 +1,26 @@
+import numpy as np
 import pandas as pd
+import warnings
+from sklearn.exceptions import ConvergenceWarning, DataConversionWarning
 
 from RegressionClassifierTest import RegressionClassifierTest
 
 
 if __name__ == '__main__':
     regressionClassifierTest = RegressionClassifierTest()
-    x, y = regressionClassifierTest.generate_linear_dataset()
+
+    warnings.filterwarnings(action='ignore', category=ConvergenceWarning)
+    warnings.filterwarnings(action='ignore', category=DataConversionWarning)
 
     # plt.figure()
     # plt.scatter(x[:, 0], x[:, 1])
     # plt.show()
 
-    regressionClassifierTest.experiment(dataset_type='linear', strong_noise=True)
-    # regressionClassifierTest.experiment(dataset_type='nonlinear', polynomial_degree=2, strong_noise=True)
-    print(regressionClassifierTest.results)
-    print(pd.DataFrame(regressionClassifierTest.results).to_markdown())
+    with warnings.catch_warnings() and pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        # regressionClassifierTest.experiment(dataset_type='linear', strong_noise=True)
+        regressionClassifierTest.experiment(dataset_type='nonlinear', strong_noise=True)
+        aggregated = pd.pivot_table(regressionClassifierTest.results, values=['fit time', 'predict time', 'mse', 'mae'], index=['polynomial degree', 'regressor'], aggfunc=np.mean)
+        print(aggregated)
 
 """
 regresja liniowa - zwykły model. jest to optymalizowane mse
