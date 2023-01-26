@@ -120,8 +120,8 @@ def predict_on_image():
 
     model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
-    model.fit(x_train, y_train)
-    res = model.predict(image.reshape(1, 28, 28, 1))
+    model.fit(x_train, y_train, epochs=10)
+    res = model.evaluate(image.reshape(1, 28, 28, 1))
     print(f'res = {res}')
 
 
