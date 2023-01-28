@@ -1,7 +1,7 @@
+import time
 from keras.models import Sequential
-from keras.layers import Convolution2D, Dense, Dropout, BatchNormalization, MaxPooling2D, Flatten, MaxPool2D, Conv2D
+from keras.layers import Convolution2D, Dense, Dropout, BatchNormalization, MaxPooling2D, Flatten
 from keras.optimizers import SGD
-from keras.regularizers import l2
 from matplotlib import pyplot as plt
 import numpy as np
 import tensorflow as tf
@@ -11,8 +11,6 @@ import os
 
 IMAGES_DIR = './images'
 DATA_DIR = './data/att_faces'
-
-image_shapes = [(28, 48), (56, 96), (92, 112)]
 
 
 def read_images() -> np.array:
@@ -58,15 +56,12 @@ def create_model(input_shape: tuple) -> Sequential:
 
 
 def zad1() -> None:
-    images = read_images()
-    classes = np.array([[number] * 10 for number in range(1, 41)]).flatten()
+    plot_results = []
+    image_shapes = [(28, 48), (56, 96), (92, 112)]
 
     for image_shape in image_shapes:
-        noise_results = []
-        resized_images = resize_images(images, image_shape)
-
-        # resized_images = images
-        # image_shape = (92, 112)
+        scores = []
+        resized_images = resize_images(images, image_shape) if image_shape != image_shapes[-1] else images
 
         x_train, x_test, y_train, y_test = train_test_split(resized_images, classes, random_state=0, train_size=0.5)
         x_train, x_test = x_train / 255.0, x_test / 255.0  # normalization
@@ -74,47 +69,136 @@ def zad1() -> None:
         model = create_model(tuple([*list(reversed(image_shape)), 1]))
         model.fit(x_train, y_train, epochs=100)
 
-        for noise in range(100):
-            scores = []
+        for number_iter in range(500):
+            random_image_number = np.random.randint(x_test.shape[0])
+            x_test_random = x_test[random_image_number]
+            x_test_random_resized = x_test_random.reshape(1, *list(reversed(image_shape)))
 
-            for _ in range(500):
-                random_image_number = np.random.randint(x_test.shape[0])
-                x_test_random = x_test[random_image_number]
-                x_test_random = add_noise_to_image(x_test_random, noise)
-                x_test_random_resized = x_test_random.reshape(1, *list(reversed(image_shape)))
+            actual_y = y_test[random_image_number]
+            results = model.evaluate(x_test_random_resized, np.array([actual_y]))
+            scores.append(results[1])
 
-                predicted_distribution = model.predict(x_test_random_resized)
-                y_predicted = np.argmax(predicted_distribution)
-                actual_y = y_test[random_image_number]
-                scores.append(y_predicted == actual_y)
+        plot_results.append(np.mean(scores))
 
-                # print(model.evaluate(x_test_random_resized, np.array([actual_y])))
-                # print(f'predicted distribution:\n{predicted_distribution}')
-                # print(f'draw class {y_test[random_image_number]} ?= {y_predicted} = {np.max(predicted_distribution)}, {y_predicted == actual_y}')
-                # print(np.argmin(predicted_distribution))
+    plt.figure()
+    plt.bar([str(image_shape) for image_shape in image_shapes], plot_results, width=0.3, color='g')
 
-            noise_results.append([noise, np.mean(scores)])
+    plt.title(f'Average score by image size')
+    plt.xlabel('Random test image')
+    plt.ylabel('Score')
 
-        noise_results = np.array(noise_results)
+    plt.savefig(f'{IMAGES_DIR}/zad1.png')
+    # plt.show()
 
-        plt.figure()
-        plt.plot(noise_results[:, 0], noise_results[:, 1])
-        plt.title(f'Score for image size {image_shape}')
-        plt.xlabel('Noise level')
-        plt.ylabel('Score')
 
-        image_size_str = f"{image_shape}"\
-            .replace("(", "")\
-            .replace(")", "")\
-            .replace(',', '')\
-            .replace(' ', '_')
-        plt.savefig(f'{IMAGES_DIR}/zad1_image_size_{image_size_str}.png')
+def zad2():
+    plot_results = []
+    epochs = [100, 300, 500, 1000]
 
+    x_train, x_test, y_train, y_test = train_test_split(images, classes, random_state=0, train_size=0.5)
+    x_train, x_test = x_train / 255.0, x_test / 255.0  # normalization
+
+    for epoch in epochs:
+        model = create_model((112, 92, 1))
+
+        t1 = time.time()
+        model.fit(x_train, y_train, epochs=epoch)
+        t2 = time.time()
+        fit_time = t2 - t1
+
+        results = model.evaluate(x_test, y_test)
+        plot_results.append([fit_time, results[1]])
+
+    plot_results = np.array(plot_results)
+
+    plt.figure()
+    plt.plot(plot_results[:, 0], plot_results[:, 1])
+
+    plt.title('Score by fit time')
+    plt.xlabel('Fit time')
+    plt.ylabel('Score')
+
+    plt.savefig(f'{IMAGES_DIR}/zad2.png')
+    # plt.show()
+
+
+def zad3():
+    plot_results = []
+
+    x_train, x_test, y_train, y_test = train_test_split(images, classes, random_state=0, train_size=0.5)
+    x_train, x_test = x_train / 255.0, x_test / 255.0  # normalization
+
+    model = create_model((112, 92, 1))
+    model.fit(x_train, y_train, epochs=100)
+
+    for noise in range(100):
+        noise_results = []
+
+        for number_iter in range(20):
+            random_image_number = np.random.randint(x_test.shape[0])
+            x_test_random = x_test[random_image_number]
+            x_test_random = add_noise_to_image(x_test_random, noise)
+
+            test_loss, accuracy = model.evaluate(np.array([x_test_random]), np.array([y_test[random_image_number]]))
+            noise_results.append(accuracy)
+
+        plot_results.append([noise, np.mean(noise_results)])
+
+    plot_results = np.array(plot_results)
+
+    plt.figure()
+    plt.plot(plot_results[:, 0], plot_results[:, 1])
+
+    plt.title('Average score by noise')
+    plt.xlabel('Noise level')
+    plt.ylabel('Score')
+
+    plt.savefig(f'{IMAGES_DIR}/zad3.png')
+    # plt.show()
+
+
+def zad3_inverted():
+    plot_results = []
+
+    x_train, x_test, y_train, y_test = train_test_split(images, classes, random_state=0, train_size=0.5)
+    x_train, x_test = x_train / 255.0, x_test / 255.0  # normalization
+
+    for noise in range(100):
+        for x_train_iter, x_train_img in enumerate(x_train):
+            x_train[x_train_iter] = add_noise_to_image(x_train_img, noise)
+
+        model = create_model((112, 92, 1))
+        model.fit(x_train, y_train, epochs=100)
+
+        noise_results = []
+
+        for _ in range(20):
+            test_loss, accuracy = model.evaluate(x_test, y_test)
+            noise_results.append(accuracy)
+
+        plot_results.append([noise, np.mean(noise_results)])
+
+    plot_results = np.array(plot_results)
+
+    plt.figure()
+    plt.plot(plot_results[:, 0], plot_results[:, 1])
+
+    plt.title('Score by noise')
+    plt.xlabel('Noise level')
+    plt.ylabel('Score')
+
+    plt.savefig(f'{IMAGES_DIR}/zad3_inverted.png')
     # plt.show()
 
 
 if __name__ == '__main__':
+    images = read_images()
+    classes = np.array([[number] * 10 for number in range(1, 41)]).flatten()
+
     zad1()
+    # zad2()
+    # zad3()
+    # zad3_inverted()
 
 """
 pierwsze badanie:
