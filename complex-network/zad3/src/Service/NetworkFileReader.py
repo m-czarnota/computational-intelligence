@@ -17,3 +17,11 @@ class NetworkFileReader:
         weights = edges_data['weight']
 
         return nodes_unique, edges, weights
+
+    @staticmethod
+    def get_network_number_and_part(filename: str) -> Tuple:
+        parts = filename.split('_')
+        network = parts[0].split('/')[-1]
+        part = parts[-1].replace('.txt', '')
+
+        return network, part

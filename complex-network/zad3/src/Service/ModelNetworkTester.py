@@ -32,6 +32,8 @@ class ModelNetworkTester:
         results = pd.DataFrame()
 
         for filename in filenames:
+            print(f'start network: {filename}')
+
             for network_results in self.test_for_network(filename):
                 results = pd.concat([results, network_results.to_frame().T])
 
@@ -39,6 +41,7 @@ class ModelNetworkTester:
 
     def test_for_network(self, filename: str) -> list:
         network_results = []
+        network_name, network_name_part = self._networkFileReader.get_network_number_and_part(filename)
 
         nodes_unique, edges, weights = self._networkFileReader.read_properties(filename)
         nodes_count = len(nodes_unique)
@@ -47,35 +50,45 @@ class ModelNetworkTester:
         centrality_measures = self._calc_centrality_measures_for_network(graph, filename)
 
         for degree_name, degree_result in centrality_measures.items():
+            print(f'\tdegree: {degree_name}')
             degree_result = list(degree_result)
 
             for pp in self._propagation_probabilities:
+                print(f'\t\tpp: {pp}')
+
                 for seed_fraction_percent in self._seed_fraction:
+                    print(f'\t\t\tseeds fraction: {seed_fraction_percent}')
+
                     seeds_count = np.round(nodes_count * seed_fraction_percent).astype('int')
                     degree_results_for_test = degree_result[:seeds_count]
 
                     independent = IndependentCascadesModel(nodes_count, pp, edges, degree_results_for_test, weights)
+                    print(f'\t\t\t\tmodel: {independent.__class__.__name__}')
                     independent.simulate_propagation()
 
                     linear = LinearThresholdModel(nodes_count, pp, edges, degree_results_for_test, weights)
+                    print(f'\t\t\t\tmodel: {linear.__class__.__name__}')
                     linear.simulate_propagation()
 
-                    for model in [independent]:
+                    for model in [independent, linear]:
                         result = {
-                            'N': filename,
+                            'Network filename': filename,
+                            'N': network_name,
+                            'NP': network_name_part,
+                            'NN': model.number_of_node,
                             'PP': pp,
                             'SM': degree_name,
                             'SF': seeds_count,
                             'SF%': f'{seed_fraction_percent}%',
                             'M': model.__class__.__name__,
                             'IF%': f'{(len(model.infected_nodes) / model.number_of_node * 100):.4f}%',
+                            'Seeds': model.seeds,
                         }
 
                         if self._verbosityHelper.verbosity_level:
                             result = {**result, **{
                                 'Propagate history': model.propagate_history,
                                 'IF': model.infected_nodes,
-                                'Seeds': degree_result,
                             }}
 
                         network_results.append(pd.Series(result))

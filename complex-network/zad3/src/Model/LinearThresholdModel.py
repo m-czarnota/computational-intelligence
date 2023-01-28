@@ -31,7 +31,7 @@ class LinearThresholdModel(IndependentCascadesModel):
                 if infect_prob_for_node <= self.pp:
                     continue
 
-                self.infected_nodes.append(node)
+                self.infected_nodes.add(node)
                 self.infected_nodes_views__.append(
                     NodeDto(node, is_infected=True, infected_by=infected, infect_prob=infect_prob_for_node))
                 newly_infected.append(node)

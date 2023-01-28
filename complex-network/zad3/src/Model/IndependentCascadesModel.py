@@ -21,7 +21,7 @@ class IndependentCascadesModel(NxGraphAnimator):
         self.node_colors = []
 
         self.seeds = seed_indexes
-        self.infected_nodes = seed_indexes
+        self.infected_nodes = set(seed_indexes)
         self.weights = weights
         self.nodes_visited_by_node__ = {}
 
@@ -114,7 +114,7 @@ class IndependentCascadesModel(NxGraphAnimator):
                 if infect_prob >= self.pp:
                     continue
 
-                self.infected_nodes.append(node)
+                self.infected_nodes.add(node)
                 self.infected_nodes_views__.append(
                     NodeDto(node, is_infected=True, infected_by=infected, infect_prob=infect_prob))
                 newly_infected.append(node)
@@ -123,11 +123,11 @@ class IndependentCascadesModel(NxGraphAnimator):
             self.infected_nodes_to_visit__.append(newly_infected)
 
     def prepare_to_propagate__(self):
-        self.infected_nodes = self.seeds.copy()
+        self.infected_nodes = set(self.seeds)
         self.nodes_visited_by_node__ = {}
 
         self.infected_nodes_views__ = []
-        self.infected_nodes_to_visit__ = [self.seeds.copy()]
+        self.infected_nodes_to_visit__ = [set(self.seeds)]
 
     def update_animation__(self, frame):
         if len(self.infected_nodes_to_visit__) == 0:
