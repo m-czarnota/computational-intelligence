@@ -131,6 +131,53 @@ def train(g_model: Sequential, d_model: Sequential, gan_model: Sequential, datas
     return generator_losses, discriminator_losses_real, discriminator_losses_fake
 
 
+def zad1() -> None:
+    latent_dims = [25, 50, 100, 200]
+    plot_results = []
+    real_samples = load_real_samples()
+
+    for latent_dim in latent_dims:
+        discriminator = create_discriminator()
+        generator = create_generator(latent_dim)
+        gan = create_gan(generator, discriminator)
+
+        t1 = time.time()
+        g_losses, d_losses_real, d_losses_fake = train(generator, discriminator, gan, real_samples, latent_dim, n_batch=128)
+        t2 = time.time()
+        fit_time = t2 - t1
+
+        plt.figure()
+        plt.title('Loss by fit time')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Loss')
+
+        time_vector = np.arange(fit_time)
+        plt.plot(time_vector, g_losses, label='Generator')
+        plt.plot(time_vector, d_losses_real, label='Discriminator real')
+        plt.plot(time_vector, d_losses_fake, label='Discriminator fake')
+
+        plt.legend()
+        plt.savefig(f'{IMAGES_DIR}/zad2_latent_dim_{latent_dim}.png')
+        # plt.show()
+
+        plot_results.append([fit_time, np.mean(g_losses), np.mean(d_losses_real), np.mean(d_losses_fake)])
+
+    plot_results = np.array(plot_results)
+
+    plt.figure()
+    plt.title('Average loss by fit time')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Average loss')
+
+    plt.plot(plot_results[:, 0], plot_results[:, 1], label='Generator')
+    plt.plot(plot_results[:, 0], plot_results[:, 2], label='Discriminator real')
+    plt.plot(plot_results[:, 0], plot_results[:, 3], label='Discriminator fake')
+
+    plt.legend()
+    plt.savefig(f'{IMAGES_DIR}/zad1.png')
+    # plt.show()
+
+
 def zad2() -> None:
     epochs = [100, 200, 300]
     plot_results = []
@@ -159,7 +206,7 @@ def zad2() -> None:
         plt.plot(time_vector, d_losses_fake, label='Discriminator fake')
 
         plt.legend()
-        plt.savefig(f'{IMAGES_DIR}/zad1_epochs_{epoch}.png')
+        plt.savefig(f'{IMAGES_DIR}/zad2_epochs_{epoch}.png')
         # plt.show()
 
         plot_results.append([fit_time, np.mean(g_losses), np.mean(d_losses_real), np.mean(d_losses_fake)])
@@ -176,9 +223,10 @@ def zad2() -> None:
     plt.plot(plot_results[:, 0], plot_results[:, 3], label='Discriminator fake')
 
     plt.legend()
-    plt.savefig(f'{IMAGES_DIR}/zad1.png')
+    plt.savefig(f'{IMAGES_DIR}/zad2.png')
     # plt.show()
 
 
 if __name__ == '__main__':
-    zad2()
+    zad1()
+    # zad2()
