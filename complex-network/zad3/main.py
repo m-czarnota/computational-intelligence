@@ -1,22 +1,26 @@
+from src.Service.GraphModelGenerator import GraphModelGenerator
 from src.Service.ModelNetworkTester import ModelNetworkTester
 
 
 if __name__ == '__main__':
-    networks = [
-        './data/networks/4_1.txt',
-        './data/networks/4_2.txt',
-        './data/networks/4_3.txt',
-        './data/networks/4_4.txt',
-        './data/networks/4_5.txt',
-        './data/networks/12_1.txt',
-        './data/networks/12_2.txt',
-        './data/networks/12_3.txt',
-        './data/networks/12_4.txt',
-        './data/networks/12_5.txt',
-    ]
+    # networks = [
+    #     './data/networks/4_1.txt',
+    #     './data/networks/4_2.txt',
+    #     './data/networks/4_3.txt',
+    #     './data/networks/4_4.txt',
+    #     './data/networks/4_5.txt',
+    #     './data/networks/12_1.txt',
+    #     './data/networks/12_2.txt',
+    #     './data/networks/12_3.txt',
+    #     './data/networks/12_4.txt',
+    #     './data/networks/12_5.txt',
+    # ]
+    #
+    # model_network_tester = ModelNetworkTester(verbosity_level=0)
+    # model_network_tester.test_for_networks(networks)
 
-    model_network_tester = ModelNetworkTester(verbosity_level=0)
-    model_network_tester.test_for_networks(networks)
+    graph_model_generator = GraphModelGenerator()
+    graph_model_generator.generate_average_measure_graph()
 
 
     """
