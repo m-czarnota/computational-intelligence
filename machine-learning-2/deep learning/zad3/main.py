@@ -1,7 +1,7 @@
 from typing import Tuple
 from keras.losses import BinaryCrossentropy
 from keras.models import Sequential
-from keras.layers import Dense, BatchNormalization, MaxPooling2D
+from keras.layers import Dense, BatchNormalization
 from keras.layers import Reshape
 from keras.layers import Flatten
 from keras.layers import Conv2D
@@ -9,6 +9,8 @@ from keras.layers import Conv2DTranspose
 from keras.layers import LeakyReLU
 from keras.layers import Dropout
 from keras.optimizers import Adam
+from keras.optimizers.optimizer_v2.optimizer_v2 import OptimizerV2
+from tensorflow import Tensor
 from tensorflow.python.checkpoint.checkpoint import Checkpoint
 from tensorflow.python.data import Dataset
 from tensorflow.python.data.ops.dataset_ops import DatasetV1Adapter
@@ -17,9 +19,9 @@ import tensorflow as tf
 import glob
 import imageio
 import matplotlib.pyplot as plt
+import matplotlib.transforms as mtransforms
 import numpy as np
 import os
-import PIL
 import time
 import cv2
 import pickle
@@ -31,10 +33,11 @@ BUFFER_SIZE = 50000
 BATCH_SIZE = 500
 
 IMAGES_DIR = './images'
+ANIMATIONS_DIR = './animations'
 CHECKPOINT_DIR = './training_checkpoints'
 EPOCH_IMAGES_DIR = f'{IMAGES_DIR}/epoch'
 
-labels = {
+labels: dict = {
     "airplane": 0,
     "automobile": 1,
     "bird": 2,
@@ -54,7 +57,6 @@ def make_generator_model(resolution: int, noise_dim: int) -> Sequential:
 
     model = Sequential()
     model.add(Dense(r4 * r4 * 256, use_bias=False, input_shape=(noise_dim,)))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(BatchNormalization())
     model.add(LeakyReLU())
 
@@ -63,17 +65,17 @@ def make_generator_model(resolution: int, noise_dim: int) -> Sequential:
 
     model.add(Conv2DTranspose(128, (5, 5), strides=(1, 1), padding='same', use_bias=False))
     assert model.output_shape == (None, r4, r4, 128)
-    model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(BatchNormalization())
     model.add(LeakyReLU())
 
     model.add(Conv2DTranspose(64, (5, 5), strides=(2, 2), padding='same', use_bias=False))
     assert model.output_shape == (None, r2, r2, 64)
-    model.add(MaxPooling2D(pool_size=(2, 2)))
+
     model.add(BatchNormalization())
     model.add(LeakyReLU())
 
     model.add(Conv2DTranspose(3, (5, 5), strides=(2, 2), padding='same', use_bias=False, activation='tanh'))
+    # model.add(MaxPooling2D(pool_size=(5, 5), strides=(2, 2), padding='same'))
     assert model.output_shape == (None, resolution, resolution, 3)
 
     return model
@@ -98,19 +100,18 @@ def make_discriminator_model(resolution: int) -> Sequential:
     return model
 
 
-def discriminator_loss(real_output, fake_output):
+def discriminator_loss(real_output: Tensor, fake_output: Tensor) -> Tensor:
     real_loss = cross_entropy(tf.ones_like(real_output), real_output)
     fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output)
 
     return real_loss + fake_loss
 
 
-def generator_loss(fake_output):
+def generator_loss(fake_output: Tensor) -> Tensor:
     return cross_entropy(tf.ones_like(fake_output), fake_output)
 
 
-@tf.function
-def train_step(images: np.array) -> Tuple:
+def train_step(images: np.array, generator: Sequential, discriminator: Sequential, generator_optimizer: OptimizerV2, discriminator_optimizer: OptimizerV2, noise_dim: int) -> Tuple:
     noise = tf.random.normal([BATCH_SIZE, noise_dim])
 
     with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
@@ -127,6 +128,7 @@ def train_step(images: np.array) -> Tuple:
 
     generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
     discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
+
     return gen_loss, disc_loss
 
 
@@ -144,10 +146,11 @@ def generate_and_save_images(model: Sequential, epoch: int, test_input: np.array
         plt.axis('off')
 
     plt.savefig(f'{EPOCH_IMAGES_DIR}/image_at_epoch_{epoch}.png')
+    plt.close(fig)
     # plt.show() if epoch % 10 == 0 or epoch == 1 else plt.close(fig)
 
 
-def train(dataset: DatasetV1Adapter, epochs: int) -> None:
+def train(dataset: DatasetV1Adapter, generator: Sequential, discriminator: Sequential, generator_optimizer: OptimizerV2, discriminator_optimizer: OptimizerV2, epochs: int, noise_dim: int, seed: np.array, checkpoint: Checkpoint) -> np.array:
     losses = np.zeros((epochs * len(dataset), 2))  # gen, disc
     idx = 0
 
@@ -155,7 +158,7 @@ def train(dataset: DatasetV1Adapter, epochs: int) -> None:
         start = time.time()
 
         for image_batch in dataset:
-            losses[idx] = train_step(image_batch)
+            losses[idx] = train_step(image_batch, generator, discriminator, generator_optimizer, discriminator_optimizer, noise_dim)
             idx += 1
 
         generate_and_save_images(generator, epoch + 1, seed)
@@ -166,24 +169,12 @@ def train(dataset: DatasetV1Adapter, epochs: int) -> None:
 
         print('Time for epoch {} is {} sec'.format(epoch + 1, time.time() - start))
 
-    plt.figure()
-    xd = np.arange(0, idx)
-
-    plt.plot(xd, losses[:, 0], label="gen_loss")
-    plt.plot(xd, losses[:, 1], label="disc_loss")
-
-    plt.legend()
-    plt.savefig('loss_graph.png')
-    plt.show()
-
     generate_and_save_images(generator, epochs, seed)
 
-
-def display_image(epoch_no):
-    return PIL.Image.open('epoch_images/image_at_epoch_{:04d}.png'.format(epoch_no))
+    return losses
 
 
-def unpickle(file):
+def unpickle(file: str) -> dict:
     with open(file, 'rb') as fo:
         unpicked = pickle.load(fo, encoding='bytes')
 
@@ -215,40 +206,8 @@ def reduce_resolution(images: np.array, resolution: int) -> np.array:
     return tr
 
 
-if __name__ == '__main__':
-    print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
-
-    EPOCHS = 200  # Count of epochs
-    noise_dim = 100  # Dim of generator's initialization vector
-    num_examples_to_generate = 16  # Count of examples displaying for each epoch, only powers of 4
-    resolution = 32  # Resolution min=4, default=32, only multiples of 4
-    label_class = "dog"  # Object's class name to generate
-
-    train_images, train_labels = read_images_train(label_class)
-    train_images = np.transpose(train_images.reshape(train_images.shape[0], 32, 32, 3, order='F'), axes=[0, 2, 1, 3])
-    train_images = reduce_resolution(train_images, resolution) if resolution != 32 else train_images  # resolution reduce
-    train_images = train_images.astype('float32')
-    train_images = (train_images - 127.5) / 127.5   # Normalize the images to [-1, 1]
-
-    train_dataset = Dataset.from_tensor_slices(train_images).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
-    generator = make_generator_model(resolution=resolution, noise_dim=noise_dim)
-    discriminator = make_discriminator_model(resolution=resolution)
-
-    cross_entropy = BinaryCrossentropy(from_logits=True)
-    generator_optimizer = Adam(1e-4)
-    discriminator_optimizer = Adam(1e-4)
-
-    checkpoint_prefix = os.path.join(CHECKPOINT_DIR, "ckpt")
-    checkpoint = Checkpoint(generator_optimizer=generator_optimizer, discriminator_optimizer=discriminator_optimizer,
-                            generator=generator, discriminator=discriminator)
-
-    seed = tf.random.normal([num_examples_to_generate, noise_dim])
-    train(train_dataset, EPOCHS)
-    checkpoint.restore(tf.train.latest_checkpoint(CHECKPOINT_DIR))
-
-    anim_file = 'dcgan.gif'
-
-    with imageio.get_writer(anim_file, mode='I') as writer:
+def generate_gif(anim_filename: str) -> None:
+    with imageio.get_writer(anim_filename, mode='I') as writer:
         filenames = glob.glob(f'{EPOCH_IMAGES_DIR}/image*.png')
         filenames = sorted(filenames)
 
@@ -258,3 +217,119 @@ if __name__ == '__main__':
 
         image = imageio.imread(filename)
         writer.append_data(image)
+
+
+def read_train_data(resolution: int = 32) -> Tuple:
+    images, image_labels = read_images_train(label_class)
+    images = np.transpose(images.reshape(images.shape[0], 32, 32, 3, order='F'), axes=[0, 2, 1, 3])
+    images = reduce_resolution(images, resolution) if resolution != 32 else images  # resolution reduce
+    images = images.astype('float32')
+    images = (images - 127.5) / 127.5  # Normalize the images to [-1, 1]
+
+    dataset = Dataset.from_tensor_slices(images).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
+
+    return dataset, image_labels
+
+
+def plot_losses_functions(epochs: int, fit_time: float, losses: np.array, noise_dim: int, file_name: str) -> None:
+    fig, ax = plt.subplots()
+    ax.set_title(f'Gen and disc losses for {epochs} epochs with initializing vector size {noise_dim}')
+
+    trans = mtransforms.blended_transform_factory(ax.transData, ax.transAxes)
+    ax.text(0, -0.07, f'Fitting time: {fit_time:.2f}s', transform=trans, va='top', ha='center', color='r')
+
+    xd = np.arange(0, losses.shape[0])
+    ax.plot(xd, losses[:, 0], label="gen_loss")
+    ax.plot(xd, losses[:, 1], label="disc_loss")
+
+    ax.legend()
+    plt.savefig(f'{IMAGES_DIR}/{file_name}')
+    plt.close()
+
+
+def zad1_initializing_vector() -> None:
+    noise_dims = [50, 100, 200]
+    fit_times = np.zeros(len(noise_dims))
+
+    epochs = 100
+    resolution = 32  # Resolution min=4, default=32, only multiples of 4
+
+    train_dataset, train_labels = read_train_data(resolution)
+
+    for noise_dim in noise_dims:
+        seed = tf.random.normal([num_examples_to_generate, noise_dim])
+
+        generator = make_generator_model(resolution=resolution, noise_dim=noise_dim)
+        discriminator = make_discriminator_model(resolution=resolution)
+
+        generator_optimizer = Adam(1e-4)
+        discriminator_optimizer = Adam(1e-4)
+        checkpoint = Checkpoint(generator_optimizer=generator_optimizer,
+                                discriminator_optimizer=discriminator_optimizer,
+                                generator=generator, discriminator=discriminator)
+
+        t1 = time.time()
+        losses = train(train_dataset, generator, discriminator, generator_optimizer, discriminator_optimizer, epochs,
+                       noise_dim, seed, checkpoint)
+        t2 = time.time()
+        fit_time = t2 - t1
+
+        plot_losses_functions(epochs, fit_time, losses, noise_dim, f'zad1_loss_graph_initializing_dim_{noise_dim}.png')
+        generate_gif(f'{ANIMATIONS_DIR}/zad1_dcgan_initializing_dim_{noise_dim}.gif')
+
+    fig = plt.figure()
+    plt.bar(list(map(lambda x: str(x), noise_dims)), fit_times)
+    plt.title('Fitting time by initializing vector size')
+    plt.savefig(f'{IMAGES_DIR}/zad1_initializing_vector_times.png')
+    plt.close(fig)
+
+
+def zad2() -> None:
+    epochs_counts = [100, 300, 500]
+    fit_times = np.zeros(len(epochs_counts))
+
+    resolution = 32  # Resolution min=4, default=32, only multiples of 4
+    noise_dim = 100  # Dim of generator's initialization vector
+    seed = tf.random.normal([num_examples_to_generate, noise_dim])
+
+    train_dataset, train_labels = read_train_data(resolution)
+
+    for epochs_iter, epochs in enumerate(epochs_counts):
+        generator = make_generator_model(resolution=resolution, noise_dim=noise_dim)
+        discriminator = make_discriminator_model(resolution=resolution)
+
+        generator_optimizer = Adam(1e-4)
+        discriminator_optimizer = Adam(1e-4)
+        checkpoint = Checkpoint(generator_optimizer=generator_optimizer,
+                                discriminator_optimizer=discriminator_optimizer,
+                                generator=generator, discriminator=discriminator)
+
+        t1 = time.time()
+        losses = train(train_dataset, generator, discriminator, generator_optimizer, discriminator_optimizer, epochs, noise_dim, seed, checkpoint)
+        t2 = time.time()
+        fit_time = t2 - t1
+
+        fit_times[epochs_iter] = fit_time
+        checkpoint.restore(tf.train.latest_checkpoint(CHECKPOINT_DIR))
+
+        plot_losses_functions(epochs, fit_time, losses, noise_dim, f'zad2_loss_graph_epochs{epochs}.png')
+        generate_gif(f'{ANIMATIONS_DIR}/zad2_dcgan_epochs_{epochs}.gif')
+
+    fig = plt.figure()
+    plt.bar(list(map(lambda x: str(x), epochs_counts)), fit_times)
+    plt.title('Fitting time by epochs')
+    plt.savefig(f'{IMAGES_DIR}/zad2_fit_times.png')
+    plt.close(fig)
+
+
+if __name__ == '__main__':
+    print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+
+    num_examples_to_generate = 16  # Count of examples displaying for each epoch, only powers of 4
+    label_class = "dog"  # Object's class name to generate
+
+    checkpoint_prefix = os.path.join(CHECKPOINT_DIR, "ckpt")
+    cross_entropy = BinaryCrossentropy(from_logits=True)
+
+    zad1_initializing_vector()
+    zad2()
