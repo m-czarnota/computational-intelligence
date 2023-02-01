@@ -1,232 +1,260 @@
-import time
 from typing import Tuple
-from matplotlib import pyplot as plt
-import numpy as np
+from keras.losses import BinaryCrossentropy
 from keras.models import Sequential
-from keras.layers import Dense
+from keras.layers import Dense, BatchNormalization, MaxPooling2D
 from keras.layers import Reshape
 from keras.layers import Flatten
 from keras.layers import Conv2D
 from keras.layers import Conv2DTranspose
 from keras.layers import LeakyReLU
 from keras.layers import Dropout
-from keras.datasets import cifar10
 from keras.optimizers import Adam
+from tensorflow.python.checkpoint.checkpoint import Checkpoint
+from tensorflow.python.data import Dataset
+from tensorflow.python.data.ops.dataset_ops import DatasetV1Adapter
+
+import tensorflow as tf
+import glob
+import imageio
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+import PIL
+import time
+import cv2
+import pickle
+
+
+# BUFFER_SIZE = 60000
+BUFFER_SIZE = 50000
+# BATCH_SIZE = 256
+BATCH_SIZE = 500
 
 IMAGES_DIR = './images'
+CHECKPOINT_DIR = './training_checkpoints'
+EPOCH_IMAGES_DIR = f'{IMAGES_DIR}/epoch'
+
+labels = {
+    "airplane": 0,
+    "automobile": 1,
+    "bird": 2,
+    "cat": 3,
+    "deer": 4,
+    "dog": 5,
+    "frog": 6,
+    "horse": 7,
+    "ship": 8,
+    "truck": 9
+}
 
 
-def create_discriminator(in_shape: tuple = (32, 32, 3)) -> Sequential:
-    model = Sequential([
-        Conv2D(128, (3, 3), strides=(2, 2), padding='same', input_shape=in_shape),
-        LeakyReLU(alpha=0.2),
+def make_generator_model(resolution: int, noise_dim: int) -> Sequential:
+    r2 = int(resolution / 2)
+    r4 = int(resolution / 4)
 
-        Conv2D(128, (3, 3), strides=(2, 2), padding='same'),
-        LeakyReLU(alpha=0.2),
+    model = Sequential()
+    model.add(Dense(r4 * r4 * 256, use_bias=False, input_shape=(noise_dim,)))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(BatchNormalization())
+    model.add(LeakyReLU())
 
-        Flatten(),
-        Dropout(0.4),
-        Dense(1, activation='sigmoid'),
-    ])
+    model.add(Reshape((r4, r4, 256)))
+    assert model.output_shape == (None, r4, r4, 256)  # Note: None is the batch size
 
-    opt = Adam(lr=0.0002, beta_1=0.5)
-    model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
+    model.add(Conv2DTranspose(128, (5, 5), strides=(1, 1), padding='same', use_bias=False))
+    assert model.output_shape == (None, r4, r4, 128)
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(BatchNormalization())
+    model.add(LeakyReLU())
 
-    return model
+    model.add(Conv2DTranspose(64, (5, 5), strides=(2, 2), padding='same', use_bias=False))
+    assert model.output_shape == (None, r2, r2, 64)
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(BatchNormalization())
+    model.add(LeakyReLU())
 
-
-def create_generator(latent_dim: int) -> Sequential:
-    n_nodes = 128 * 8 * 8
-    model = Sequential([
-        Dense(n_nodes, input_dim=latent_dim),
-        LeakyReLU(alpha=0.2),
-        Reshape((8, 8, 128)),
-
-        Conv2DTranspose(128, (4, 4), strides=(2, 2), padding='same'),
-        LeakyReLU(alpha=0.2),
-
-        Conv2DTranspose(128, (4, 4), strides=(2, 2), padding='same'),
-        LeakyReLU(alpha=0.2),
-
-        Conv2D(3, (8, 8), activation='tanh', padding='same'),
-    ])
-
-    return model
-
-
-def create_gan(generator: Sequential, discriminator: Sequential) -> Sequential:
-    model = Sequential([
-        generator,
-        discriminator,
-    ])
-
-    opt = Adam(lr=0.0002, beta_1=0.5)
-    model.compile(loss='binary_crossentropy', optimizer=opt)
+    model.add(Conv2DTranspose(3, (5, 5), strides=(2, 2), padding='same', use_bias=False, activation='tanh'))
+    assert model.output_shape == (None, resolution, resolution, 3)
 
     return model
 
 
-def load_real_samples() -> np.array:
-    (train_x, _), (_, _) = cifar10.load_data()
-    x = train_x.astype('float32')
-    x = (x - 127.5) / 127.5
+def make_discriminator_model(resolution: int) -> Sequential:
+    """
+    Discriminator returns positives values for real images and negatives values for fake images,
+    """
+    model = Sequential()
+    model.add(Conv2D(64, (5, 5), strides=(2, 2), padding='same', input_shape=(resolution, resolution, 3)))
+    model.add(LeakyReLU())
+    model.add(Dropout(0.3))
 
-    return x
+    model.add(Conv2D(128, (5, 5), strides=(2, 2), padding='same'))
+    model.add(LeakyReLU())
+    model.add(Dropout(0.3))
 
+    model.add(Flatten())
+    model.add(Dense(1))
 
-def generate_real_samples(dataset: np.array, n_samples: int) -> Tuple:
-    ix = np.random.randint(0, dataset.shape[0], n_samples)
-    x = dataset[ix]
-    y = np.ones((n_samples, 1))
-
-    return x, y
-
-
-def generate_latent_points(latent_dim: int, n_samples: int) -> np.array:
-    x_input = np.random.randn(latent_dim * n_samples)
-    x_input = x_input.reshape(n_samples, latent_dim)
-
-    return x_input
+    return model
 
 
-def generate_fake_samples(generator: Sequential, latent_dim: int, n_samples: int) -> Tuple:
-    x_input = generate_latent_points(latent_dim, n_samples)
-    x = generator.predict(x_input)
-    y = np.zeros((n_samples, 1))
+def discriminator_loss(real_output, fake_output):
+    real_loss = cross_entropy(tf.ones_like(real_output), real_output)
+    fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output)
 
-    return x, y
+    return real_loss + fake_loss
 
 
-def train(g_model: Sequential, d_model: Sequential, gan_model: Sequential, dataset: np.array, latent_dim: int, epochs: int = 100, n_batch: int = 128) -> Tuple:
-    bat_per_epo = int(dataset.shape[0] / n_batch)
-    half_batch = int(n_batch / 2)
+def generator_loss(fake_output):
+    return cross_entropy(tf.ones_like(fake_output), fake_output)
 
-    generator_losses = []
-    discriminator_losses_real = []
-    discriminator_losses_fake = []
+
+@tf.function
+def train_step(images: np.array) -> Tuple:
+    noise = tf.random.normal([BATCH_SIZE, noise_dim])
+
+    with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
+        generated_images = generator(noise, training=True)
+
+        real_output = discriminator(images, training=True)
+        fake_output = discriminator(generated_images, training=True)
+
+        gen_loss = generator_loss(fake_output)
+        disc_loss = discriminator_loss(real_output, fake_output)
+
+    gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
+    gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
+
+    generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
+    discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
+    return gen_loss, disc_loss
+
+
+def generate_and_save_images(model: Sequential, epoch: int, test_input: np.array) -> None:
+    predictions = model(test_input, training=False)
+    predictions = predictions * 127.5 + 127.5
+    predictions = np.array(predictions).astype("uint8")
+
+    fig = plt.figure(figsize=(4, 4))
+    k = int(np.sqrt(num_examples_to_generate))
+
+    for i in range(predictions.shape[0]):
+        plt.subplot(k, k, i + 1)
+        plt.imshow(predictions[i])
+        plt.axis('off')
+
+    plt.savefig(f'{EPOCH_IMAGES_DIR}/image_at_epoch_{epoch}.png')
+    # plt.show() if epoch % 10 == 0 or epoch == 1 else plt.close(fig)
+
+
+def train(dataset: DatasetV1Adapter, epochs: int) -> None:
+    losses = np.zeros((epochs * len(dataset), 2))  # gen, disc
+    idx = 0
 
     for epoch in range(epochs):
-        for batch_size in range(bat_per_epo):
-            x_real, y_real = generate_real_samples(dataset, half_batch)
-            d_loss_real, _ = d_model.train_on_batch(x_real, y_real)
+        start = time.time()
 
-            x_fake, y_fake = generate_fake_samples(g_model, latent_dim, half_batch)
-            d_loss_fake, _ = d_model.train_on_batch(x_fake, y_fake)
+        for image_batch in dataset:
+            losses[idx] = train_step(image_batch)
+            idx += 1
 
-            # d_loss = 0.5 * np.add(d_loss_real, d_loss_fake) #Average loss if you want to report single..
+        generate_and_save_images(generator, epoch + 1, seed)
 
-            x_gan = generate_latent_points(latent_dim, n_batch)
-            y_gan = np.ones((n_batch, 1))
+        # Save the model every 15 epochs
+        if (epoch + 1) % 15 == 0:
+            checkpoint.save(file_prefix=checkpoint_prefix)
 
-            g_loss = gan_model.train_on_batch(x_gan, y_gan)
-
-            generator_losses.append(g_loss)
-            discriminator_losses_real.append(d_loss_real)
-            discriminator_losses_fake.append(d_loss_fake)
-
-            print(f'Epoch>{epoch + 1}, Batch {batch_size}/{bat_per_epo}, d1={d_loss_real:.3f}, d2={d_loss_fake:.3f} g={g_loss:.3f}')
-
-    g_model.save('cifar_generator_2epochs.h5')
-
-    return generator_losses, discriminator_losses_real, discriminator_losses_fake
-
-
-def zad1() -> None:
-    latent_dims = [25, 50, 100, 200]
-    plot_results = []
-    real_samples = load_real_samples()
-
-    for latent_dim in latent_dims:
-        discriminator = create_discriminator()
-        generator = create_generator(latent_dim)
-        gan = create_gan(generator, discriminator)
-
-        t1 = time.time()
-        g_losses, d_losses_real, d_losses_fake = train(generator, discriminator, gan, real_samples, latent_dim, n_batch=128)
-        t2 = time.time()
-        fit_time = t2 - t1
-
-        plt.figure()
-        plt.title('Loss by fit time')
-        plt.xlabel('Time (s)')
-        plt.ylabel('Loss')
-
-        time_vector = np.arange(fit_time)
-        plt.plot(time_vector, g_losses, label='Generator')
-        plt.plot(time_vector, d_losses_real, label='Discriminator real')
-        plt.plot(time_vector, d_losses_fake, label='Discriminator fake')
-
-        plt.legend()
-        plt.savefig(f'{IMAGES_DIR}/zad2_latent_dim_{latent_dim}.png')
-        # plt.show()
-
-        plot_results.append([fit_time, np.mean(g_losses), np.mean(d_losses_real), np.mean(d_losses_fake)])
-
-    plot_results = np.array(plot_results)
+        print('Time for epoch {} is {} sec'.format(epoch + 1, time.time() - start))
 
     plt.figure()
-    plt.title('Average loss by fit time')
-    plt.xlabel('Time (s)')
-    plt.ylabel('Average loss')
+    xd = np.arange(0, idx)
 
-    plt.plot(plot_results[:, 0], plot_results[:, 1], label='Generator')
-    plt.plot(plot_results[:, 0], plot_results[:, 2], label='Discriminator real')
-    plt.plot(plot_results[:, 0], plot_results[:, 3], label='Discriminator fake')
+    plt.plot(xd, losses[:, 0], label="gen_loss")
+    plt.plot(xd, losses[:, 1], label="disc_loss")
 
     plt.legend()
-    plt.savefig(f'{IMAGES_DIR}/zad1.png')
-    # plt.show()
+    plt.savefig('loss_graph.png')
+    plt.show()
+
+    generate_and_save_images(generator, epochs, seed)
 
 
-def zad2() -> None:
-    epochs = [100, 200, 300]
-    plot_results = []
+def display_image(epoch_no):
+    return PIL.Image.open('epoch_images/image_at_epoch_{:04d}.png'.format(epoch_no))
 
-    latent_dim = 100
-    real_samples = load_real_samples()
 
-    discriminator = create_discriminator()
-    generator = create_generator(latent_dim)
-    gan = create_gan(generator, discriminator)
+def unpickle(file):
+    with open(file, 'rb') as fo:
+        unpicked = pickle.load(fo, encoding='bytes')
 
-    for epoch in epochs:
-        t1 = time.time()
-        g_losses, d_losses_real, d_losses_fake = train(generator, discriminator, gan, real_samples, latent_dim, epochs=epoch, n_batch=128)
-        t2 = time.time()
-        fit_time = t2 - t1
+    return unpicked
 
-        plt.figure()
-        plt.title('Loss by fit time')
-        plt.xlabel('Time (s)')
-        plt.ylabel('Loss')
 
-        time_vector = np.arange(fit_time)
-        plt.plot(time_vector, g_losses, label='Generator')
-        plt.plot(time_vector, d_losses_real, label='Discriminator real')
-        plt.plot(time_vector, d_losses_fake, label='Discriminator fake')
+def read_images_train(class_label: str) -> Tuple:
+    label = labels[class_label]
+    train_images, train_labels = [], []
 
-        plt.legend()
-        plt.savefig(f'{IMAGES_DIR}/zad2_epochs_{epoch}.png')
-        # plt.show()
+    for i in np.arange(1, 6):
+        data = unpickle(f"cifar/data_batch_{i}")
 
-        plot_results.append([fit_time, np.mean(g_losses), np.mean(d_losses_real), np.mean(d_losses_fake)])
+        data_images = data[b'data']
+        data_labels = np.array(data[b'labels'])
 
-    plot_results = np.array(plot_results)
+        train_images.extend(data_images[data_labels == label, :])
+        train_labels.extend(list(data_labels[data_labels == label]))
 
-    plt.figure()
-    plt.title('Average loss by fit time')
-    plt.xlabel('Time (s)')
-    plt.ylabel('Average loss')
+    return np.array(train_images), np.array(train_labels)
 
-    plt.plot(plot_results[:, 0], plot_results[:, 1], label='Generator')
-    plt.plot(plot_results[:, 0], plot_results[:, 2], label='Discriminator real')
-    plt.plot(plot_results[:, 0], plot_results[:, 3], label='Discriminator fake')
 
-    plt.legend()
-    plt.savefig(f'{IMAGES_DIR}/zad2.png')
-    # plt.show()
+def reduce_resolution(images: np.array, resolution: int) -> np.array:
+    tr = np.zeros((images.shape[0], resolution, resolution, 3)).astype("uint8")
+
+    for i, img in enumerate(images):
+        tr[i] = cv2.resize(img, (resolution, resolution))
+
+    return tr
 
 
 if __name__ == '__main__':
-    zad1()
-    # zad2()
+    print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+
+    EPOCHS = 200  # Count of epochs
+    noise_dim = 100  # Dim of generator's initialization vector
+    num_examples_to_generate = 16  # Count of examples displaying for each epoch, only powers of 4
+    resolution = 32  # Resolution min=4, default=32, only multiples of 4
+    label_class = "dog"  # Object's class name to generate
+
+    train_images, train_labels = read_images_train(label_class)
+    train_images = np.transpose(train_images.reshape(train_images.shape[0], 32, 32, 3, order='F'), axes=[0, 2, 1, 3])
+    train_images = reduce_resolution(train_images, resolution) if resolution != 32 else train_images  # resolution reduce
+    train_images = train_images.astype('float32')
+    train_images = (train_images - 127.5) / 127.5   # Normalize the images to [-1, 1]
+
+    train_dataset = Dataset.from_tensor_slices(train_images).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
+    generator = make_generator_model(resolution=resolution, noise_dim=noise_dim)
+    discriminator = make_discriminator_model(resolution=resolution)
+
+    cross_entropy = BinaryCrossentropy(from_logits=True)
+    generator_optimizer = Adam(1e-4)
+    discriminator_optimizer = Adam(1e-4)
+
+    checkpoint_prefix = os.path.join(CHECKPOINT_DIR, "ckpt")
+    checkpoint = Checkpoint(generator_optimizer=generator_optimizer, discriminator_optimizer=discriminator_optimizer,
+                            generator=generator, discriminator=discriminator)
+
+    seed = tf.random.normal([num_examples_to_generate, noise_dim])
+    train(train_dataset, EPOCHS)
+    checkpoint.restore(tf.train.latest_checkpoint(CHECKPOINT_DIR))
+
+    anim_file = 'dcgan.gif'
+
+    with imageio.get_writer(anim_file, mode='I') as writer:
+        filenames = glob.glob(f'{EPOCH_IMAGES_DIR}/image*.png')
+        filenames = sorted(filenames)
+
+        for filename in filenames:
+            image = imageio.imread(filename)
+            writer.append_data(image)
+
+        image = imageio.imread(filename)
+        writer.append_data(image)
