@@ -20,7 +20,18 @@ if __name__ == '__main__':
     # model_network_tester.test_for_networks(networks)
 
     graph_model_generator = GraphModelGenerator()
-    graph_model_generator.generate_average_measure_graph()
+
+    graph_model_generator.generate_mean_coverage_by_network()
+    graph_model_generator.generate_mean_coverage_by_pp()
+    graph_model_generator.generate_mean_coverage_by_sf()
+    graph_model_generator.generate_mean_coverage_by_measure()
+
+    graph_model_generator.generate_mean_steps_by_network()
+    graph_model_generator.generate_mean_steps_by_pp()
+    graph_model_generator.generate_mean_steps_by_sf()
+    graph_model_generator.generate_mean_steps_by_measure()
+
+    graph_model_generator.generate_max_coverage_by_method()
 
 
     """
@@ -39,4 +50,17 @@ if __name__ == '__main__':
     pp = [0.1, ..., 0.9]
     sf = [5, 10, 25]
     ss = [cc, dg, random]
+    
+    wykresy:
+    1) średnie pokrycie (coverage) dla poszczególnych sieci
+    2) średnie pokrycie (coverage) dla pp
+    3) średnie pokrycie (coverage) dla SF (seed fraction)
+    4) średnie pokrycie (coverage) dla SM (metody)
+    5) średnia liczba kroków dla poszczególnych sieci
+    6) średnia liczba kroków dla pp
+    7) średnia liczba kroków dla SF
+    8) średnia liczba kroków dla SM (metody)
+    
+    wykresy dla największych różnic, które możemy zaobserwowaćw danych pomiędzy metodami
+    znaleźć największe pokrycie dla każdej z metod i porównać je między sobą wypisując parametry dla metody (jak pp, sf)
     """
