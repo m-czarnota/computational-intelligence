@@ -70,12 +70,10 @@ def make_generator_model(resolution: int, noise_dim: int) -> Sequential:
 
     model.add(Conv2DTranspose(64, (5, 5), strides=(2, 2), padding='same', use_bias=False))
     assert model.output_shape == (None, r2, r2, 64)
-
     model.add(BatchNormalization())
     model.add(LeakyReLU())
 
     model.add(Conv2DTranspose(3, (5, 5), strides=(2, 2), padding='same', use_bias=False, activation='tanh'))
-    # model.add(MaxPooling2D(pool_size=(5, 5), strides=(2, 2), padding='same'))
     assert model.output_shape == (None, resolution, resolution, 3)
 
     return model
@@ -132,10 +130,16 @@ def train_step(images: np.array, generator: Sequential, discriminator: Sequentia
     return gen_loss, disc_loss
 
 
-def generate_and_save_images(model: Sequential, epoch: int, test_input: np.array) -> None:
+def generate_and_save_images(model: Sequential, epoch: int, test_input: np.array, save_location: str = None) -> None:
     predictions = model(test_input, training=False)
     predictions = predictions * 127.5 + 127.5
     predictions = np.array(predictions).astype("uint8")
+
+    if save_location is None:
+        save_location = EPOCH_IMAGES_DIR
+    else:
+        if not os.path.exists(save_location):
+            os.makedirs(save_location)
 
     fig = plt.figure(figsize=(4, 4))
     k = int(np.sqrt(num_examples_to_generate))
@@ -145,12 +149,12 @@ def generate_and_save_images(model: Sequential, epoch: int, test_input: np.array
         plt.imshow(predictions[i])
         plt.axis('off')
 
-    plt.savefig(f'{EPOCH_IMAGES_DIR}/image_at_epoch_{epoch}.png')
+    plt.savefig(f'{save_location}/image_at_epoch_{epoch}.png')
     plt.close(fig)
     # plt.show() if epoch % 10 == 0 or epoch == 1 else plt.close(fig)
 
 
-def train(dataset: DatasetV1Adapter, generator: Sequential, discriminator: Sequential, generator_optimizer: OptimizerV2, discriminator_optimizer: OptimizerV2, epochs: int, noise_dim: int, seed: np.array, checkpoint: Checkpoint) -> np.array:
+def train(dataset: DatasetV1Adapter, generator: Sequential, discriminator: Sequential, generator_optimizer: OptimizerV2, discriminator_optimizer: OptimizerV2, epochs: int, noise_dim: int, seed: np.array, checkpoint: Checkpoint, image_save_location: str = None) -> np.array:
     losses = np.zeros((epochs * len(dataset), 2))  # gen, disc
     idx = 0
 
@@ -161,7 +165,7 @@ def train(dataset: DatasetV1Adapter, generator: Sequential, discriminator: Seque
             losses[idx] = train_step(image_batch, generator, discriminator, generator_optimizer, discriminator_optimizer, noise_dim)
             idx += 1
 
-        generate_and_save_images(generator, epoch + 1, seed)
+        generate_and_save_images(generator, epoch + 1, seed, image_save_location)
 
         # Save the model every 15 epochs
         if (epoch + 1) % 15 == 0:
@@ -169,7 +173,7 @@ def train(dataset: DatasetV1Adapter, generator: Sequential, discriminator: Seque
 
         print('Time for epoch {} is {} sec'.format(epoch + 1, time.time() - start))
 
-    generate_and_save_images(generator, epochs, seed)
+    generate_and_save_images(generator, epochs, seed, image_save_location)
 
     return losses
 
@@ -206,9 +210,9 @@ def reduce_resolution(images: np.array, resolution: int) -> np.array:
     return tr
 
 
-def generate_gif(anim_filename: str) -> None:
+def generate_gif(anim_filename: str, images_location: str = EPOCH_IMAGES_DIR) -> None:
     with imageio.get_writer(anim_filename, mode='I') as writer:
-        filenames = glob.glob(f'{EPOCH_IMAGES_DIR}/image*.png')
+        filenames = glob.glob(f'{images_location}/image*.png')
         filenames = sorted(filenames)
 
         for filename in filenames:
@@ -256,8 +260,9 @@ def zad1_initializing_vector() -> None:
 
     train_dataset, train_labels = read_train_data(resolution)
 
-    for noise_dim in noise_dims:
+    for noise_dim_iter, noise_dim in enumerate(noise_dims):
         seed = tf.random.normal([num_examples_to_generate, noise_dim])
+        image_save_location = f'{EPOCH_IMAGES_DIR}/zad1_noise_dim{noise_dim}'
 
         generator = make_generator_model(resolution=resolution, noise_dim=noise_dim)
         discriminator = make_discriminator_model(resolution=resolution)
@@ -270,22 +275,68 @@ def zad1_initializing_vector() -> None:
 
         t1 = time.time()
         losses = train(train_dataset, generator, discriminator, generator_optimizer, discriminator_optimizer, epochs,
-                       noise_dim, seed, checkpoint)
+                       noise_dim, seed, checkpoint, image_save_location)
         t2 = time.time()
         fit_time = t2 - t1
 
+        fit_times[noise_dim_iter] = fit_time
+        checkpoint.restore(tf.train.latest_checkpoint(CHECKPOINT_DIR))
+
         plot_losses_functions(epochs, fit_time, losses, noise_dim, f'zad1_loss_graph_initializing_dim_{noise_dim}.png')
-        generate_gif(f'{ANIMATIONS_DIR}/zad1_dcgan_initializing_dim_{noise_dim}.gif')
+        generate_gif(f'{ANIMATIONS_DIR}/zad1_dcgan_initializing_dim_{noise_dim}.gif', image_save_location)
 
     fig = plt.figure()
     plt.bar(list(map(lambda x: str(x), noise_dims)), fit_times)
     plt.title('Fitting time by initializing vector size')
+    plt.xlabel('Initializing vector size')
+    plt.ylabel('Fitting time (s)')
     plt.savefig(f'{IMAGES_DIR}/zad1_initializing_vector_times.png')
     plt.close(fig)
 
 
+def zad1_resolution() -> None:
+    resolutions = [4, 16, 32]
+    fit_times = np.zeros(len(resolutions))
+
+    noise_dim = 100
+    epochs = 100
+    seed = tf.random.normal([num_examples_to_generate, noise_dim])
+
+    for resolution_iter, resolution in enumerate(resolutions):
+        image_save_location = f'{EPOCH_IMAGES_DIR}/zad1_resolution{resolution}'
+        train_dataset, train_labels = read_train_data(resolution)
+
+        generator = make_generator_model(resolution=resolution, noise_dim=noise_dim)
+        discriminator = make_discriminator_model(resolution=resolution)
+
+        generator_optimizer = Adam(1e-4)
+        discriminator_optimizer = Adam(1e-4)
+        checkpoint = Checkpoint(generator_optimizer=generator_optimizer, discriminator_optimizer=discriminator_optimizer,
+                                generator=generator, discriminator=discriminator)
+
+        t1 = time.time()
+        losses = train(train_dataset, generator, discriminator, generator_optimizer, discriminator_optimizer, epochs,
+                       noise_dim, seed, checkpoint, image_save_location)
+        t2 = time.time()
+        fit_time = t2 - t1
+
+        fit_times[resolution_iter] = fit_time
+        checkpoint.restore(tf.train.latest_checkpoint(CHECKPOINT_DIR))
+
+        plot_losses_functions(epochs, fit_time, losses, noise_dim, f'zad1_loss_graph_resolution_{resolution}x{resolution}.png')
+        generate_gif(f'{ANIMATIONS_DIR}/zad1_dcgan_resolution_{resolution}x{resolution}.gif', image_save_location)
+
+    fig = plt.figure()
+    plt.bar(list(map(lambda x: f'{x}x{x}', resolutions)), fit_times)
+    plt.title('Fitting time by image resolution')
+    plt.xlabel('Image resolution')
+    plt.ylabel('Fitting time (s)')
+    plt.savefig(f'{IMAGES_DIR}/zad1_resolution_times.png')
+    plt.close(fig)
+
+
 def zad2() -> None:
-    epochs_counts = [100, 300, 500]
+    epochs_counts = [1500]
     fit_times = np.zeros(len(epochs_counts))
 
     resolution = 32  # Resolution min=4, default=32, only multiples of 4
@@ -295,6 +346,8 @@ def zad2() -> None:
     train_dataset, train_labels = read_train_data(resolution)
 
     for epochs_iter, epochs in enumerate(epochs_counts):
+        image_save_location = f'{EPOCH_IMAGES_DIR}/zad2_epochs{epochs}'
+
         generator = make_generator_model(resolution=resolution, noise_dim=noise_dim)
         discriminator = make_discriminator_model(resolution=resolution)
 
@@ -305,7 +358,8 @@ def zad2() -> None:
                                 generator=generator, discriminator=discriminator)
 
         t1 = time.time()
-        losses = train(train_dataset, generator, discriminator, generator_optimizer, discriminator_optimizer, epochs, noise_dim, seed, checkpoint)
+        losses = train(train_dataset, generator, discriminator, generator_optimizer, discriminator_optimizer, epochs,
+                       noise_dim, seed, checkpoint, image_save_location)
         t2 = time.time()
         fit_time = t2 - t1
 
@@ -313,11 +367,13 @@ def zad2() -> None:
         checkpoint.restore(tf.train.latest_checkpoint(CHECKPOINT_DIR))
 
         plot_losses_functions(epochs, fit_time, losses, noise_dim, f'zad2_loss_graph_epochs{epochs}.png')
-        generate_gif(f'{ANIMATIONS_DIR}/zad2_dcgan_epochs_{epochs}.gif')
+        generate_gif(f'{ANIMATIONS_DIR}/zad2_dcgan_epochs_{epochs}.gif', image_save_location)
 
     fig = plt.figure()
     plt.bar(list(map(lambda x: str(x), epochs_counts)), fit_times)
     plt.title('Fitting time by epochs')
+    plt.xlabel('Epochs')
+    plt.ylabel('Fitting time (s)')
     plt.savefig(f'{IMAGES_DIR}/zad2_fit_times.png')
     plt.close(fig)
 
@@ -331,5 +387,6 @@ if __name__ == '__main__':
     checkpoint_prefix = os.path.join(CHECKPOINT_DIR, "ckpt")
     cross_entropy = BinaryCrossentropy(from_logits=True)
 
-    zad1_initializing_vector()
+    # zad1_initializing_vector()
+    # zad1_resolution()
     zad2()
