@@ -21,17 +21,18 @@ if __name__ == '__main__':
 
     graph_model_generator = GraphModelGenerator()
 
-    # graph_model_generator.generate_mean_coverage_by_network()
-    # graph_model_generator.generate_mean_coverage_by_pp()
-    # graph_model_generator.generate_mean_coverage_by_sf()
-    # graph_model_generator.generate_mean_coverage_by_measure()
-    #
-    # graph_model_generator.generate_mean_steps_by_network()
-    # graph_model_generator.generate_mean_steps_by_pp()
-    # graph_model_generator.generate_mean_steps_by_sf()
-    # graph_model_generator.generate_mean_steps_by_measure()
+    graph_model_generator.generate_mean_coverage_by_network()
+    graph_model_generator.generate_mean_coverage_by_pp()
+    graph_model_generator.generate_mean_coverage_by_sf()
+    graph_model_generator.generate_mean_coverage_by_measure()
+
+    graph_model_generator.generate_mean_steps_by_network()
+    graph_model_generator.generate_mean_steps_by_pp()
+    graph_model_generator.generate_mean_steps_by_sf()
+    graph_model_generator.generate_mean_steps_by_measure()
 
     graph_model_generator.generate_max_coverage_by_method()
+    graph_model_generator.generate_max_coverage_by_sf()
 
 
     """
