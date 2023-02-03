@@ -93,17 +93,32 @@ class GraphModelGenerator:
         self.__bar(measure_uniques, mean_steps_by_measure, plot_title, filename)
 
     def generate_max_coverage_by_method(self, filename: str = 'max_coverage_by_method.png'):
-        measure_uniques = self._file['Measure'].unique()
-        max_coverage_by_measure = self._file.groupby(['Measure', 'Network'])['IF'].max()
-        names = list(map(lambda name_array: '/'.join(name_array).replace('.txt', ''), max_coverage_by_measure.index.to_numpy()))
+        max_coverage_by_measure = self._file.groupby(['Network', 'Measure'])['IF'].max()
+        names = self._file['Network'].unique()
 
         plot_title = 'Max coverage by measure'
-        plt.figure(figsize=(20, 10))
-        plt.bar(names, max_coverage_by_measure, align='edge', width=0.3)
-        plt.xticks(rotation=45, x=-10)
-        plt.title(plot_title)
+        x = np.arange(len(names))
+        width = 0.35
+
+        fig, ax = plt.subplots(figsize=(20, 10))
+        rects1 = ax.bar(x - width / 3, max_coverage_by_measure[::3], width, label='degree')
+        rects2 = ax.bar(x + width / 3, max_coverage_by_measure[1::3], width, label='closeness')
+        rects3 = ax.bar(x + width / 3, max_coverage_by_measure[2::3], width, label='random')
+
+        ax.set_xticks(x, names)
+        ax.set_ylabel('Infection coverage (%)')
+        ax.legend()
+
+        ax.bar_label(rects1, padding=3)
+        ax.bar_label(rects2, padding=3)
+        ax.bar_label(rects3, padding=3)
+
+        ax.set_title(plot_title)
         plt.savefig(f'{self.save_filepath}/{filename}')
-        plt.close()
+        plt.close(fig)
+
+    def generate_max_coverage_by_method_and_pp(self, filename: str = 'max_coverage_by_method_and_pp.png'):
+        grouped_by_network_and_column = self._file.groupby(['Network', 'Measure'])
 
     def __read_file(self, filepath: str = None) -> pd.DataFrame:
         return pd.read_csv(self._default_filepath_data if filepath is None else filepath)
