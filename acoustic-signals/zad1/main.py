@@ -33,8 +33,8 @@ def draw_signal_db(left_channel: np.array, right_channel: np.array) -> None:
     right_db_plus = np.ones(left_channel.shape) * right_min_db
 
     for amp_iter, (amp_left, amp_right) in enumerate(zip(left_channel, right_channel)):
-        amp_left_db = 10 * np.log(amp_left / max_freq_left)
-        amp_right_db = 10 * np.log(amp_right / max_freq_right)
+        amp_left_db = 10 * np.log10(amp_left / max_freq_left)
+        amp_right_db = 10 * np.log10(amp_right / max_freq_right)
 
         if amp_left >= 0:
             left_db_plus[amp_iter] = amp_left_db
@@ -46,19 +46,41 @@ def draw_signal_db(left_channel: np.array, right_channel: np.array) -> None:
         else:
             right_db_minus[amp_iter] = amp_right_db
 
+    plt.subplots_adjust(hspace=0)
     ax = plt.subplot(2, 1, 1)
-    ax.plot(np.linspace(0, signal_length, left_channel.shape[0]), left_db_minus)
-    ax.plot(np.linspace(0, signal_length, left_channel.shape[0]), left_db_plus)
-    ax.set_title('Left channel')
-    ax.set_xlabel('Time')
-    ax.set_ylabel('dB')
+    plt.title('Left channel dB')
+    ax.plot(np.linspace(0, signal_length, left_channel.shape[0]), left_db_plus, label='plus')
+    ax.set_yticks(np.arange(0, left_min_db, -20))
+    ax.set_xticks([])
+    ax.margins(0.05, 0)
 
     ax = plt.subplot(2, 1, 2)
-    ax.plot(np.linspace(0, signal_length, right_channel.shape[0]), right_db_minus)
-    ax.plot(np.linspace(0, signal_length, right_channel.shape[0]), right_db_plus)
-    ax.set_title('Right channel')
+    ax.invert_yaxis()
+    # ax.set_position([0.125, 0.53, 0.775, 0.19])
+    ax.plot(np.linspace(0, signal_length, left_channel.shape[0]), left_db_plus)
     ax.set_xlabel('Time')
     ax.set_ylabel('dB')
+    ax.set_yticks(np.arange(0, left_min_db, -20))
+    ax.margins(0.05, 0)
+
+    plt.show()
+
+    plt.subplots_adjust(hspace=0)
+    ax = plt.subplot(2, 1, 1)
+    plt.title('Right channel dB')
+    ax.plot(np.linspace(0, signal_length, right_channel.shape[0]), right_db_plus, label='plus')
+    ax.set_yticks(np.arange(0, left_min_db, -20))
+    ax.set_xticks([])
+    ax.margins(0.05, 0)
+
+    ax = plt.subplot(2, 1, 2)
+    ax.invert_yaxis()
+    # ax.set_position([0.125, 0.53, 0.775, 0.19])
+    ax.plot(np.linspace(0, signal_length, right_channel.shape[0]), right_db_plus)
+    ax.set_xlabel('Time')
+    ax.set_ylabel('dB')
+    ax.set_yticks(np.arange(0, left_min_db, -20))
+    ax.margins(0.05, 0)
 
     plt.show()
 
