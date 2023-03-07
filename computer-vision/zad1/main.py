@@ -20,14 +20,9 @@ def frame_george_bush() -> np.array:
 def zad1():
     images = frame_george_bush()
 
-    cb_by_image = np.empty(images.shape[0])
-    cr_by_image = np.empty(images.shape[0])
-
     for image_iter, image in enumerate(images):
-        y_cb_cr_image = cv2.cvtColor(image, cv2.COLOR_RGB2YCrCb)
-
-        cb_by_image[image_iter] = np.mean(y_cb_cr_image[:, :, 1])
-        cr_by_image[image_iter] = np.mean(y_cb_cr_image[:, :, 2])
+        image_y_cr_cb = cv2.cvtColor(image, cv2.COLOR_RGB2YCrCb)
+        images[image_iter] = image_y_cr_cb
 
     hist_cb = cv2.calcHist(images, [1], None, [256], [0, 256])
     hist_cr = cv2.calcHist(images, [2], None, [256], [0, 256])
