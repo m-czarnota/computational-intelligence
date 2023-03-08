@@ -7,7 +7,10 @@ class Signal:
         self.samplerate: int = samplerate
 
     def change_samplerate(self, new_samplerate: int):
-        return self.__down_sample_signal(new_samplerate) if new_samplerate < self.samplerate else self.__up_sample_signal(new_samplerate)
+        return Signal(
+            self.__down_sample_signal(new_samplerate) if new_samplerate < self.samplerate else self.__up_sample_signal(new_samplerate),
+            new_samplerate
+        )
 
     @property
     def shape(self):
@@ -15,6 +18,7 @@ class Signal:
 
     def __down_sample_signal(self, samplerate: int) -> np.array:
         ratio = samplerate / self.samplerate
+
         return self.signal[np.unique(np.around(np.arange(self.shape[0]) * ratio).astype(int)), :]
 
     def __up_sample_signal(self, samplerate: int) -> np.array:
@@ -32,7 +36,7 @@ class Signal:
                     continue
 
                 if not np.isnan(sample) and start_nan_index != -1:
-                    mean_between_samples = np.mean([new_samples[start_nan_index - 1], new_samples[sample_iter]])
+                    mean_between_samples = np.mean([new_samples[start_nan_index - 1, dim], new_samples[sample_iter, dim]])
                     new_samples[start_nan_index - 1:sample_iter + 1] = mean_between_samples
                     start_nan_index = -1
                     continue

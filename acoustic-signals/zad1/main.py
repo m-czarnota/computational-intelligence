@@ -2,6 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy.io import wavfile
 from scipy import signal as scipy_signal
+from sklearn.metrics import mean_squared_error
 
 from Signal import Signal
 
@@ -135,35 +136,6 @@ def normalize_signal(signal: np.array, to_value: float = None) -> np.array:
     ]).T
 
 
-def change_sample_rate(signal: np.array, new_sample_rate: int, visualize: bool = False) -> np.array:
-    left = signal[:, 0]
-    right = signal[:, 1]
-
-    resampled_left = scipy_signal.resample(left, new_sample_rate)
-    resampled_right = scipy_signal.resample(right, new_sample_rate)
-
-    if visualize:
-        ax = plt.subplot(2, 1, 1)
-        ax.plot(np.linspace(0, signal_length, left.shape[0]), left, label=f'original with {samplerate}Hz')
-        ax.plot(np.linspace(0, signal_length, new_sample_rate), scipy_signal.resample(left, new_sample_rate), label=f'resampled to {new_sample_rate}Hz')
-        ax.set_title('Left channel')
-        ax.set_xlabel('Time')
-        ax.set_ylabel('Amplitude')
-        ax.legend()
-
-        ax = plt.subplot(2, 1, 2)
-        ax.plot(np.linspace(0, signal_length, right.shape[0]), right, label=f'original with {samplerate}Hz')
-        ax.plot(np.linspace(0, signal_length, new_sample_rate), scipy_signal.resample(right, new_sample_rate), label=f'resampled to {new_sample_rate}Hz')
-        ax.set_title('Right channel')
-        ax.set_xlabel('Time')
-        ax.set_ylabel('Amplitude')
-        ax.legend()
-
-        plt.show()
-
-    return np.array([resampled_left, resampled_right]).T
-
-
 if __name__ == '__main__':
     samplerate, data = wavfile.read('signal.wav')
     data = data.astype(float)
@@ -207,18 +179,11 @@ if __name__ == '__main__':
     signal_with_removed_const_value = remove_const_value(data)
     # draw_signal_amplitude(signal_with_removed_const_value[:, 0], signal_with_removed_const_value[:, 1])
 
-    # change_sample_rate(data, 96000, True)
-
     signal = Signal(data, samplerate)
-    print({
-        'Original sample count': signal.shape[0],
-        'Original samplerate': f'{int(signal.shape[0] / signal_length)} Hz',
-    })
-    down_sampled = signal.change_samplerate(24000)
-    print({
-        'Changed sample count': down_sampled.shape[0],
-        'Changed samplerate': f'{int(down_sampled.shape[0] / signal_length)} Hz',
-    })
+    changed = signal.change_samplerate(48000)
+    returned = changed.change_samplerate(signal.samplerate)
+    mse = mean_squared_error(signal.signal, returned.signal)
+    print(f'MSE for upsampling = {mse}')
 
 """
 normalizujemy do wartołści maksymalnej i jeszcze potem do zadanej wartości
