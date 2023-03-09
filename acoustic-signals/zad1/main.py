@@ -1,6 +1,10 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.io import wavfile
+from scipy import signal as scipy_signal
+from sklearn.metrics import mean_squared_error
+
+from Signal import Signal
 
 
 def draw_signal_amplitude(left: np.array, right: np.array) -> None:
@@ -19,48 +23,57 @@ def draw_signal_amplitude(left: np.array, right: np.array) -> None:
     plt.show()
 
 
-def draw_signal_db(left_channel: np.array, right_channel: np.array) -> None:
-    left_preview_db = 10 * np.log10(left_channel / max_freq_left)
-    right_preview_db = 10 * np.log10(right_channel / max_freq_right)
+def transform_amplitude_to_db(signal: np.array) -> np.array:
+    left = signal[:, 0]
+    right = signal[:, 1]
 
-    left_min_db = np.nanmin(left_preview_db[left_preview_db != -np.inf])
-    right_min_db = np.nanmin(right_preview_db[right_preview_db != -np.inf])
+    max_left = np.max(left)
+    max_right = np.max(right)
 
-    left_db_minus = np.ones(left_channel.shape) * left_min_db
-    left_db_plus = np.ones(left_channel.shape) * left_min_db
+    return np.array([
+        10 * np.log10(left / max_left),
+        10 * np.log10(right / max_right)
+    ]).T
 
-    right_db_minus = np.ones(left_channel.shape) * right_min_db
-    right_db_plus = np.ones(left_channel.shape) * right_min_db
 
-    for amp_iter, (amp_left, amp_right) in enumerate(zip(left_channel, right_channel)):
-        amp_left_db = 10 * np.log10(amp_left / max_freq_left)
-        amp_right_db = 10 * np.log10(amp_right / max_freq_right)
+def prepare_signal_to_draw_db(signal_db: np.array) -> np.array:
+    left = signal_db[:, 0]
+    right = signal_db[:, 1]
 
-        if amp_left >= 0:
-            left_db_plus[amp_iter] = amp_left_db
-        else:
-            left_db_minus[amp_iter] = amp_left_db
+    left_min_db = np.nanmin(left[left != -np.inf])
+    left_db = left.copy()
+    left_db[np.where(np.isnan(left_db))] = left_min_db
 
-        if amp_right >= 0:
-            right_db_plus[amp_iter] = amp_right_db
-        else:
-            right_db_minus[amp_iter] = amp_right_db
+    right_min_db = np.nanmin(right[right != -np.inf])
+    right_db = right.copy()
+    right_db[np.where(np.isnan(right_db))] = right_min_db
+
+    return np.array([left_db, right_db]).T
+
+
+def draw_signal_db(signal_db: np.array) -> None:
+    prepared_signal = prepare_signal_to_draw_db(signal_db)
+    left = prepared_signal[:, 0]
+    right = prepared_signal[:, 1]
+
+    left_min = np.min(left[left != -np.inf])
+    right_min = np.min(right[right != -np.inf])
 
     plt.subplots_adjust(hspace=0)
     ax = plt.subplot(2, 1, 1)
     plt.title('Left channel dB')
-    ax.plot(np.linspace(0, signal_length, left_channel.shape[0]), left_db_plus, label='plus')
-    ax.set_yticks(np.arange(0, left_min_db, -20))
+    ax.plot(np.linspace(0, signal_length, left.shape[0]), left)
+    # ax.set_yticks(np.arange(0, left_min, -20))
     ax.set_xticks([])
     ax.margins(0.05, 0)
 
     ax = plt.subplot(2, 1, 2)
     ax.invert_yaxis()
-    # ax.set_position([0.125, 0.53, 0.775, 0.19])
-    ax.plot(np.linspace(0, signal_length, left_channel.shape[0]), left_db_plus)
+    # ax.set_position([0.125, 0.49, 0.775, 0.19])
+    ax.plot(np.linspace(0, signal_length, left.shape[0]), left)
     ax.set_xlabel('Time')
     ax.set_ylabel('dB')
-    ax.set_yticks(np.arange(0, left_min_db, -20))
+    # ax.set_yticks([np.arange(0, left_min, -20)])
     ax.margins(0.05, 0)
 
     plt.show()
@@ -68,24 +81,24 @@ def draw_signal_db(left_channel: np.array, right_channel: np.array) -> None:
     plt.subplots_adjust(hspace=0)
     ax = plt.subplot(2, 1, 1)
     plt.title('Right channel dB')
-    ax.plot(np.linspace(0, signal_length, right_channel.shape[0]), right_db_plus, label='plus')
-    ax.set_yticks(np.arange(0, left_min_db, -20))
+    ax.plot(np.linspace(0, signal_length, right.shape[0]), right, label='plus')
+    # ax.set_yticks(np.arange(0, left_min_db, -20))
     ax.set_xticks([])
     ax.margins(0.05, 0)
 
     ax = plt.subplot(2, 1, 2)
     ax.invert_yaxis()
     # ax.set_position([0.125, 0.53, 0.775, 0.19])
-    ax.plot(np.linspace(0, signal_length, right_channel.shape[0]), right_db_plus)
+    ax.plot(np.linspace(0, signal_length, right.shape[0]), right)
     ax.set_xlabel('Time')
     ax.set_ylabel('dB')
-    ax.set_yticks(np.arange(0, left_min_db, -20))
+    # ax.set_yticks(np.arange(0, left_min_db, -20))
     ax.margins(0.05, 0)
 
     plt.show()
 
 
-def draw_monofonic_signal(signal: np.array) -> None:
+def draw_monophonic_signal(signal: np.array) -> None:
     plt.figure()
     plt.plot(np.linspace(0, signal_length, signal.shape[0]), signal)
 
@@ -106,8 +119,21 @@ def remove_const_value(signal: np.array):
     ]).T
 
 
-def monofonic_signal_by_mean(signal: np.array) -> np.array:
+def monophonize_signal_by_mean(signal: np.array) -> np.array:
     return signal.sum(axis=1) / 2
+
+
+def normalize_signal(signal: np.array, to_value: float = None) -> np.array:
+    left = signal[:, 0]
+    right = signal[:, 1]
+
+    max_left = np.max(left)
+    max_right = np.max(right)
+
+    return np.array([
+        left / max_left,
+        right / max_right
+    ]).T
 
 
 if __name__ == '__main__':
@@ -130,6 +156,7 @@ if __name__ == '__main__':
     # plt.ylabel("Amplitude")
     # plt.show()
 
+    # saving signal to file
     t = np.linspace(0., 1., samplerate)
     fs = 100
 
@@ -137,33 +164,26 @@ if __name__ == '__main__':
     modified_data = amplitude * np.sin(2. * np.pi * fs * t)
     wavfile.write("signal_saved_mono_16.wav", samplerate, modified_data.astype(np.int16))
 
-    max_freq_left = np.max(data[:, 0])
-    min_freq_left = np.min(data[:, 0])
+    # normalizing signal
+    data = normalize_signal(data)
+    # draw_signal_amplitude(data[:, 0], data[:, 1])
 
-    max_freq_right = np.max(data[:, 1])
-    min_freq_right = np.min(data[:, 1])
+    # transforming normalized signal to db scale
+    data_db = transform_amplitude_to_db(data)
+    # draw_signal_db(data_db)
 
-    # draw_signal_amplitude(data[:, 0] / max_freq_left, data[:, 1] / max_freq_right)
-
-    draw_signal_db(
-        data[:, 0],
-        data[:, 1]
-    )
-    # draw_signal_db(
-    #     20 * np.log10(data[:, 0] / -0.3),
-    #     20 * np.log10(data[:, 1] / -0.3)
-    # )
-    # draw_signal_db(
-    #     20 * np.log10(data[:, 0] / -3),
-    #     20 * np.log10(data[:, 1] / -3)
-    # )
-
-    monofonic_signal = monofonic_signal_by_mean(data)
-    # draw_monofonic_signal(monofonic_signal)
+    # monophoning normalized signal
+    monophonic_signal = monophonize_signal_by_mean(data)
+    # draw_monophonic_signal(monophonic_signal)
 
     signal_with_removed_const_value = remove_const_value(data)
     # draw_signal_amplitude(signal_with_removed_const_value[:, 0], signal_with_removed_const_value[:, 1])
 
+    signal = Signal(data, samplerate)
+    changed = signal.change_samplerate(48000)
+    returned = changed.change_samplerate(signal.samplerate)
+    mse = mean_squared_error(signal.signal, returned.signal)
+    print(f'MSE for upsampling = {mse}')
 
 """
 normalizujemy do wartołści maksymalnej i jeszcze potem do zadanej wartości
