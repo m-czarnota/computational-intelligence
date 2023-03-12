@@ -34,15 +34,26 @@ if __name__ == '__main__':
     original_signal = generate_sinus(signal_freq)
     signal_moves = [0.0004, 0.0008, 0.0012, 0.0016, 0.002]
     moved_signals = [move_signal(signal_freq, interval_time, False) for interval_time in signal_moves]
+    moved_signals.append(Signal(original_signal, signal_freq))
 
-    correlation = np.correlate(a=original_signal, v=moved_signals[-1].signal, mode='full')
-    plt.figure()
-    plt.plot(correlation)
-    plt.show()
+    sound_speed = 344
+    distance = 1000
+
+    for moved_signal_iter, moved_signal in enumerate(moved_signals):
+        correlation = np.correlate(a=original_signal, v=moved_signal.signal, mode='full')
+        # plt.figure()
+        # plt.plot(correlation)
+        # plt.title(f'Correlation between original signal and signal moved about {signal_moves[moved_signal_iter]}s')
+        # plt.show()
+
+        delta_t = np.argmax(correlation)
+        a = np.power(np.sin(delta_t * sound_speed / distance), -1)
+        # a = np.arcsin(delta_t * sound_speed / distance)
+        print(a)
 
 """
-c - prędkość dźwięku w powietrzu 340 m/s
-d - odległość w m
+c - prędkość dźwięku w powietrzu 344 m/s
+d - odległość między uszami w m
 delta t - wzór jest w instrukcji
 
 """
