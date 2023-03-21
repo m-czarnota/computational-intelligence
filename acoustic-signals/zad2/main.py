@@ -28,28 +28,41 @@ def move_signal(freq: int, moving_interval_time: float, visualize: bool = False)
 
 
 if __name__ == '__main__':
-    signal_freq = 44100
-    move_signal(signal_freq, 0, False)
+    fs = 88000
+    dt = 1 / fs
+    t = np.arange(0, 0.0025 - dt, dt)
+    F = 400
+    y = np.sin(2 * np.pi * F * t)
 
-    original_signal = generate_sinus(signal_freq)
-    signal_moves = [0.0004, 0.0008, 0.0012, 0.0016, 0.002]
-    moved_signals = [move_signal(signal_freq, interval_time, False) for interval_time in signal_moves]
-    moved_signals.append(Signal(original_signal, signal_freq))
+    moves = [1e-5]
 
     sound_speed = 344
-    distance = 1000
+    distance = 0.16
 
-    for moved_signal_iter, moved_signal in enumerate(moved_signals):
-        correlation = np.correlate(a=original_signal, v=moved_signal.signal, mode='full')
-        # plt.figure()
-        # plt.plot(correlation)
-        # plt.title(f'Correlation between original signal and signal moved about {signal_moves[moved_signal_iter]}s')
-        # plt.show()
+    for move in moves:
+        moved = np.sin(2 * np.pi * F * (t + move))
 
-        delta_t = np.argmax(correlation)
-        a = np.power(np.sin(delta_t * sound_speed / distance), -1)
-        # a = np.arcsin(delta_t * sound_speed / distance)
+        plt.figure()
+        plt.plot(t, y, label='original signal')
+        plt.plot(t, moved, label='moved signal')
+        plt.show()
+
+        correlation = np.correlate(a=y, v=moved, mode='full')
+        delta_t = t[np.argmax(correlation)] * dt
+        a = np.arcsin(delta_t * sound_speed / distance)
         print(a)
+
+    # for moved_signal_iter, moved_signal in enumerate(moved_signals):
+    #     correlation = np.correlate(a=original_signal, v=moved_signal.signal, mode='full')
+    #     # plt.figure()
+    #     # plt.plot(correlation)
+    #     # plt.title(f'Correlation between original signal and signal moved about {signal_moves[moved_signal_iter]}s')
+    #     # plt.show()
+    #
+    #     delta_t = np.argmax(correlation) * signal_moves[moved_signal_iter]
+    #     # a = np.power(np.sin(delta_t * sound_speed / distance), -1)
+    #     a = np.arcsin(delta_t * sound_speed / distance)
+    #     print(a)
 
 """
 c - prędkość dźwięku w powietrzu 344 m/s
