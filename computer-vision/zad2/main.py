@@ -1,7 +1,5 @@
-import cv2
 import numpy as np
 from matplotlib import pyplot as plt
-from sklearn.metrics import mean_squared_error
 
 IMAGES_DIR = './images'
 CFA_FILTER = np.array([['G', 'R'], ['B', 'G']])
@@ -44,13 +42,6 @@ def decode_by_interpolation(coded_image: np.array) -> np.array:
             encoded_value = row[c]
             actual_rgb_component = CFA_FILTER[r % CFA_FILTER.shape[0], c % CFA_FILTER.shape[1]]
             decoded_color = np.zeros(3)  # (R, G, B)
-
-            """
-            G R G R G R
-            B G B G B G
-            G R G R G R
-            B G B G B G
-            """
 
             if actual_rgb_component == 'R':
                 green = np.mean([coded_image[r - 1, c], coded_image[r, c - 1], coded_image[r, c + 1], coded_image[r + 1, c]])
@@ -140,40 +131,84 @@ def experiment(filepath: str, save: bool = False) -> None:
     image = plt.imread(filepath)
     coded_image = code_image(image)
 
-    plt.figure()
     if not save:
-        print('Original image and coded image')
+        print('Original image')
+        plt.figure(figsize=(20, 10))
         plt.imshow(image)
+        plt.show()
+
+        print('Coded image')
+        plt.figure(figsize=(20, 10))
         plt.imshow(coded_image)
+        plt.show()
     else:
+        plt.figure()
         plt.imsave(f'{IMAGES_DIR}/coded_image_{filename}.png', coded_image)
-    plt.close()
 
     decoded_image_bilinear = decode_by_interpolation(coded_image)
     mse_error = mse(image, decoded_image_bilinear)
     print(f'Mean squared error for bilinear interpolation: {mse_error}')
 
-    plt.figure()
     if not save:
-        print('Original image and decoded image by bilinear interpolation')
+        print('Original image')
+        plt.figure(figsize=(20, 10))
         plt.imshow(image)
+        plt.show()
+
+        print('Decoded image by bilinear interpolation')
+        plt.figure(figsize=(20, 10))
         plt.imshow(decoded_image_bilinear)
+        plt.show()
     else:
+        plt.figure()
         plt.imsave(f'{IMAGES_DIR}/demosaiced_bilinear_{filename}.png', decoded_image_bilinear)
-    plt.close()
+
+    plt.figure(figsize=(20, 10))
+    if not save:
+        print('Original image in zoom')
+        plt.figure(figsize=(20, 10))
+        plt.imshow(image[200:600, 200:600])
+        plt.show()
+
+        print('Decoded image by bilinear interpolation in zoom')
+        plt.figure(figsize=(20, 10))
+        plt.imshow(decoded_image_bilinear[200:600, 200:600])
+        plt.show()
+    else:
+        plt.figure()
+        plt.imsave(f'{IMAGES_DIR}/demosaiced_bilinear_zoom_{filename}.png', decoded_image_bilinear[200:600, 200:600])
 
     decoded_image_malvar = decode_by_malvar(coded_image)
     mse_error = mse(image, decoded_image_malvar)
     print(f'Mean squared error for malvar interpolation: {mse_error}')
 
-    plt.figure()
     if not save:
-        print('Original image and decoded image by malvar interpolation')
+        print('Original image')
+        plt.figure(figsize=(20, 10))
         plt.imshow(image)
+        plt.show()
+
+        print('Decoded image by malvar interpolation')
+        plt.figure(figsize=(20, 10))
         plt.imshow(decoded_image_malvar)
+        plt.show()
     else:
+        plt.figure()
         plt.imsave(f'{IMAGES_DIR}/demosaiced_malvar_{filename}.png', decoded_image_malvar)
-    plt.close()
+
+    if not save:
+        print('Original image in zoom')
+        plt.figure(figsize=(20, 10))
+        plt.imshow(image[200:600, 200:600])
+        plt.show()
+
+        print('Decoded image by malvar interpolation in zoom')
+        plt.figure(figsize=(20, 10))
+        plt.imshow(decoded_image_malvar[200:600, 200:600])
+        plt.show()
+    else:
+        plt.figure()
+        plt.imsave(f'{IMAGES_DIR}/demosaiced_malvar_zoom_{filename}.png', decoded_image_malvar[200:600, 200:600])
 
 
 if __name__ == '__main__':
