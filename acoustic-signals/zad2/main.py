@@ -1,68 +1,52 @@
 import numpy as np
+from typing import Tuple
 from matplotlib import pyplot as plt
-from Signal import Signal
+from scipy.io import wavfile
 
-SIGNAL_LENGTH: float = 1
-
-
-def generate_sinus(frequency: int, moving_interval_time: float = 0) -> np.array:
-    samples_count = frequency * SIGNAL_LENGTH
-    samples = np.linspace(0, SIGNAL_LENGTH, int(samples_count)) + moving_interval_time
-
-    return np.sin(2 * np.pi * samples)
+SOUNDS_DIR = './sounds'
 
 
-def move_signal(freq: int, moving_interval_time: float, visualize: bool = False):
-    original = generate_sinus(freq)
-    moved = generate_sinus(freq, moving_interval_time)
+def generate_sinus(sample_rate: int = 96000, frequency: float = 4000, shift: float = 0.0) -> Tuple:
+    dt = 1 / sample_rate
+    t = np.arange(0, 0.0025 - dt, dt)
 
-    if visualize:
-        plt.figure()
-        plt.plot(original, label='Original signal')
-        plt.plot(moved, label=f'Moved signal with {moving_interval_time}s')
-        plt.title('Original and moved sinus')
-        plt.legend()
-        plt.show()
+    return t, np.sin(2 * np.pi * frequency * (t + shift))
 
-    return Signal(moved, freq)
+
+def experiment(shift_val: float, original_signal: np.array) -> None:
+    time_moved, signal_moved = generate_sinus(sample_rate=sample_rate, shift=shift_val)  # generating moved signal
+    wavfile.write(f"{SOUNDS_DIR}/signal_shifted_{shift_val}_mono_32.wav", sample_rate, time_moved.astype(np.int32))
+
+    # visualisation
+    plt.figure()
+    plt.plot(time, original_signal, label='original signal')
+    plt.plot(time, signal_moved, label=f'shifted signal about {shift_val}s')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Amplitude')
+    plt.legend()
+    plt.show()
+
+    correlation = np.correlate(a=original_signal, v=signal_moved, mode='full')
+    correlation_ratio = correlation.shape[0] / time_moved.shape[0]  # ratio to find where should be real value
+
+    delta_t = time_moved[int(np.argmax(correlation) / correlation_ratio)] * (1 / sample_rate)
+    a = np.arcsin(delta_t * sound_speed / distance)
+
+    print(f'Angle for moved signal: {a}')
 
 
 if __name__ == '__main__':
-    fs = 88000
-    dt = 1 / fs
-    t = np.arange(0, 0.0025 - dt, dt)
-    F = 400
-    y = np.sin(2 * np.pi * F * t)
+    sample_rate = 96000
+    moves = [0.00002, 0.00004, 0.00008, 0.00012, 0.00016, 0.0002]  # moves signal about part of second amount
 
-    moves = [1e-5]
+    time, signal = generate_sinus(sample_rate=sample_rate)
+    wavfile.write(f"{SOUNDS_DIR}/signal_original_mono_32.wav", sample_rate, signal.astype(np.int32))
 
-    sound_speed = 344
-    distance = 0.16
+    sound_speed = 344  # sound speed in air with temperature 20°C, m/s
+    distance = 0.21  # radius of head, distance between ears in meters
 
     for move in moves:
-        moved = np.sin(2 * np.pi * F * (t + move))
-
-        plt.figure()
-        plt.plot(t, y, label='original signal')
-        plt.plot(t, moved, label='moved signal')
-        plt.show()
-
-        correlation = np.correlate(a=y, v=moved, mode='full')
-        delta_t = t[np.argmax(correlation)] * dt
-        a = np.arcsin(delta_t * sound_speed / distance)
-        print(a)
-
-    # for moved_signal_iter, moved_signal in enumerate(moved_signals):
-    #     correlation = np.correlate(a=original_signal, v=moved_signal.signal, mode='full')
-    #     # plt.figure()
-    #     # plt.plot(correlation)
-    #     # plt.title(f'Correlation between original signal and signal moved about {signal_moves[moved_signal_iter]}s')
-    #     # plt.show()
-    #
-    #     delta_t = np.argmax(correlation) * signal_moves[moved_signal_iter]
-    #     # a = np.power(np.sin(delta_t * sound_speed / distance), -1)
-    #     a = np.arcsin(delta_t * sound_speed / distance)
-    #     print(a)
+        experiment(move, signal)
 
 """
 c - prędkość dźwięku w powietrzu 344 m/s
