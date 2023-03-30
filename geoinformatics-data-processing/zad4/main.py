@@ -43,7 +43,6 @@ def zad1() -> None:
 def zad2_a() -> None:
     file_path = 'mapa1.tif'
     ds = gdal.Open(file_path)
-    data = ds.ReadAsArray()
     geotransform = ds.GetGeoTransform()
     proj = ds.GetProjection()
 
