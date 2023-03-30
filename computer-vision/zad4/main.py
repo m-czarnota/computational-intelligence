@@ -45,20 +45,19 @@ def zad1():
 
 
 def zad2():
-    fgbgAdaptiveGaussain = cv2.createBackgroundSubtractorMOG2()
+    fgbgAdaptiveGaussian = cv2.createBackgroundSubtractorMOG2()
     _, frame = cap.read()
-
-    # ustalenie parametrów dla usuwania cieni
-    low_H = 0
-    low_S = 0
-    low_V = 0
-    high_H = 179
-    high_S = 50
-    high_V = 255
-    alpha = 0.6
 
     first_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     first_gray = cv2.GaussianBlur(first_gray, (5, 5), 0)
+    n_frames = 15
+    background_frames = [first_gray] * n_frames
+
+    # shadow removal parameters
+    alpha_shadow = 0.4
+    beta_shadow = 100
+    tau_h = 10
+    tau_s = 50
 
     while True:
         ret, frame = cap.read()
@@ -67,35 +66,57 @@ def zad2():
             break
 
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        fgmask = cv2.absdiff(first_gray, gray_frame)
-        _, fgmask = cv2.threshold(fgmask, 25, 255, cv2.THRESH_BINARY)
 
-        fgbgAdaptiveGaussainmask = fgbgAdaptiveGaussain.apply(frame)
+        for i in range(n_frames - 1):
+            background_frames[i] = background_frames[i + 1]
+        background_frames[-1] = gray_frame.copy()
 
-        # utworzenie maski HSV dla usuwania cieni
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        low_shadow = np.array([low_H, low_S, low_V])
-        high_shadow = np.array([high_H, high_S, high_V])
-        mask_shadow = cv2.inRange(hsv, low_shadow, high_shadow)
-        mask_shadow = cv2.bitwise_not(mask_shadow)
-        mask_shadow = cv2.GaussianBlur(mask_shadow, (5, 5), 0)
-        mask_shadow = mask_shadow.astype('float32') / 255
-        mask_shadow = cv2.merge([mask_shadow, mask_shadow, mask_shadow])
+        bg_model = np.mean(background_frames, axis=0)
+        bg_model = cv2.GaussianBlur(bg_model, (5, 5), 0)
 
-        # usunięcie cieni z oryginalnego obrazu
-        frame = alpha * frame + (1 - alpha) * frame * mask_shadow
+        diff = cv2.absdiff(bg_model.astype(np.uint8), gray_frame)
+
+        _, fgmask = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)
+
+        # shadow removal
+        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        lower_shadow = np.array([0, 0, 0], dtype=np.uint8)
+        upper_shadow = np.array([180, 255, 50], dtype=np.uint8)
+        shadow_mask = cv2.inRange(hsv_frame, lower_shadow, upper_shadow)
+
+        hue_diff = cv2.absdiff(hsv_frame[:, :, 0], int(lower_shadow[0]))
+
+        shadow_mask[hue_diff < tau_h] = 0
+        shadow_mask[hsv_frame[:, :, 1] < tau_s] = 0
+
+        shadow_mask = cv2.dilate(shadow_mask, None, iterations=2)
+        shadow_mask = cv2.medianBlur(shadow_mask, 7)
+
+        alpha_shadow_mask = alpha_shadow * shadow_mask
+        beta_shadow_mask = beta_shadow * shadow_mask
+
+        fgmask = cv2.bitwise_and(fgmask, cv2.bitwise_not(shadow_mask))
+        fgmask = cv2.subtract(fgmask, alpha_shadow_mask.astype(np.uint8))
+        fgmask = cv2.subtract(fgmask, beta_shadow_mask.astype(np.uint8))
+
+        fgbgAdaptiveGaussainmask = fgbgAdaptiveGaussian.apply(frame)
 
         cv2.namedWindow('Background Subtraction', 0)
+        cv2.namedWindow('Background Subtraction Moving Average', 0)
         cv2.namedWindow('Background Subtraction Adaptive Gaussian', 0)
+        cv2.namedWindow('Shadow Mask', 0)
+        cv2.namedWindow('Foreground Mask', 0)
         cv2.namedWindow('Original', 0)
-        cv2.namedWindow('HSV Mask', 0)
 
         cv2.imshow('Background Subtraction', fgmask)
+        cv2.imshow('Background Subtraction Moving Average', diff)
         cv2.imshow('Background Subtraction Adaptive Gaussian', fgbgAdaptiveGaussainmask)
+        cv2.imshow('Shadow Mask', shadow_mask)
+        cv2.imshow('Foreground Mask', fgmask)
         cv2.imshow('Original', frame)
-        cv2.imshow('HSV Mask', mask_shadow[:, :, 0])
 
         k = cv2.waitKey(1) & 0xff
+
         if k == ord('q'):
             break
 
