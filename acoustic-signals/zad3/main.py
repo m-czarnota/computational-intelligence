@@ -4,6 +4,7 @@ from typing import Tuple
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.io import wavfile
+from scipy.signal import filtfilt, lfilter
 
 FILTERS_DIR = './filters'
 
@@ -45,6 +46,8 @@ def monophonize_signal_by_mean(signal: np.array) -> np.array:
 
 
 def apply_filter_to_signal(signal: np.array, filter: np.array) -> np.array:
+    # return lfilter(filter, 20, signal)
+
     filtered_signal = np.empty(signal.shape[0])
 
     for freq, amplitude in enumerate(signal):
@@ -121,7 +124,8 @@ if __name__ == '__main__':
     }
     print(params)
 
-    filtered = apply_filter_to_signal(data, amplitude)
+    filtered = apply_filter_to_signal(data, fir)
+    wavfile.write("hard-wagon-filtered.wav", samplerate, filtered.astype(np.int16))
 
     plt.figure()
     plt.plot(filtered)
