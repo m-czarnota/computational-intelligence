@@ -4,7 +4,10 @@ from typing import Tuple
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.io import wavfile
-from scipy.signal import filtfilt, lfilter
+from scipy.signal import filtfilt, lfilter, firwin
+
+from Filter import Filter
+from Signal import Signal
 
 FILTERS_DIR = './filters'
 
@@ -45,69 +48,48 @@ def monophonize_signal_by_mean(signal: np.array) -> np.array:
     return signal.sum(axis=1) / 2
 
 
-def apply_filter_to_signal(signal: np.array, filter: np.array) -> np.array:
-    # return lfilter(filter, 20, signal)
+def apply_filter_to_signal(signal: Signal, filter: np.array) -> np.array:
+    m_big = filter.shape[0]
+    fc = boundary_freqs
+    b = firwin(m_big, fc, fs=signal.samplerate)
 
-    filtered_signal = np.empty(signal.shape[0])
+    filtered_signal = np.zeros(signal.shape[0])
 
-    for freq, amplitude in enumerate(signal):
-        amplitude_sum = 0
-
-        for filter_iter, filter_val in enumerate(filter):
-            signal_index = freq - filter_iter
-            if signal_index < 0:
-                signal_index = 0
-
-            amplitude_sum += filter_val * signal[signal_index]
-
-        filtered_signal[freq] = amplitude_sum
+    for n in range(m_big - 1, signal.shape[0]):
+        for m in range(m_big):
+            filtered_signal[n] += b[m] * signal.data[n - m]
 
     return filtered_signal
 
 
 if __name__ == '__main__':
-    fir = np.loadtxt(f'{FILTERS_DIR}/Lab_03-Flt_01_CzM.txt')
+    fir_data = np.loadtxt(f'{FILTERS_DIR}/Lab_03-Flt_01_CzM.txt')
     max_freq = 20000
-    fs = max_freq * 2
 
-    amplitude, phase = calc_characteristic(fir)
+    fir = Filter(fir_data, max_freq)
+    fir.calc_freq_characteristic()
 
     # plt.figure()
-    # plt.plot(np.arange(max_freq), amplitude)
+    # plt.plot(np.arange(fir.max_freq), fir.amplitude_characteristic)
     # plt.title('Amplitude characteristics')
     # plt.xlabel('Hz')
     # plt.ylabel('H(jΩ)')
     # plt.show()
     #
     # plt.figure()
-    # plt.plot(np.arange(max_freq), phase)
+    # plt.plot(np.arange(fir.max_freq), fir.phase_characteristic)
     # plt.title('Phase characteristics')
     # plt.xlabel('Hz')
     # plt.ylabel('H(jΩ)')
     # plt.show()
 
-    decibel_amplitude = transform_amplitude_to_db(amplitude)
-    max_decibel = np.max(decibel_amplitude)
-
-    boundary_freqs = np.ones(2, dtype=int) * -1
-    search_decibel = max_decibel - 3
-
-    for freq, decibel in enumerate(decibel_amplitude):
-        if boundary_freqs[0] == -1 and decibel > search_decibel:
-            boundary_freqs[0] = freq
-            continue
-
-        if boundary_freqs[0] != -1 and decibel < search_decibel:
-            boundary_freqs[1] = freq
-            break
-
-    bandwidth = boundary_freqs[1] - boundary_freqs[0]
+    fir.calc_freq_characteristic_params()
 
     plt.figure()
-    plt.plot(np.full(decibel_amplitude.shape[0], search_decibel))
-    plt.plot(np.arange(max_freq), decibel_amplitude)
-    plt.scatter(boundary_freqs, [decibel_amplitude[boundary_freqs[0]], decibel_amplitude[boundary_freqs[1]]])
-    plt.title(f'Amplitude characteristics in dB, bandwidth: {bandwidth}Hz')
+    plt.plot(np.full(fir.amplitude_characteristic_decibel.shape[0], fir.boundary_decibel))
+    plt.plot(np.arange(fir.max_freq), fir.amplitude_characteristic_decibel)
+    plt.scatter(fir.boundary_frequencies, fir.get_decibels_for_boundary_frequencies())
+    plt.title(f'Amplitude characteristics in dB, bandwidth: {fir.bandwidth}Hz')
     plt.xlabel('Hz')
     plt.ylabel('dB')
     plt.show()
@@ -117,6 +99,8 @@ if __name__ == '__main__':
     data = monophonize_signal_by_mean(data)
     signal_length = data.shape[0] / samplerate
 
+    sound = Signal(data, samplerate)
+
     params = {
         # 'channels': data.shape[1],
         'frequency': f'{samplerate}Hz',
@@ -124,7 +108,7 @@ if __name__ == '__main__':
     }
     print(params)
 
-    filtered = apply_filter_to_signal(data, fir)
+    filtered = apply_filter_to_signal(sound, fir.data)
     wavfile.write("hard-wagon-filtered.wav", samplerate, filtered.astype(np.int16))
 
     plt.figure()
