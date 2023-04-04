@@ -1,3 +1,5 @@
+from scipy.fft import fft
+from scipy.signal import firwin
 from typing_extensions import Self
 import numpy as np
 
@@ -33,7 +35,19 @@ class Signal:
         )
 
     def apply_filter(self, fir: Filter) -> Self:
-        pass
+        m_big = fir.shape[0]
+        b = firwin(m_big, fir.boundary_frequencies, fs=self.samplerate)
+
+        filtered_signal = np.zeros(self.shape[0])
+
+        for n in range(m_big - 1, self.shape[0]):
+            for m in range(m_big):
+                filtered_signal[n] += b[m] * self.data[n - m]
+
+        return Signal(filtered_signal, self.samplerate)
+
+    def transform_to_frequency_domain(self) -> Self:
+        return Signal(fft(self.data), self.samplerate)
 
     @property
     def shape(self) -> tuple:

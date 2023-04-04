@@ -18,6 +18,10 @@ class Filter:
         self.boundary_frequencies: np.array = None
         self.bandwidth: int = None
 
+    @property
+    def shape(self) -> tuple:
+        return self.data.shape
+
     def calc_freq_characteristic(self, force: bool = False) -> None:
         if force is False and self.amplitude_characteristic is not None and self.phase_characteristic is not None:
             return
@@ -28,7 +32,7 @@ class Filter:
         for freq in range(self.max_freq):
             omega = 2 * np.pi * freq / self.fs
             h = 0
-            # h = np.sum(signal_filter) * np.exp(-1j * omega * np.arange(signal_filter.shape[0]))
+            # h = np.sum(self.data) * np.exp(-1j * omega * np.arange(self.shape[0]))
 
             for fir_iter, fir_val in enumerate(self.data):
                 h += fir_val * np.exp(-1j * omega * fir_iter)
@@ -71,3 +75,14 @@ class Filter:
             self.amplitude_characteristic_decibel[self.boundary_frequencies[0]],
             self.amplitude_characteristic_decibel[self.boundary_frequencies[1]],
         ])
+
+    def get_params(self) -> dict:
+        if self.boundary_frequencies is None or self.bandwidth is None:
+            self.calc_freq_characteristic_params(True)
+
+        return {
+            'max_freq': self.max_freq,
+            'fs': self.fs,
+            'boundary_frequencies': self.boundary_frequencies,
+            'bandwidth': self.bandwidth,
+        }
