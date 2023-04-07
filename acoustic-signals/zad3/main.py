@@ -1,136 +1,126 @@
-import cmath
-from typing import Tuple
+from os.path import exists
+from typing import Optional
 
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.io import wavfile
-from scipy.signal import filtfilt, lfilter
+from scipy.signal import spectrogram
+
+from Filter import Filter
+from Signal import Signal
 
 FILTERS_DIR = './filters'
 
 
-def transform_amplitude_to_db(signal: np.array) -> np.array:
-    signal_max = np.max(signal)
+def read_filtered_sound() -> Optional[Signal]:
+    filtered_sound_filename = './hard-wagon-filtered.wav'
+    if exists(filtered_sound_filename) is False:
+        return None
 
-    return 10 * np.log10(signal / signal_max)
+    fs, sound_data = wavfile.read(filtered_sound_filename)
+    sound_data = sound_data.astype(float)
 
-
-def calc_characteristic(signal_filter: np.array, amplitude: bool = True, phase: bool = True) -> list:
-    h_vals = []
-    angle = []
-
-    for freq in range(max_freq):
-        omega = 2 * np.pi * freq / fs
-        h = 0
-        # h = np.sum(signal_filter) * np.exp(-1j * omega * np.arange(signal_filter.shape[0]))
-
-        for fir_iter, fir_val in enumerate(signal_filter):
-            h += fir_val * np.exp(-1j * omega * fir_iter)
-
-        h_vals.append(h)
-        angle.append(np.degrees(cmath.phase(h)))
-
-    module = np.abs(h_vals)
-    results = []
-
-    if amplitude:
-        results.append(module)
-    if phase:
-        results.append(angle)
-
-    return results
-
-
-def monophonize_signal_by_mean(signal: np.array) -> np.array:
-    return signal.sum(axis=1) / 2
-
-
-def apply_filter_to_signal(signal: np.array, filter: np.array) -> np.array:
-    # return lfilter(filter, 20, signal)
-
-    filtered_signal = np.empty(signal.shape[0])
-
-    for freq, amplitude in enumerate(signal):
-        amplitude_sum = 0
-
-        for filter_iter, filter_val in enumerate(filter):
-            signal_index = freq - filter_iter
-            if signal_index < 0:
-                signal_index = 0
-
-            amplitude_sum += filter_val * signal[signal_index]
-
-        filtered_signal[freq] = amplitude_sum
-
-    return filtered_signal
+    return Signal(sound_data, fs)
 
 
 if __name__ == '__main__':
-    fir = np.loadtxt(f'{FILTERS_DIR}/Lab_03-Flt_01_CzM.txt')
+    fir_data = np.loadtxt(f'{FILTERS_DIR}/Lab_03-Flt_01_CzM.txt')
     max_freq = 20000
-    fs = max_freq * 2
 
-    amplitude, phase = calc_characteristic(fir)
-
-    # plt.figure()
-    # plt.plot(np.arange(max_freq), amplitude)
-    # plt.title('Amplitude characteristics')
-    # plt.xlabel('Hz')
-    # plt.ylabel('H(jΩ)')
-    # plt.show()
-    #
-    # plt.figure()
-    # plt.plot(np.arange(max_freq), phase)
-    # plt.title('Phase characteristics')
-    # plt.xlabel('Hz')
-    # plt.ylabel('H(jΩ)')
-    # plt.show()
-
-    decibel_amplitude = transform_amplitude_to_db(amplitude)
-    max_decibel = np.max(decibel_amplitude)
-
-    boundary_freqs = np.ones(2, dtype=int) * -1
-    search_decibel = max_decibel - 3
-
-    for freq, decibel in enumerate(decibel_amplitude):
-        if boundary_freqs[0] == -1 and decibel > search_decibel:
-            boundary_freqs[0] = freq
-            continue
-
-        if boundary_freqs[0] != -1 and decibel < search_decibel:
-            boundary_freqs[1] = freq
-            break
-
-    bandwidth = boundary_freqs[1] - boundary_freqs[0]
+    fir = Filter(fir_data, max_freq)
+    print(fir.get_params())
 
     plt.figure()
-    plt.plot(np.full(decibel_amplitude.shape[0], search_decibel))
-    plt.plot(np.arange(max_freq), decibel_amplitude)
-    plt.scatter(boundary_freqs, [decibel_amplitude[boundary_freqs[0]], decibel_amplitude[boundary_freqs[1]]])
-    plt.title(f'Amplitude characteristics in dB, bandwidth: {bandwidth}Hz')
+    plt.plot(np.arange(fir.max_freq), fir.amplitude_characteristic)
+    plt.title('Amplitude characteristics')
     plt.xlabel('Hz')
-    plt.ylabel('dB')
+    plt.ylabel('H(jΩ)')
     plt.show()
+    plt.close()
+
+    plt.figure()
+    plt.plot(np.arange(fir.max_freq), fir.phase_characteristic)
+    plt.title('Phase characteristics')
+    plt.xlabel('Hz')
+    plt.ylabel('H(jΩ)')
+    plt.show()
+    plt.close()
+
+    plt.figure()
+    plt.plot(np.full(fir.amplitude_characteristic_decibel.shape[0], fir.boundary_decibel))
+    plt.plot(np.arange(fir.max_freq), fir.amplitude_characteristic_decibel)
+    plt.scatter(fir.boundary_frequencies, fir.get_decibels_for_boundary_frequencies())
+    plt.title(f'Amplitude characteristics in dB, bandwidth: {fir.bandwidth}Hz')
+    plt.xlabel('Frequency [Hz]')
+    plt.ylabel('Level [dB]')
+    plt.show()
+    plt.close()
 
     samplerate, data = wavfile.read('./HARD-WAGON.wav')
-    data = data.astype(float)
-    data = monophonize_signal_by_mean(data)
-    signal_length = data.shape[0] / samplerate
+    sound = Signal(data.astype(float), samplerate)
+    sound = sound.monophonize()
+    print(sound.get_params())
 
-    params = {
-        # 'channels': data.shape[1],
-        'frequency': f'{samplerate}Hz',
-        'length': f'{signal_length}s',
-    }
-    print(params)
+    sound_filtered = read_filtered_sound()
+    if sound_filtered is None:
+        sound_filtered = sound.apply_filter(fir)
+        wavfile.write("hard-wagon-filtered.wav", samplerate, sound_filtered.data.astype(np.int16))
 
-    filtered = apply_filter_to_signal(data, fir)
-    wavfile.write("hard-wagon-filtered.wav", samplerate, filtered.astype(np.int16))
+    sound_fft = sound.transform_to_frequency_domain()
+    sound_filtered_fft = sound_filtered.transform_to_frequency_domain()
 
-    plt.figure()
-    plt.plot(filtered)
+    plt.figure(figsize=(20, 10))
+    ax = plt.subplot(2, 1, 1)
+    ax.plot(np.abs(sound_fft.data))
+    ax.set_title('Signal spectrum before apply filter')
+    ax.set_xlabel('Frequency [Hz]')
+    ax.set_ylabel('Amplitude')
+
+    ax = plt.subplot(2, 1, 2)
+    ax.plot(np.abs(sound_filtered_fft.data))
+    ax.set_title('Signal spectrum after apply filter')
+    ax.set_xlabel('Frequency [Hz]')
+    ax.set_ylabel('Amplitude')
+
     plt.show()
+    plt.close()
 
+    plt.figure(figsize=(20, 10))
+    ax = plt.subplot(2, 1, 1)
+    ax.plot(np.abs(sound_fft.data))
+    ax.set_title('Signal spectrum before apply filter in logarithmic scale')
+    ax.set_xlabel('Frequency [Hz]')
+    ax.set_ylabel('Amplitude')
+    ax.set_yscale('log')
+
+    ax = plt.subplot(2, 1, 2)
+    ax.plot(np.abs(sound_filtered_fft.data))
+    ax.set_title('Signal spectrum after apply filter in logarithmic scale')
+    ax.set_xlabel('Frequency [Hz]')
+    ax.set_ylabel('Amplitude')
+    ax.set_yscale('log')
+
+    plt.show()
+    plt.close()
+
+    sound_spectrogram = spectrogram(sound.data, sound.samplerate, nfft=4096)
+    sound_filtered_spectrogram = spectrogram(sound_filtered.data, sound_filtered.samplerate, nfft=4096)
+
+    plt.figure(figsize=(20, 10))
+    ax = plt.subplot(2, 1, 1)
+    ax.specgram(sound.data, Fs=sound.samplerate, NFFT=4096)
+    ax.set_title('Spectrogram for signal before apply filter')
+    ax.set_xlabel('Time [s]')
+    ax.set_ylabel('Frequency [Hz]')
+
+    ax = plt.subplot(2, 1, 2)
+    ax.specgram(sound_filtered.data, Fs=sound_filtered.samplerate, NFFT=4096)
+    ax.set_title('Spectrogram for signal after apply filter')
+    ax.set_xlabel('Time [s]')
+    ax.set_ylabel('Frequency [Hz]')
+
+    plt.show()
+    plt.close()
 
 
 
