@@ -49,17 +49,12 @@ def zad2() -> None:
     )
 
     xml_string = response.read()
+    xml_string = xml_string.decode("utf-8")
     print(xml_string)
-    etree.tostring(xml_string).decode("utf-8")
 
-    out = open('zad2.csv', 'wb')
-    out.write(response.read())
-    out.close()
-
-    file = open('zad2.csv', 'w')
-    writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-    writer.writerow(response.read())
-    file.close()
+    xml_filename = 'zad2.xml'
+    with open(xml_filename, 'w') as f:
+        f.write(xml_string)
 
 
 def zad3() -> None:
