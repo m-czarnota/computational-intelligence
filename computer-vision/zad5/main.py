@@ -1,24 +1,24 @@
 import cv2
 import numpy as np
-from matplotlib import pyplot as plt
-
-video = 'video.mp4'
-cap = cv2.VideoCapture(video)
+import os
+import random
 
 
 def plot_motion_vectors(step=16):
     ret, frame1 = cap.read()
-    ret, frame2 = cap.read()
+    for i in range(4):
+        ret, frame2 = cap.read()
 
     # Obliczenie wymiarów obrazu
     h, w = frame1.shape[:2]
 
     # Tworzenie siatki regularnej
-    y, x = np.mgrid[step/2:h:step, step/2:w:step].reshape(2,-1).astype(int)
+    y, x = np.mgrid[step/2:h:step, step/2:w:step].reshape(2, -1).astype(int)
 
     # Obliczenie przesunięć punktów pomiędzy dwoma obrazami
     prev_pts = np.float32(np.column_stack((x, y)))
-    next_pts, status, errors = cv2.calcOpticalFlowPyrLK(frame1, frame2, prev_pts, None)
+    next_pts, status, errors = cv2.calcOpticalFlowPyrLK(
+        frame1, frame2, prev_pts, None)
 
     # Wyodrębnienie wektorów przesunięć
     vectors = next_pts - prev_pts
@@ -26,11 +26,18 @@ def plot_motion_vectors(step=16):
     # Tworzenie obrazka w tle
     vis = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
     for i in range(len(x)):
-        cv2.arrowedLine(vis, tuple(prev_pts[i].astype(int)), tuple(next_pts[i].astype(int)), (0, 255, 0), 1, tipLength=0.3)
+        cv2.arrowedLine(
+            frame1,
+            tuple(prev_pts[i].astype(int)),
+            tuple(next_pts[i].astype(int)),
+            (0, 255, 255),
+            1,
+            tipLength=0.3
+        )
 
     # Wizualizacja
-    plt.imshow(vis)
-    plt.show()
+    cv2.imshow('Motion vectors', frame1)
+    cv2.waitKey()
 
 
 def sparse_flow_detection(color_channel: str = None) -> None:
@@ -62,7 +69,9 @@ def sparse_flow_detection(color_channel: str = None) -> None:
 
     while True:
         ret, frame = cap.read()
-
+        if not ret:
+            print('No frames grabbed!')
+            break
         if color_channel is None:
             frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         elif color_channel == 'R':
@@ -96,7 +105,9 @@ def sparse_flow_detection(color_channel: str = None) -> None:
         old_gray = frame_gray.copy()
         p0 = good_new.reshape(-1, 1, 2)
 
+    cv2.waitKey()  # to delete for testing
     cv2.destroyAllWindows()
+
     cap.release()
 
 
@@ -148,8 +159,89 @@ def dense_flow_detection(color_channel: str = None) -> None:
     cv2.destroyAllWindows()
 
 
-if __name__ == '__main__':
-    sparse_flow_detection('R')
-    # dense_flow_detection('G')
+def getRandom(n, x, y):
+    return random.sample(range(x, y+1), n)
 
-    # plot_motion_vectors()
+
+def getNotRandom(x, y):
+    return np.linspace(x, y, num=y-x+1)
+
+
+def getFrames(videuo, frames):
+    images = []
+    for i in frames:
+        videuo.set(1, i)
+        ret, frame = videuo.read()
+        images.append(frame)
+    return images
+
+
+def saveImagesTo(images, path):
+    i = 0
+    for image in images:
+        i += 1
+        cv2.imwrite(os.path.join(os.path.dirname(
+            os.path.abspath(__file__)), path, f"{i}.jpg"), image)
+
+
+def generateImages(count):
+    nframes = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+
+    frameCount = count
+
+    # generate random frames
+    frameNumbers = getRandom(frameCount, 1, int(nframes))
+    images = getFrames(cap, frameNumbers)
+    saveImagesTo(images, "images/random")
+
+    # generate specific frames
+    frameNumbers = getNotRandom(1, frameCount)
+    images = getFrames(cap, frameNumbers)
+    saveImagesTo(images, "images/not")
+
+
+def generateVideoFromFolder(path, count, filename):
+    directory = os.path.join(os.path.dirname(
+        os.path.abspath(__file__)), path)
+
+    images = []
+    for i in range(1, count):
+        images.append(cv2.imread(os.path.join(directory, str(i)+'.jpg')))
+    h, w, ch = images[0].shape
+    fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+    video = cv2.VideoWriter(os.path.join(os.path.dirname(
+        os.path.abspath(__file__)), filename), fourcc, 1, (w, h))
+
+    for image in images:
+        video.write(image)
+
+    video.release()
+
+
+def generate_images_for_count(count: int) -> None:
+    generateImages(count)
+
+    # Generate Videos from the images
+    generateVideoFromFolder("images/not", count, "not.mp4")
+    generateVideoFromFolder("images/random", count, "random.mp4")
+
+
+if __name__ == '__main__':
+    scriptDir = os.path.dirname(os.path.abspath(__file__))
+    video = 'video.mp4'
+    filePath = os.path.join(scriptDir, video)
+    cap = cv2.VideoCapture(filePath)
+
+    plot_motion_vectors()
+    # sparse_flow_detection('B')
+    dense_flow_detection('R')
+
+    # Generate Images for the videos
+    # generate_images_for_count(1000)
+
+    scriptDir = os.path.dirname(os.path.abspath(__file__))
+    video = 'not.mp4'
+    filePath = os.path.join(scriptDir, video)
+    cap = cv2.VideoCapture(filePath)
+
+    sparse_flow_detection()
