@@ -1,61 +1,40 @@
-from osgeo import gdal
-import numpy as np
-import rasterio
-import matplotlib.pyplot as plt
-from rasterio.plot import show
-from matplotlib import colors, cm
-import pylas
-import whitebox
 import laspy as lp
+from matplotlib import pyplot as plt
+from whitebox import WhiteboxTools
+
+WORK_DIR = r'D:\Programming\Python\computational-intelligence\geoinformatics-data-processing\zad7\\'
 
 
-def zad1() -> None:
+def zad1():
+    las = lp.read('szczecin.laz')
 
-    dem = gdal.Open('puszcza_bukowa_szmaragdowe.asc')
-    band = dem.GetRasterBand(1)
-    height = band.ReadAsArray()
-    min_val = np.min(height)
+    plt.figure()
 
-    gt = dem.GetGeoTransform()
-    ulx = gt[0]
-    uly = gt[3]
-    res = gt[1]
+    plt.scatter(las.xyz[:, 0], las.xyz[:, 1], c=las.raw_classification == 2, s=0.1, label='ground')
+    plt.scatter(las.xyz[:, 0], las.xyz[:, 1], c=las.raw_classification == 7, s=0.1, label='water')
+    plt.scatter(las.xyz[:, 0], las.xyz[:, 1], c=las.raw_classification == 6, s=0.1, label='buildings')
 
-    x_size = dem.RasterXSize
-    y_size = dem.RasterYSize
+    plt.scatter(las.xyz[:, 0], las.xyz[:, 1], c=las.raw_classification == 3, s=0.1, label='vegetation')
+    plt.scatter(las.xyz[:, 0], las.xyz[:, 1], c=las.raw_classification == 4, s=0.1, label='vegetation')
+    plt.scatter(las.xyz[:, 0], las.xyz[:, 1], c=las.raw_classification == 5, s=0.1, label='vegetation')
 
-    lrx = ulx + x_size * res
-    lry = uly - y_size * res
+    plt.legend()
+    # plt.show()
+    plt.savefig('zad1.jpg')
 
-    dem = None
 
-    raster = gdal.Grid(
-        'zad1.tif',
-        'puszcza_bukowa_szmaragdowa_lowose_punkty.shp',
-        zfield='VALUE',
-        algorithm=f'invdist:radius1=40:radius2=40:smoothing=5:nodata={min_val}',
-        outputBounds=[ulx, uly, lrx, lry],
-        width=x_size,
-        height=y_size,
-    )
-    raster = None
+def zad2():
+    """
+    została wybrana metoda interpolacji jako metoda najbliższych sąsiadów ze względu na swoją prostotę oraz nie długi czas oczekiwania na wynik
+    """
 
-    src = rasterio.open('zad1.tif')
-    data = src.read()
+    in_interpolation = f'swidwie_dense_cloud_crop.las'
+    out_interpolation = f'swidwie_budynek_interpolation.tif'
 
-    fig, ax = plt.subplots(1, figsize=(20, 10))
-    cmap = plt.get_cmap('rainbow')
-
-    show(data, transform=src.transform, ax=ax, cmap=cmap)
-    fig.colorbar(cm.ScalarMappable(
-        norm=colors.Normalize(
-            vmin=np.nanmin(data),
-            vmax=np.nanmax(data),
-        ),
-        cmap=cmap,
-    ), ax=ax)
-    src = None
+    wbt = WhiteboxTools()
+    wbt.work_dir = WORK_DIR
+    wbt.lidar_nearest_neighbour_gridding(in_interpolation, out_interpolation, resolution=0.1)
 
 
 if __name__ == '__main__':
-    zad1()
+    zad2()
