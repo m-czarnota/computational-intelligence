@@ -1,7 +1,7 @@
-from typing import Iterable
+from typing import Iterable, Tuple
 
 from scipy.io import wavfile
-from scipy.signal import iirfilter, freqs, sosfreqz
+from scipy.signal import iirfilter, freqs, sosfreqz, sosfiltfilt, butter
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -9,15 +9,16 @@ from Filter import Filter
 from FilterTypeEnum import FilterTypeEnum
 from IirTypeEnum import IirTypeFilter
 from FilterVisualizer import FilterVisualizer
+from functions import monophonize
 
 
 def generate_filter(fs: int = 48000, fc: Iterable = [50, 200], order: int = 17,
-                    btype: FilterTypeEnum = FilterTypeEnum.BANDPASS, ftype: IirTypeFilter = IirTypeFilter.BUTTERWORTH) -> np.array:
+                    btype: FilterTypeEnum = FilterTypeEnum.BANDPASS, ftype: IirTypeFilter = IirTypeFilter.BUTTERWORTH) -> Tuple:
     sos = iirfilter(order, fc, rs=60, analog=False,
                     btype=btype.value, ftype=ftype.value, fs=fs, output='sos')
     w, h = sosfreqz(sos, fs, fs=fs)
 
-    return h
+    return h, sos
 
 
 if __name__ == '__main__':
@@ -25,24 +26,24 @@ if __name__ == '__main__':
     # plt.plot(generate_filter(48000, [10000, 15000], 17, btype=FilterTypeEnum.BANDPASS, ftype=IirTypeFilter.CHEBYSHEV_2))
     # plt.show()
 
-    filter1_data = generate_filter(24000, [2500], 29, btype=FilterTypeEnum.LOWPASS, ftype=IirTypeFilter.CHEBYSHEV_2)
-    plt.figure()
-    plt.plot(np.abs(filter1_data))
-    plt.show()
+    filter1_data, sos_filter1 = generate_filter(24000, [2500], 29, btype=FilterTypeEnum.LOWPASS, ftype=IirTypeFilter.CHEBYSHEV_2)
+    # plt.figure()
+    # plt.plot(np.abs(filter1_data))
+    # plt.show()
+    #
+    # plt.figure()
+    # plt.plot(np.unwrap(np.angle(filter1_data)))
+    # plt.show()
 
-    plt.figure()
-    plt.plot(np.unwrap(np.angle(filter1_data)))
-    plt.show()
+    rng = np.random.default_rng()
+    n = 201
+    t = np.linspace(0, 1, n)
+    x = 1 + (t < 0.5) - 0.25 * t ** 2 + 0.05 * rng.standard_normal(n)
 
     fs, signal_data = wavfile.read('./signal.wav')
+    signal_data_monophonized = monophonize(signal_data)
+    y = sosfiltfilt(sos_filter1, signal_data_monophonized)
 
-
-    # filter1 = Filter(filter1_data, 24000)
-    # filter2 = Filter(iirfilter(coefficient_number, [300, 3500], fs=fs * 2, ftype='butter')[1], fs * 4)
-    #
-    # print(filter1.get_params())
-    # FilterVisualizer.visualise_amplitude(filter1)
-    # FilterVisualizer.visualise_phase(filter1)
 
 """
 dwa filtry, z czego jeden podobny do tego z poprzednich zajęć
