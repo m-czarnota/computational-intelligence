@@ -44,22 +44,22 @@ class Filter:
         if force is False and self.amplitude_characteristic is not None and self.phase_characteristic is not None:
             return
 
-        h_vals = np.empty(self.max_freq, dtype='object')
-        angle = np.empty(self.max_freq, dtype='object')
+        h_vals = []
+        angle = []
 
-        for freq_iter, freq in enumerate(range(self.max_freq)):
+        for freq in range(self.max_freq):
             omega = 2 * np.pi * freq / self.fs
-            # h = 0
-            h = np.sum(self.data) * np.exp(-1j * omega * np.arange(self.shape[0]))
+            h = 0
+            # h = np.sum(self.data) * np.exp(-1j * omega * np.arange(self.shape[0]))
 
-            # for fir_iter, fir_val in enumerate(self.data):
-            #     h += fir_val * np.exp(-1j * omega * fir_iter)
+            for fir_iter, fir_val in enumerate(self.data):
+                h += fir_val * np.exp(-1j * omega * fir_iter)
 
-            h_vals[freq_iter] = h
-            # angle[freq_iter] = np.degrees(np.angle(h))
+            h_vals.append(h)
+            angle.append(np.degrees(cmath.phase(h)))
 
         self.amplitude_characteristic = np.abs(h_vals)
-        self.phase_characteristic = angle
+        self.phase_characteristic = np.array(angle)
 
     def calc_freq_characteristic_params(self, force: bool = False) -> None:
         if force is False and self.boundary_frequencies is not None and self.bandwidth is not None:
