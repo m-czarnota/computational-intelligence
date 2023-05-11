@@ -1,0 +1,22 @@
+select 
+	count(powierzchnia),
+	nazwa,
+	x_kod
+from 
+	(
+		select 
+			area(geom) as powierzchnia, 
+			x_kod, 
+			geom
+		from OT_BUBD_A
+		where x_kod in ('BUBD01', 'BUBD02', 'BUBD03', 'BUBD04')
+	) budynki,
+	(
+		select 
+			nazwa,
+			geom
+		from dzielnice_osiedla_szczecin
+	) dzielnice
+where st_contains(dzielnice.geom, budynki.geom)
+group by nazwa, x_kod
+order by nazwa;
