@@ -1,0 +1,28 @@
+select
+	round(sum(st_area(b.geom) * b.liczbakond), 2) as powierzchnia,
+	a.fid,
+	a.bufor
+from
+	(
+		select 
+			geom,
+			liczbakond
+		from OT_BUBD_A
+		where OT_BUBD_A.x_kod IN ('BUBD01', 'BUBD02', 'BUBD03', 'BUBD04')
+	) b,
+	(
+		select 
+			st_buffer(geom, 500) as bufor,
+			operator,
+			fid,
+			geom
+		from planet_osm_point
+		where
+			shop is not null 
+			and brand like 'Biedronka'
+	) a
+where st_contains(a.bufor, b.geom)
+group by
+	a.fid,
+	a.geom
+order by powierzchnia desc

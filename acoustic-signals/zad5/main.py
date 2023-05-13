@@ -1,14 +1,13 @@
 from typing import Iterable, Tuple
-
 from scipy.io import wavfile
-from scipy.signal import iirfilter, freqs, sosfreqz, sosfiltfilt, butter
+from scipy.signal import iirfilter, freqs, sosfreqz, sosfiltfilt, firwin
 import numpy as np
-from matplotlib import pyplot as plt
 
 from Filter import Filter
 from FilterTypeEnum import FilterTypeEnum
-from IirTypeEnum import IirTypeFilter
 from FilterVisualizer import FilterVisualizer
+from IirTypeEnum import IirTypeFilter
+from Visualizer import Visualizer
 from functions import monophonize
 
 
@@ -21,28 +20,50 @@ def generate_filter(fs: int = 48000, fc: Iterable = [50, 200], order: int = 17,
     return h, sos
 
 
+def compare_signal_with_filtered(signal_original: np.array, signal_filtered: np.array, fs: int) -> None:
+    Visualizer.visualize_comparison_signals(signal_original, signal_filtered)
+    Visualizer.visualize_comparison_spectrum(signal_original, signal_filtered)
+    Visualizer.visualize_comparison_spectrum(signal_original, signal_filtered, log_scale=True)
+    Visualizer.visualize_comparison_spectrogram(signal_original, signal_filtered, fs)
+
+
+def generate_filter_coefficients(coefficient_number: int, fs: int, fc: int, window: str = 'hamming') -> np.array:
+    """
+    :param window:
+    :param coefficient_number:
+    :param fs: sampling frequency
+    :param fc: boundary frequency
+    :return:
+    """
+    nyquist_rate = fs / 2
+    cutoff_frequency = fc / nyquist_rate
+
+    return firwin(coefficient_number, cutoff_frequency, window=window, pass_zero='lowpass')
+
+
 if __name__ == '__main__':
-    # plt.figure()
-    # plt.plot(generate_filter(48000, [10000, 15000], 17, btype=FilterTypeEnum.BANDPASS, ftype=IirTypeFilter.CHEBYSHEV_2))
-    # plt.show()
+    filter_data1, sos_filter1 = generate_filter(48000, [10000, 15000], 17, btype=FilterTypeEnum.BANDPASS, ftype=IirTypeFilter.CHEBYSHEV_2)
+    # Visualizer.visualise_amplitude(filter_data1)
+    # Visualizer.visualise_phase(filter_data1)
 
-    filter1_data, sos_filter1 = generate_filter(24000, [2500], 29, btype=FilterTypeEnum.LOWPASS, ftype=IirTypeFilter.CHEBYSHEV_2)
-    # plt.figure()
-    # plt.plot(np.abs(filter1_data))
-    # plt.show()
-    #
-    # plt.figure()
-    # plt.plot(np.unwrap(np.angle(filter1_data)))
-    # plt.show()
+    filter_data2, sos_filter2 = generate_filter(24000, [2500], 29, btype=FilterTypeEnum.LOWPASS, ftype=IirTypeFilter.CHEBYSHEV_2)
+    # Visualizer.visualise_amplitude(filter_data2)
+    # Visualizer.visualise_phase(filter_data2)
 
-    rng = np.random.default_rng()
-    n = 201
-    t = np.linspace(0, 1, n)
-    x = 1 + (t < 0.5) - 0.25 * t ** 2 + 0.05 * rng.standard_normal(n)
+    # fir_fs = 48000
+    # fir_coefficients = generate_filter_coefficients(1000, fir_fs, 3800, window='blackman')
+    # fir = Filter(fir_coefficients, int(fir_fs / 2))
+    # FilterVisualizer.visualise_amplitude(fir)
+    # FilterVisualizer.visualise_phase(fir)
 
     fs, signal_data = wavfile.read('./signal.wav')
     signal_data_monophonized = monophonize(signal_data)
-    y = sosfiltfilt(sos_filter1, signal_data_monophonized)
+    signal_filtered = sosfiltfilt(sos_filter2, signal_data_monophonized)
+
+    # compare_signal_with_filtered(signal_data_monophonized, signal_filtered, fs=fs)
+
+    Visualizer.visualize_octaves(signal_filtered)
+    Visualizer.visualize_terces(signal_filtered)
 
 
 """
