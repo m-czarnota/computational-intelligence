@@ -8,6 +8,49 @@ from functions import monophonize
 VOWELS_DIR = './vowels'
 
 
+def find_peaks(signal: np.array) -> dict:
+    peaks = {}
+
+    for index in range(1, signal.shape[0] - 1):
+        sample = signal[index]
+        if sample < 10:
+            continue
+
+        prev_sample = signal[index - 1]
+        next_sample = signal[index + 1]
+
+        if sample > prev_sample and sample > next_sample:
+            peaks[index] = sample
+
+    return peaks
+
+
+def calc_formants(peaks: dict) -> np.array:
+    keys = list(peaks.keys())
+    formants = []
+    current_iter = 0
+
+    while current_iter < len(peaks):
+        current_freq = keys[current_iter]
+        freqs = [current_freq]
+
+        while current_iter < len(peaks) - 1:
+            current_iter += 1
+            freq = keys[current_iter]
+
+            # groups will not be further away than 1000 Hz
+            if freq > current_freq + 1000:
+                current_iter -= 1
+                break
+
+            freqs.append(keys[current_iter])
+
+        formants.append(np.mean(freqs))
+        current_iter += 1
+
+    return np.array(formants)
+
+
 if __name__ == '__main__':
     fs, a = wavfile.read(f'{VOWELS_DIR}/a_C3_ep44.wav')
     a = monophonize(a)
@@ -50,8 +93,14 @@ if __name__ == '__main__':
     f = interpolate.interp1d(xx, wyj)
     w = f(fx2[:max_range])
 
+    peaks = find_peaks(w)
+    print(peaks)
+    formants = calc_formants(peaks)
+    print(formants)
+
     plt.figure()
-    plt.plot(fx2[:max_range], w)
+    # plt.plot(fx2[:max_range], w)
+    plt.plot(w)
     plt.show()
     plt.close()
 
