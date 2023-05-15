@@ -8,7 +8,7 @@ from functions import monophonize
 VOWELS_DIR = './vowels'
 
 
-def find_peaks(signal: np.array) -> dict:
+def find_peaks(signal: np.array, first: bool = False) -> dict:
     peaks = {}
 
     for index in range(1, signal.shape[0] - 1):
@@ -22,12 +22,15 @@ def find_peaks(signal: np.array) -> dict:
         if sample > prev_sample and sample > next_sample:
             peaks[index] = sample
 
+        if first:
+            break
+
     return peaks
 
 
-def calc_formants(peaks: dict) -> np.array:
+def calc_formants(peaks: dict, signal: np.array) -> dict:
     keys = list(peaks.keys())
-    formants = []
+    formants = {}
     current_iter = 0
 
     while current_iter < len(peaks):
@@ -45,10 +48,42 @@ def calc_formants(peaks: dict) -> np.array:
 
             freqs.append(keys[current_iter])
 
-        formants.append(np.mean(freqs))
+        formant_index = int(np.mean(freqs))
+        formants[formant_index] = signal[formant_index]
         current_iter += 1
 
-    return np.array(formants)
+    return formants
+
+
+def calc_auto_correlation(signal: np.array) -> np.array:
+    result = np.correlate(signal, signal, mode='full')
+
+    return result[len(result) // 2:]
+
+
+def calc_f0(signal: np.array, fs: int) -> int:
+    auto_correlation = calc_auto_correlation(signal)
+    k0 = list(find_peaks(auto_correlation, True))[0]
+
+    return fs / k0
+
+
+def calc_filter(formants: dict, bw_set: list, f0: int):
+    if len(bw_set) != len(formants):
+        raise 'Count of BWs must be equal with count formants'
+
+    t = np.pow(f0, -1)
+    output = np.empty(len(bw_set))
+
+    for index, (bw, freq) in enumerate(zip(bw_set, formants.keys())):
+        c = -np.exp(-2 * np.pi * bw * t)
+        b = 2 * np.exp(-np.pi * bw * t) * np.cos(2 * np.pi * freq * t)
+        a = 1 - b - c
+        h = a / (1 - np.pow(b, -1) - np.pow(c, -1))
+
+        output[index] = h
+
+    return np.sum(output)
 
 
 if __name__ == '__main__':
@@ -95,12 +130,15 @@ if __name__ == '__main__':
 
     peaks = find_peaks(w)
     print(peaks)
-    formants = calc_formants(peaks)
+    formants = calc_formants(peaks, w)
     print(formants)
+    f0 = calc_f0(w, fs)
+    print(f0)
 
     plt.figure()
     # plt.plot(fx2[:max_range], w)
     plt.plot(w)
+    plt.scatter(formants.keys(), formants.values(), c='orange')
     plt.show()
     plt.close()
 
