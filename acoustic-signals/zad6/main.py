@@ -13,7 +13,7 @@ def find_peaks(signal: np.array, first: bool = False) -> dict:
 
     for index in range(1, signal.shape[0] - 1):
         sample = signal[index]
-        if sample < 10:
+        if sample < -50:
             continue
 
         prev_sample = signal[index - 1]
@@ -22,14 +22,20 @@ def find_peaks(signal: np.array, first: bool = False) -> dict:
         if sample > prev_sample and sample > next_sample:
             peaks[index] = sample
 
-        if first:
-            break
+            if first:
+                break
+
+    if len(peaks) == 0:
+        index = signal.shape[0] - 1
+        peaks[index] = signal[index]
 
     return peaks
 
 
-def calc_formants(peaks: dict, signal: np.array) -> dict:
+def calc_formants(signal: np.array) -> dict:
+    peaks = find_peaks(signal)
     keys = list(peaks.keys())
+
     formants = {}
     current_iter = 0
 
@@ -63,37 +69,68 @@ def calc_auto_correlation(signal: np.array) -> np.array:
 
 def calc_f0(signal: np.array, fs: int) -> int:
     auto_correlation = calc_auto_correlation(signal)
-    k0 = list(find_peaks(auto_correlation, True))[0]
+    k0 = list(find_peaks(auto_correlation, True).keys())[0]
 
     return fs / k0
 
 
-def calc_filter(formants: dict, bw_set: list, f0: int):
-    if len(bw_set) != len(formants):
-        raise 'Count of BWs must be equal with count formants'
+def find_bandwidth(signal: np.array, formant_freq: int) -> np.array:
+    bandwidth = np.ones(2) * -1
+    formant_amplitude = signal[formant_freq]
+    searched_amplitude = formant_amplitude - 3
+    changing_range = 500
 
-    t = np.pow(f0, -1)
-    output = np.empty(len(bw_set))
+    start_point = formant_freq - changing_range if formant_freq >= changing_range else 0
+    end_point = formant_freq + changing_range if formant_freq <= signal.shape[0] - changing_range else signal.shape[0]
 
-    for index, (bw, freq) in enumerate(zip(bw_set, formants.keys())):
-        c = -np.exp(-2 * np.pi * bw * t)
-        b = 2 * np.exp(-np.pi * bw * t) * np.cos(2 * np.pi * freq * t)
-        a = 1 - b - c
-        h = a / (1 - np.pow(b, -1) - np.pow(c, -1))
+    for i in range(start_point, end_point):
+        sample = signal[i]
 
-        output[index] = h
+        if bandwidth[0] == -1 and sample >= searched_amplitude:
+            bandwidth[0] = i
+            continue
 
-    return np.sum(output)
+        if bandwidth[0] != -1 and sample <= searched_amplitude:
+            bandwidth[1] = i
+            break
+
+    return bandwidth[1] - bandwidth[0]
+
+
+def calc_filter(signal: np.array, formants: dict, f0: int):
+    formants_bandwidth = np.array([find_bandwidth(signal, formant) for formant in formants])
+
+    t = np.power(f0, -1)
+    output = np.empty_like(signal)
+    output[:3] = signal[:3]
+
+    for sample_iter in range(2, signal.shape[0]):
+        elements = np.empty(len(formants))
+
+        for formant_iter, (formant_freq, formant_amplitude) in enumerate(formants.items()):
+            formant_bandwidth = formants_bandwidth[formant_iter]
+
+            c = -np.exp(-2 * np.pi * formant_bandwidth * t)
+            b = 2 * np.exp(-np.pi * formant_bandwidth * t) * np.cos(2 * np.pi * formant_freq * t)
+            a = 1 - b - c
+            h = a * signal[sample_iter] + b * output[sample_iter - 1] + output[sample_iter - 2]
+
+            elements[formant_iter] = h
+
+        # alpha = 1.1
+        # output[sample_iter] = np.sum(elements) / (1 - 2 * alpha * np.cos(2 * np.pi * sample_iter / fs) + alpha ** 2)
+        output[sample_iter] = np.sum(elements)
+
+    return output
 
 
 if __name__ == '__main__':
     fs, a = wavfile.read(f'{VOWELS_DIR}/a_C3_ep44.wav')
     a = monophonize(a)
 
-    fx = np.abs(np.fft.fftfreq(a.shape[0], 1 / fs))[:a.shape[0] // 2 + 1]
-    spectrum = np.abs(np.fft.rfft(a)) / (a.shape[0] // 2)
-    max_oy = 1.05 * np.max(spectrum)
-    y = 20 * np.log10(np.abs(spectrum))
+    spectrum_freqs = np.abs(np.fft.fftfreq(a.shape[0], 1 / fs))
+    spectrum = np.abs(np.fft.fft(a))
+    spectrum_decibel = 20 * np.log10(spectrum / np.max(spectrum))
 
     plt.figure()
     plt.specgram(a, NFFT=4096, pad_to=3072)
@@ -101,23 +138,14 @@ if __name__ == '__main__':
     plt.close()
 
     plt.figure()
-    plt.plot(fx, y)
+    plt.plot(spectrum_freqs, spectrum_decibel)
     plt.show()
     plt.close()
 
-    # spectrum = np.abs(np.fft.fft(a))
-    # step = 10
-    # mean_spectrum = [np.mean(spectrum[i:i + 10]) for i in range(0, spectrum.shape[0], step)]
-    #
-    # plt.figure()
-    # plt.plot(mean_spectrum)
-    # plt.show()
-    # plt.close()
-
     max_range = 5000
     scale = 100
-    y2 = y[:max_range + scale + 11]
-    fx2 = fx[:max_range + scale + 11]
+    y2 = spectrum_decibel[:max_range + scale + 11]
+    fx2 = np.arange(spectrum_decibel.shape[0])[:max_range + scale + 11]
 
     wyj = []
     xx = []
@@ -130,7 +158,7 @@ if __name__ == '__main__':
 
     peaks = find_peaks(w)
     print(peaks)
-    formants = calc_formants(peaks, w)
+    formants = calc_formants(w)
     print(formants)
     f0 = calc_f0(w, fs)
     print(f0)
@@ -141,6 +169,12 @@ if __name__ == '__main__':
     plt.scatter(formants.keys(), formants.values(), c='orange')
     plt.show()
     plt.close()
+
+    filtr = calc_filter(w, formants, f0)
+    print(filtr)
+    plt.figure()
+    plt.plot(filtr)
+    plt.show()
 
 
 
