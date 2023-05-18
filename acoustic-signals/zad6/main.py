@@ -1,11 +1,29 @@
+from typing import Tuple
 import numpy as np
 from scipy.io import wavfile
 from matplotlib import pyplot as plt
 from scipy import interpolate
 
+from Visualizer import Visualizer
 from functions import monophonize
 
 VOWELS_DIR = './vowels'
+
+
+def interpolate_signal(signal: np.array, max_range: int, step: int) -> Tuple:
+    signal_ranged = signal[:max_range + step + 11]
+    freqs_ranged = np.arange(signal.shape[0])[:max_range + step + 11]
+
+    output = []
+    input = []
+
+    for i in range(len(signal_ranged) // step):
+        input.append(freqs_ranged[i * step])
+        output.append(np.mean(signal_ranged[i * step:(i + 1) * step]))
+
+    interpolated = interpolate.interp1d(input, output)
+
+    return freqs_ranged, interpolated(freqs_ranged[:max_range])
 
 
 def find_peaks(signal: np.array, first: bool = False) -> dict:
@@ -34,6 +52,7 @@ def find_peaks(signal: np.array, first: bool = False) -> dict:
 
 def calc_formants(signal: np.array) -> dict:
     peaks = find_peaks(signal)
+    print(peaks)
     keys = list(peaks.keys())
 
     formants = {}
@@ -97,6 +116,10 @@ def find_bandwidth(signal: np.array, formant_freq: int) -> np.array:
     return bandwidth[1] - bandwidth[0]
 
 
+def calc_frequency_response_for_formants(formants: dict, fs: int, alpha: float = 1.1) -> np.array:
+    return np.array([1 / (1 - 2 * alpha * np.cos(2 * np.pi * freq / fs) + alpha ** 2) for freq in formants.keys()])
+
+
 def calc_filter(signal: np.array, formants: dict, f0: int):
     formants_bandwidth = np.array([find_bandwidth(signal, formant) for formant in formants])
 
@@ -117,61 +140,48 @@ def calc_filter(signal: np.array, formants: dict, f0: int):
 
             elements[formant_iter] = h
 
-        # alpha = 1.1
-        # output[sample_iter] = np.sum(elements) / (1 - 2 * alpha * np.cos(2 * np.pi * sample_iter / fs) + alpha ** 2)
         output[sample_iter] = np.sum(elements)
 
     return output
 
 
 if __name__ == '__main__':
-    fs, a = wavfile.read(f'{VOWELS_DIR}/a_C3_ep44.wav')
+    # fs, a = wavfile.read(f'{VOWELS_DIR}/a_C3_ep44.wav')
+    fs, a = wavfile.read(f'mama.wav')
     a = monophonize(a)
 
     spectrum_freqs = np.abs(np.fft.fftfreq(a.shape[0], 1 / fs))
     spectrum = np.abs(np.fft.fft(a))
     spectrum_decibel = 20 * np.log10(spectrum / np.max(spectrum))
 
-    plt.figure()
-    plt.specgram(a, NFFT=4096, pad_to=3072)
-    plt.show()
-    plt.close()
+    Visualizer.visualize_spectrogram(a)
+    Visualizer.visualize_spectrum(spectrum_freqs, spectrum_decibel, True)
 
-    plt.figure()
-    plt.plot(spectrum_freqs, spectrum_decibel)
-    plt.show()
-    plt.close()
+    ranged_freqs, ranged_spectrum = interpolate_signal(spectrum_decibel, 10000, 100)
+    Visualizer.visualize_signal(ranged_spectrum, is_in_decibel=True)
 
-    max_range = 5000
-    scale = 100
-    y2 = spectrum_decibel[:max_range + scale + 11]
-    fx2 = np.arange(spectrum_decibel.shape[0])[:max_range + scale + 11]
+    formants = calc_formants(ranged_spectrum)
+    print('Formants [Hz: dB]:\n', formants)
 
-    wyj = []
-    xx = []
-    for i in range(len(y2) // scale):
-        xx.append(fx2[i * scale])
-        wyj.append(np.mean(y2[i * scale:(i + 1) * scale]))
+    f0 = calc_f0(ranged_spectrum, fs)
+    print(f'Frequency f0: {f0}Hz')
 
-    f = interpolate.interp1d(xx, wyj)
-    w = f(fx2[:max_range])
+    Visualizer.visualize_signal(ranged_spectrum, np.array([list(formants.keys()), list(formants.values())]).T, True)
 
-    peaks = find_peaks(w)
-    print(peaks)
-    formants = calc_formants(w)
-    print(formants)
-    f0 = calc_f0(w, fs)
-    print(f0)
+    formants = {
+        650: -27.575885497191074,
+        3000: ranged_spectrum[3000],
+        6500: -40.25234629438399,
+    }
+    print('Formants [Hz: dB]:\n', formants)
+    Visualizer.visualize_signal(ranged_spectrum, np.array([list(formants.keys()), list(formants.values())]).T, True)
 
-    plt.figure()
-    # plt.plot(fx2[:max_range], w)
-    plt.plot(w)
-    plt.scatter(formants.keys(), formants.values(), c='orange')
-    plt.show()
-    plt.close()
+    frequency_reponse_formants = calc_frequency_response_for_formants(formants, fs)
+    print('Frequency responses for formants:\n', frequency_reponse_formants)
 
-    filtr = calc_filter(w, formants, f0)
+    filtr = calc_filter(ranged_spectrum, formants, f0)
     print(filtr)
+
     plt.figure()
     plt.plot(filtr)
     plt.show()
