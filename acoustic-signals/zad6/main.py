@@ -120,7 +120,7 @@ def calc_frequency_response_for_formants(formants: dict, fs: int, alpha: float =
     return np.array([1 / (1 - 2 * alpha * np.cos(2 * np.pi * freq / fs) + alpha ** 2) for freq in formants.keys()])
 
 
-def calc_filter(signal: np.array, formants: dict, f0: int):
+def calc_filter(signal: np.array, formants: dict, f0: int) -> np.array:
     formants_bandwidth = np.array([find_bandwidth(signal, formant) for formant in formants])
 
     t = np.power(f0, -1)
@@ -136,11 +136,13 @@ def calc_filter(signal: np.array, formants: dict, f0: int):
             c = -np.exp(-2 * np.pi * formant_bandwidth * t)
             b = 2 * np.exp(-np.pi * formant_bandwidth * t) * np.cos(2 * np.pi * formant_freq * t)
             a = 1 - b - c
-            h = a * signal[sample_iter] + b * output[sample_iter - 1] + output[sample_iter - 2]
+            h = (a if not np.isinf(a) and not np.isnan(a) else 0) * signal[sample_iter] + \
+                (b if not np.isinf(b) and not np.isnan(b) else 0) * output[sample_iter - 1] + \
+                (c if not np.isinf(c) and not np.isnan(c) else 0) * output[sample_iter - 2]
 
             elements[formant_iter] = h
 
-        output[sample_iter] = np.sum(elements)
+        output[sample_iter] = np.nansum(elements)
 
     return output
 
@@ -182,7 +184,7 @@ if __name__ == '__main__':
     filtr = calc_filter(ranged_spectrum, formants, f0)
     print(filtr)
 
-    plt.figure()
+    plt.figure(figsize=(20, 10))
     plt.plot(filtr)
     plt.show()
 
