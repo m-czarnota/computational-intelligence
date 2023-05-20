@@ -2,7 +2,7 @@ import cv2
 
 # https://chev.me/arucogen/
 
-plik = 'video.mp4'
+video_file = 'video.mp4'
 
 if __name__ == '__main__':
     dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_250)
@@ -16,14 +16,13 @@ if __name__ == '__main__':
         18: cv2.resize(cv2.imread("./images/terraria.png"), resizeShape),
     }
 
-    vid = cv2.VideoCapture(plik)
+    vid = cv2.VideoCapture(video_file)
     width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
     size = (width, height)
 
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter('output.mp4', fourcc, 60.0, size)
-
 
     while True:
         # Capture the video frame by frame
@@ -33,7 +32,7 @@ if __name__ == '__main__':
         if len(marker_corners) > 0:
             marker_ids = marker_ids.flatten()
 
-            for (corner, id) in zip(marker_corners, marker_ids):
+            for corner, id in zip(marker_corners, marker_ids):
                 corners = corner.reshape((4, 2))
                 top_left, top_right, bottom_right, bottom_left = corners
 
