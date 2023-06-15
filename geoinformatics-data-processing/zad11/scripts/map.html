@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    
+        <script>
+            L_NO_TOUCH = false;
+            L_DISABLE_3D = false;
+        </script>
+    
+    <style>html, body {width: 100%;height: 100%;margin: 0;padding: 0;}</style>
+    <style>#map {position:absolute;top:0;bottom:0;right:0;left:0;}</style>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_7910a310d01dade24bda89f545391a10 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+        
+    
+                <style>
+                    #float_image_6213fc653723e4a0c3b360dd4fe506b8 {
+                        position: absolute;
+                        bottom: 4%;
+                        left: 4%;
+                        }
+                </style>
+            
+</head>
+<body>
+    
+    
+            <div class="folium-map" id="map_7910a310d01dade24bda89f545391a10" ></div>
+        
+    
+            <img id="float_image_6213fc653723e4a0c3b360dd4fe506b8" alt="float_image"
+                 src="https://upload.wikimedia.org/wikipedia/commons/9/99/Compass_rose_simple.svg"
+                 style="z-index: 999999">
+            </img>
+            
+</body>
+<script>
+    
+    
+            var map_7910a310d01dade24bda89f545391a10 = L.map(
+                "map_7910a310d01dade24bda89f545391a10",
+                {
+                    center: [53.4327, 14.5483],
+                    crs: L.CRS.EPSG3857,
+                    zoom: 10,
+                    zoomControl: true,
+                    preferCanvas: false,
+                }
+            );
+            L.control.scale().addTo(map_7910a310d01dade24bda89f545391a10);
+
+            
+
+        
+    
+            var tile_layer_0b35e8251b18a4bb68e6795f22bf8771 = L.tileLayer(
+                "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                {"attribution": "Data by \u0026copy; \u003ca target=\"_blank\" href=\"http://openstreetmap.org\"\u003eOpenStreetMap\u003c/a\u003e, under \u003ca target=\"_blank\" href=\"http://www.openstreetmap.org/copyright\"\u003eODbL\u003c/a\u003e.", "detectRetina": false, "maxNativeZoom": 18, "maxZoom": 18, "minZoom": 0, "noWrap": false, "opacity": 1, "subdomains": "abc", "tms": false}
+            ).addTo(map_7910a310d01dade24bda89f545391a10);
+        
+    
+            var macro_element_99181c009e366b50950458a8efac2f39 = L.tileLayer.wms(
+                "http://localhost:8080/geoserver/wms",
+                {"attribution": "", "format": "image/png", "layers": ["dzielnice_osiedla_szczecin"], "styles": "", "transparent": true, "version": "1.1.1"}
+            ).addTo(map_7910a310d01dade24bda89f545391a10);
+        
+    
+            var macro_element_53ec4798ea39895991e042894b93d8c2 = L.tileLayer.wms(
+                "http://localhost:8080/geoserver/wms",
+                {"attribution": "", "format": "image/png", "layers": ["OT_BUBD_A"], "styles": "", "transparent": true, "version": "1.1.1"}
+            ).addTo(map_7910a310d01dade24bda89f545391a10);
+        
+    
+            var macro_element_8ac44ee501b18cef7ec7d1a2b57d8e95 = L.tileLayer.wms(
+                "http://localhost:8080/geoserver/wms",
+                {"attribution": "", "format": "image/png", "layers": ["OT_SKJZ_L"], "styles": "", "transparent": true, "version": "1.1.1"}
+            ).addTo(map_7910a310d01dade24bda89f545391a10);
+        
+    
+            var feature_group_f965677655d540a6058f986818adf194 = L.featureGroup(
+                {}
+            ).addTo(map_7910a310d01dade24bda89f545391a10);
+        
+    
+            var layer_control_e757c6776e379ae72ab3ad16d820ec75 = {
+                base_layers : {
+                    "openstreetmap" : tile_layer_0b35e8251b18a4bb68e6795f22bf8771,
+                },
+                overlays :  {
+                    "dzielnice" : macro_element_99181c009e366b50950458a8efac2f39,
+                    "budynki" : macro_element_53ec4798ea39895991e042894b93d8c2,
+                    "ulice" : macro_element_8ac44ee501b18cef7ec7d1a2b57d8e95,
+                    "compass rose" : feature_group_f965677655d540a6058f986818adf194,
+                },
+            };
+            L.control.layers(
+                layer_control_e757c6776e379ae72ab3ad16d820ec75.base_layers,
+                layer_control_e757c6776e379ae72ab3ad16d820ec75.overlays,
+                {"autoZIndex": true, "collapsed": true, "position": "topright"}
+            ).addTo(map_7910a310d01dade24bda89f545391a10);
+        
+</script>
+</html>
